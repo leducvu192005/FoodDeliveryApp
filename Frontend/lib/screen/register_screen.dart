@@ -65,7 +65,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: SingleChildScrollView(
           child: Container(
             width: double.infinity,
-            height: 650,
+            height: 600,
             padding: EdgeInsets.symmetric(vertical: 24, horizontal: 16),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -75,12 +75,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 60),
-                const Icon(Icons.food_bank, size: 80, color: Colors.deepOrange),
                 const Text(
-                  "REGISTER",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  "Nhập thông tin để đăng kí!",
+                  style: TextStyle(fontSize: 22),
                 ),
+                const Icon(Icons.food_bank, size: 80, color: Colors.deepOrange),
+
                 const SizedBox(height: 20),
 
                 TextField(

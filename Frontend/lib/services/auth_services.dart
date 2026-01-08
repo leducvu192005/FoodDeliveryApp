@@ -1,9 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  // SỬA Ở ĐÂY: Xóa dấu gạch chéo "/" ở cuối đi
   static const String baseUrl = "http://10.0.2.2:8000/auth";
 
   static Future<bool> register(
@@ -14,7 +12,6 @@ class AuthService {
   ) async {
     try {
       final res = await http.post(
-        // Lúc này nó sẽ ghép thành: .../auth/register (Chuẩn)
         Uri.parse("$baseUrl/register"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({

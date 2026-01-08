@@ -27,7 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (role != null) {
       switch (role) {
         case "buyer":
-          Navigator.pushReplacementNamed(context, "/buyer");
+          Navigator.pushReplacementNamed(context, "/buyer/layout");
           break;
         case "seller":
           Navigator.pushReplacementNamed(context, "/seller");
@@ -54,54 +54,60 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.deepOrange,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Container(
-          width: double.infinity,
-          height: 500,
-          padding: EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          alignment: Alignment.center,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                "Wellcome to Food Delivery",
-                style: TextStyle(fontSize: 22),
-              ),
-              const Icon(Icons.food_bank, size: 100, color: Colors.deepOrange),
-              TextField(
-                controller: emailCtrl,
-                style: const TextStyle(color: Colors.black, fontSize: 18),
-                decoration: const InputDecoration(
-                  labelText: "Email",
-                  border: OutlineInputBorder(),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Container(
+            width: double.infinity,
+            height: 500,
+            padding: EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  "Wellcome to Food Delivery",
+                  style: TextStyle(fontSize: 22),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: passCtrl,
-                decoration: const InputDecoration(
-                  labelText: "Password",
-                  border: OutlineInputBorder(),
+                const Icon(
+                  Icons.food_bank,
+                  size: 100,
+                  color: Colors.deepOrange,
                 ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: loading ? null : login,
-                child: loading
-                    ? const CircularProgressIndicator()
-                    : const Text("Login"),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pushNamed(context, "/register"),
-                child: const Text("Đăng ký"),
-              ),
-            ],
+                TextField(
+                  controller: emailCtrl,
+                  style: const TextStyle(color: Colors.black, fontSize: 18),
+                  decoration: const InputDecoration(
+                    labelText: "Email",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: passCtrl,
+                  decoration: const InputDecoration(
+                    labelText: "Password",
+                    border: OutlineInputBorder(),
+                  ),
+                  obscureText: true,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: loading ? null : login,
+                  child: loading
+                      ? const CircularProgressIndicator()
+                      : const Text("Login"),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pushNamed(context, "/register"),
+                  child: const Text("Đăng ký"),
+                ),
+              ],
+            ),
           ),
         ),
       ),

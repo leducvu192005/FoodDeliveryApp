@@ -3,6 +3,10 @@ from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
+from sqlalchemy.sql import  func
+from sqlalchemy import Column, Integer, String, Boolean, Numeric,ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.types import DateTime as Datetime
 Base = declarative_base()
 
 class User(Base):
@@ -51,3 +55,26 @@ class Topping(Base):
 
 
 
+class Product(Base):
+    __tablename__ = "products"
+    id = Column(Integer, primary_key = True, index = True)
+    name = Column(String, nullable = False)
+    description = Column(String, nullable = False)
+    price = Column(Numeric(10,2), nullable =False)
+    image_url = Column(String, nullable =True)
+    create_at = Column(Integer, nullable =False)
+class Coupon(Base):
+    __tablename__ = "coupons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, unique=True, index=True)
+    title = Column(String, nullable=True)
+    description = Column(String, nullable=True)
+    discount_type = Column(String, nullable=False)
+    discount_value = Column(Numeric(10,2), nullable=False)
+    min_order_value = Column(Numeric(10,2), nullable=True)
+    start_at = Column(Datetime, nullable=True)
+    end_at = Column(Datetime, nullable=True)
+    active = Column(Boolean, default=True)
+    create_by = Column(Integer,nullable=False)
+    create_at = Column(Datetime, server_default=func.now())
