@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 import 'product_card.dart';
 import 'foodpage.dart';
 import 'drinkpage.dart';
+import 'fastfood.dart';
+import '../../models/product.dart';
 
 class BuyerHome extends StatefulWidget {
   const BuyerHome({super.key});
@@ -124,10 +126,22 @@ class _BuyerHomeState extends State<BuyerHome> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 100,
         backgroundColor: const Color.fromRGBO(255, 87, 34, 1),
+        titleSpacing: 16,
         title: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const Text(
+              "Giao đến:",
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white70,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+
             Row(
               children: [
                 if (_locating)
@@ -140,28 +154,34 @@ class _BuyerHomeState extends State<BuyerHome> {
                     ),
                   ),
                 if (_locating) const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    _locationText,
-                    style: const TextStyle(fontSize: 12, color: Colors.white70),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+
+                Row(
+                  children: [
+                    Icon(Icons.location_on, size: 16, color: Colors.white70),
+                    Text(
+                      _locationText,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ],
             ),
-            Container(
+            const SizedBox(height: 10),
+            SizedBox(
               height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8.0),
-              ),
               child: TextField(
                 decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search, color: Colors.black),
-                  hintText: ' Search products...',
-                  hintStyle: const TextStyle(color: Colors.black),
+                  prefixIcon: const Icon(Icons.search),
+                  hintText: 'Search products...',
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.zero,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(7.0),
+                    borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide.none,
                   ),
                 ),
@@ -169,19 +189,6 @@ class _BuyerHomeState extends State<BuyerHome> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Lấy lại vị trí',
-            onPressed: () async {
-              setState(() {
-                _locating = true;
-                _locationText = 'Đang xác định vị trí...';
-              });
-              await _determineAndSetLocation();
-            },
-            icon: const Icon(Icons.my_location),
-          ),
-        ],
       ),
 
       body: SingleChildScrollView(
@@ -191,7 +198,7 @@ class _BuyerHomeState extends State<BuyerHome> {
             children: [
               const SizedBox(height: 12),
               SizedBox(
-                // Category items
+                // 2
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
@@ -217,47 +224,69 @@ class _BuyerHomeState extends State<BuyerHome> {
                         );
                       },
                     ),
+                    const SizedBox(width: 20),
+                    categoryItem(
+                      icon: Icons.restaurant,
+                      label: "Fast Food",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const Fastfood()),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 20),
+                    categoryItem(
+                      icon: Icons.rice_bowl,
+                      label: "Cơm",
+                      onTap: (() {}),
+                    ),
+                    const SizedBox(width: 20),
+                    categoryItem(
+                      icon: Icons.local_offer,
+                      label: "Khuyến mãi",
+                      onTap: (() {}),
+                    ),
                   ],
                 ),
               ),
 
               SizedBox(
                 height: 420,
-                child: FutureBuilder<List>(
-                  future: ProductService.fetchProducts(),
+                child: FutureBuilder<List<Product>>(
+                  future: ProductService.fetchProducts().then(
+                    (data) => data.cast<Product>(),
+                  ),
                   builder: (context, snap) {
                     if (snap.connectionState == ConnectionState.waiting) {
-                      return Center(child: CircularProgressIndicator());
+                      return const Center(child: CircularProgressIndicator());
                     }
                     if (snap.hasError) {
-                      return Center(child: Text('Lỗi tải sản phẩm'));
+                      return const Center(child: Text('Lỗi tải sản phẩm'));
                     }
-                    final products = snap.data ?? [];
-                    if (products.isEmpty)
-                      return Center(child: Text('Không có sản phẩm'));
+
+                    final List<Product> products = snap.data ?? [];
+
+                    if (products.isEmpty) {
+                      return const Center(child: Text('Không có sản phẩm'));
+                    }
+
                     return GridView.builder(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.66,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                      ),
                       itemCount: products.length,
-                      itemBuilder: (context, i) => ProductCard(
-                        product: products[i],
-                        onTap: () {
-                          // ví dụ: mở trang chi tiết (tạo route /product nếu cần)
-                          // Navigator.pushNamed(context, '/product', arguments: products[i]);
-                        },
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.75,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                          ),
+                      itemBuilder: (context, i) =>
+                          ProductCard(product: products[i], onTap: () {}),
                     );
                   },
                 ),
               ),
+
               SizedBox(
                 height: 120,
                 child: FutureBuilder<List<Coupon>>(
@@ -393,10 +422,14 @@ Widget categoryItem({
           width: 60,
           height: 60,
           decoration: BoxDecoration(
-            color: Colors.deepOrange,
+            color: const Color.fromARGB(255, 250, 232, 232),
             borderRadius: BorderRadius.circular(30),
           ),
-          child: Icon(icon, color: Colors.white, size: 30),
+          child: Icon(
+            icon,
+            color: const Color.fromARGB(255, 255, 60, 1),
+            size: 30,
+          ),
         ),
         SizedBox(height: 6),
         Text(label, style: TextStyle(fontSize: 12)),

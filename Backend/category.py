@@ -1,19 +1,24 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import psycopg2
+import os
+from dotenv import load_dotenv
 from typing import List, Optional
+
+# Load environment variables
+load_dotenv()
 
 router = APIRouter(prefix="/api/category", tags=["Category"])
 
-# Database connection function
+# Database connection function - dùng environment variables
 def get_db_connection():
     try:
         connection = psycopg2.connect(
-            host="localhost",          
-            database="FoodDeliveryApp", 
-            user="postgres",          
-            password="NKLog0204205@", 
-            port="5432"
+            host=os.getenv("DB_HOST", "localhost"),
+            database=os.getenv("DB_NAME", "Food_Delivery_App"),
+            user=os.getenv("DB_USER", "postgres"),
+            password=os.getenv("DB_PASSWORD", "192005"),
+            port=os.getenv("DB_PORT", "5432")
         )
         return connection
     except (Exception, psycopg2.Error) as error:

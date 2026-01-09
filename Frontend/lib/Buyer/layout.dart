@@ -38,7 +38,7 @@ class _LayoutState extends State<Layout> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
           BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_bag),
+            icon: Icon(Icons.receipt_long),
             label: "Order",
           ),
           BottomNavigationBarItem(

@@ -36,10 +36,10 @@ class ProductResponse(BaseModel):
     image_url: Optional[str]
     create_at: int
     class Config:
-        orm_mode = True
-class ProductCreateRequest(BaseModel):
-    name:str
-    description:str
+        from_orm = True
+class ProductCreate(BaseModel):
+    name: str
+    description: str
     price: float
     image_url: Optional[str]
     create_at: int
