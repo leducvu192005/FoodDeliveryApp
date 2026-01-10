@@ -1,31 +1,15 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-import psycopg2
-import os
-from dotenv import load_dotenv
 from typing import List, Optional
+from sqlalchemy.orm import Session
 
-# Load environment variables
-load_dotenv()
+from database import get_db
+from models import Dish
+from models import Category
 
 router = APIRouter(prefix="/api/dish", tags=["Dish"])
 
-# Database connection function - dùng environment variables
-def get_db_connection():
-    try:
-        connection = psycopg2.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            database=os.getenv("DB_NAME", "Food_Delivery_App"),
-            user=os.getenv("DB_USER", "postgres"),
-            password=os.getenv("DB_PASSWORD", ""),
-            port=os.getenv("DB_PORT", "5432")
-        )
-        return connection
-    except (Exception, psycopg2.Error) as error:
-        print(f"❌ Lỗi khi kết nối PostgreSQL: {error}")
-        raise HTTPException(status_code=500, detail="Database connection error")
-
-# Pydantic models
+# ===== Pydantic schemas =====
 class DishCreate(BaseModel):
     name: str
     img: Optional[str] = None
@@ -34,213 +18,125 @@ class DishCreate(BaseModel):
     description: Optional[str] = None
     group: Optional[str] = None
 
-class Dish(BaseModel):
+
+class DishResponse(BaseModel):
     id: int
     name: str
-    img: Optional[str] = None
+    img: Optional[str]
     price: float
     category_id: int
-    description: Optional[str] = None
-    group: Optional[str] = None
+    description: Optional[str]
+    group: Optional[str]
 
-# API endpoints
+    class Config:
+        from_attributes = True
+
+
+# ===== API =====
 @router.post("/", response_model=dict)
-async def create_dish(dish: DishCreate):
-    """Thêm món ăn mới"""
-    connection = None
-    try:
-        connection = get_db_connection()
-        cursor = connection.cursor()
-        
-        # Kiểm tra category_id có tồn tại không
-        cursor.execute("SELECT id FROM category WHERE id = %s", (dish.category_id,))
-        if not cursor.fetchone():
-            raise HTTPException(status_code=400, detail="Danh mục không tồn tại")
-        
-        # Kiểm tra xem món ăn đã tồn tại chưa
-        cursor.execute("SELECT id FROM dish WHERE name = %s AND category_id = %s", 
-                      (dish.name, dish.category_id))
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="Món ăn đã tồn tại trong danh mục này")
-        
-        # Thêm món ăn mới
-        cursor.execute(
-            """INSERT INTO dish (name, img, price, category_id, description, "group") 
-               VALUES (%s, %s, %s, %s, %s, %s) RETURNING id""",
-            (dish.name, dish.img, dish.price, dish.category_id, dish.description, dish.group)
-        )
-        dish_id = cursor.fetchone()[0]
-        connection.commit()
-        
-        cursor.close()
-        return {
-            "success": True,
-            "message": "Thêm món ăn thành công",
-            "dish_id": dish_id
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as error:
-        if connection:
-            connection.rollback()
-        print(f"❌ Lỗi: {error}")
-        raise HTTPException(status_code=500, detail=str(error))
-    finally:
-        if connection:
-            connection.close()
+def create_dish(
+    dish: DishCreate,
+    db: Session = Depends(get_db)
+):
+    # Check category tồn tại
+    category = db.query(Category).filter(Category.id == dish.category_id).first()
+    if not category:
+        raise HTTPException(status_code=400, detail="Danh mục không tồn tại")
 
-@router.get("/", response_model=List[Dish])
-async def get_dishes(category_id: Optional[int] = None):
-    """Lấy danh sách món ăn"""
-    connection = None
-    try:
-        connection = get_db_connection()
-        cursor = connection.cursor()
-        
-        if category_id:
-            cursor.execute(
-                """SELECT id, name, img, price, category_id, description, "group" 
-                   FROM dish WHERE category_id = %s ORDER BY id""",
-                (category_id,)
-            )
-        else:
-            cursor.execute(
-                """SELECT id, name, img, price, category_id, description, "group" 
-                   FROM dish ORDER BY id"""
-            )
-        
-        dishes = []
-        for row in cursor.fetchall():
-            dishes.append({
-                "id": row[0],
-                "name": row[1],
-                "img": row[2],
-                "price": float(row[3]),
-                "category_id": row[4],
-                "description": row[5],
-                "group": row[6]
-            })
-        
-        cursor.close()
-        return dishes
-        
-    except Exception as error:
-        print(f"❌ Lỗi: {error}")
-        raise HTTPException(status_code=500, detail=str(error))
-    finally:
-        if connection:
-            connection.close()
+    # Check món ăn trùng
+    existing = (
+        db.query(Dish)
+        .filter(Dish.name == dish.name, Dish.category_id == dish.category_id)
+        .first()
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail="Món ăn đã tồn tại trong danh mục này")
 
-@router.get("/{dish_id}", response_model=Dish)
-async def get_dish(dish_id: int):
-    """Lấy thông tin chi tiết một món ăn"""
-    connection = None
-    try:
-        connection = get_db_connection()
-        cursor = connection.cursor()
-        
-        cursor.execute(
-            """SELECT id, name, img, price, category_id, description, "group" 
-               FROM dish WHERE id = %s""",
-            (dish_id,)
-        )
-        row = cursor.fetchone()
-        
-        if not row:
-            raise HTTPException(status_code=404, detail="Không tìm thấy món ăn")
-        
-        cursor.close()
-        return {
-            "id": row[0],
-            "name": row[1],
-            "img": row[2],
-            "price": float(row[3]),
-            "category_id": row[4],
-            "description": row[5],
-            "group": row[6]
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as error:
-        print(f"❌ Lỗi: {error}")
-        raise HTTPException(status_code=500, detail=str(error))
-    finally:
-        if connection:
-            connection.close()
+    new_dish = Dish(
+        name=dish.name,
+        img=dish.img,
+        price=dish.price,
+        category_id=dish.category_id,
+        description=dish.description,
+        group=dish.group
+    )
+
+    db.add(new_dish)
+    db.commit()
+    db.refresh(new_dish)
+
+    return {
+        "success": True,
+        "message": "Thêm món ăn thành công",
+        "dish_id": new_dish.id
+    }
+
+
+@router.get("/", response_model=List[DishResponse])
+def get_dishes(
+    category_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(Dish)
+    if category_id:
+        query = query.filter(Dish.category_id == category_id)
+
+    return query.order_by(Dish.id).all()
+
+
+@router.get("/{dish_id}", response_model=DishResponse)
+def get_dish(
+    dish_id: int,
+    db: Session = Depends(get_db)
+):
+    dish = db.query(Dish).filter(Dish.id == dish_id).first()
+    if not dish:
+        raise HTTPException(status_code=404, detail="Không tìm thấy món ăn")
+    return dish
+
 
 @router.put("/{dish_id}", response_model=dict)
-async def update_dish(dish_id: int, dish: DishCreate):
-    """Cập nhật món ăn"""
-    connection = None
-    try:
-        connection = get_db_connection()
-        cursor = connection.cursor()
-        
-        # Kiểm tra xem món ăn có tồn tại không
-        cursor.execute("SELECT id FROM dish WHERE id = %s", (dish_id,))
-        if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail="Không tìm thấy món ăn")
-        
-        # Cập nhật món ăn
-        cursor.execute(
-            """UPDATE dish 
-               SET name = %s, img = %s, price = %s, category_id = %s, 
-                   description = %s, "group" = %s 
-               WHERE id = %s""",
-            (dish.name, dish.img, dish.price, dish.category_id, 
-             dish.description, dish.group, dish_id)
-        )
-        connection.commit()
-        
-        cursor.close()
-        return {
-            "success": True,
-            "message": "Cập nhật món ăn thành công"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as error:
-        if connection:
-            connection.rollback()
-        print(f"❌ Lỗi: {error}")
-        raise HTTPException(status_code=500, detail=str(error))
-    finally:
-        if connection:
-            connection.close()
+def update_dish(
+    dish_id: int,
+    dish: DishCreate,
+    db: Session = Depends(get_db)
+):
+    db_dish = db.query(Dish).filter(Dish.id == dish_id).first()
+    if not db_dish:
+        raise HTTPException(status_code=404, detail="Không tìm thấy món ăn")
+
+    # Check category tồn tại
+    if not db.query(Category).filter(Category.id == dish.category_id).first():
+        raise HTTPException(status_code=400, detail="Danh mục không tồn tại")
+
+    db_dish.name = dish.name
+    db_dish.img = dish.img
+    db_dish.price = dish.price
+    db_dish.category_id = dish.category_id
+    db_dish.description = dish.description
+    db_dish.group = dish.group
+
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Cập nhật món ăn thành công"
+    }
+
 
 @router.delete("/{dish_id}", response_model=dict)
-async def delete_dish(dish_id: int):
-    """Xóa món ăn"""
-    connection = None
-    try:
-        connection = get_db_connection()
-        cursor = connection.cursor()
-        
-        # Kiểm tra xem món ăn có tồn tại không
-        cursor.execute("SELECT id FROM dish WHERE id = %s", (dish_id,))
-        if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail="Không tìm thấy món ăn")
-        
-        # Xóa món ăn
-        cursor.execute("DELETE FROM dish WHERE id = %s", (dish_id,))
-        connection.commit()
-        
-        cursor.close()
-        return {
-            "success": True,
-            "message": "Xóa món ăn thành công"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as error:
-        if connection:
-            connection.rollback()
-        print(f"❌ Lỗi: {error}")
-        raise HTTPException(status_code=500, detail=str(error))
-    finally:
-        if connection:
-            connection.close()
+def delete_dish(
+    dish_id: int,
+    db: Session = Depends(get_db)
+):
+    dish = db.query(Dish).filter(Dish.id == dish_id).first()
+    if not dish:
+        raise HTTPException(status_code=404, detail="Không tìm thấy món ăn")
+
+    db.delete(dish)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Xóa món ăn thành công"
+    }
