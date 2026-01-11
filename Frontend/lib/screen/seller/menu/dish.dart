@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 import '../../../config/api_config.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AddDish extends StatefulWidget {
   @override
@@ -39,147 +40,120 @@ class _AddDishState extends State<AddDish> {
     super.dispose();
   }
 
+  // ================== LOAD CATEGORY ==================
   Future<void> _loadCategories() async {
     try {
       final response = await http.get(Uri.parse(ApiConfig.categoryUrl));
-
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List data = json.decode(response.body);
         setState(() {
           _categories = data.cast<Map<String, dynamic>>();
           _isLoadingCategories = false;
         });
       }
     } catch (e) {
-      setState(() {
-        _isLoadingCategories = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi tải danh mục: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _isLoadingCategories = false;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi tải danh mục: $e')));
     }
   }
 
-  Future<void> _pickImage() async {
-    try {
-      final XFile? pickedFile = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 85,
-      );
+  void _selectCategory() {
+    if (_isLoadingCategories) return;
 
-      if (pickedFile != null) {
-        setState(() {
-          _selectedImage = File(pickedFile.path);
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi chọn ảnh: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> _selectCategory() async {
-    if (_categories.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Chưa có danh mục nào'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    final selected = await showDialog<Map<String, dynamic>>(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Chọn danh mục'),
-        content: Container(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: _categories.length,
-            itemBuilder: (context, index) {
-              final category = _categories[index];
-              return ListTile(
-                title: Text(category['name']),
-                onTap: () => Navigator.pop(context, category),
-              );
-            },
-          ),
-        ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
+      builder: (_) {
+        return ListView.builder(
+          itemCount: _categories.length,
+          itemBuilder: (context, index) {
+            final category = _categories[index];
+            return ListTile(
+              title: Text(category['name']),
+              onTap: () {
+                setState(() {
+                  _selectedCategoryId = category['id'];
+                  _selectedCategoryName = category['name'];
+                });
+                Navigator.pop(context);
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ================== PICK IMAGE ==================
+  Future<void> _pickImage() async {
+    final XFile? pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 85,
     );
 
-    if (selected != null) {
+    if (pickedFile != null) {
       setState(() {
-        _selectedCategoryId = selected['id'];
-        _selectedCategoryName = selected['name'];
+        _selectedImage = File(pickedFile.path);
       });
     }
   }
 
+  // ================== UPLOAD IMAGE (LOGIC MỚI) ==================
+  Future<String?> _uploadImageToSupabase(File file) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final fileName = 'dishes/${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      await supabase.storage
+          .from('dish-images')
+          .upload(
+            fileName,
+            file,
+            fileOptions: const FileOptions(contentType: 'image/jpeg'),
+          );
+
+      return supabase.storage.from('dish-images').getPublicUrl(fileName);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi upload ảnh: $e')));
+      return null;
+    }
+  }
+
+  // ================== SAVE DISH (ĐÃ SỬA GỌN) ==================
   Future<void> _saveDish() async {
-    // Validation
-    if (_nameController.text.trim().isEmpty) {
+    if (_nameController.text.trim().isEmpty ||
+        _priceController.text.trim().isEmpty ||
+        _selectedCategoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Vui lòng nhập tên món'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Vui lòng nhập đủ thông tin')),
       );
       return;
     }
 
-    if (_priceController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Vui lòng nhập giá'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    if (_selectedCategoryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Vui lòng chọn danh mục'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    double? price = double.tryParse(_priceController.text.trim());
+    final price = double.tryParse(_priceController.text.trim());
     if (price == null || price <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Giá không hợp lệ'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Giá không hợp lệ')));
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // Chuyển ảnh sang base64 nếu có
-      String? imageBase64;
+      String? imageUrl;
+
       if (_selectedImage != null) {
-        final bytes = await _selectedImage!.readAsBytes();
-        imageBase64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        imageUrl = await _uploadImageToSupabase(_selectedImage!);
+        if (imageUrl == null) return;
       }
 
       final response = await http.post(
@@ -189,7 +163,7 @@ class _AddDishState extends State<AddDish> {
           'name': _nameController.text.trim(),
           'price': price,
           'category_id': _selectedCategoryId,
-          'img': imageBase64,
+          'img': imageUrl,
           'description': _descriptionController.text.trim().isEmpty
               ? null
               : _descriptionController.text.trim(),
@@ -200,38 +174,31 @@ class _AddDishState extends State<AddDish> {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(data['message'] ?? 'Thêm món ăn thành công'),
+          const SnackBar(
+            content: Text('Thêm món ăn thành công'),
             backgroundColor: Colors.green,
           ),
         );
         Navigator.pop(context, true);
       } else {
-        final error = json.decode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error['detail'] ?? 'Có lỗi xảy ra'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi lưu món ăn')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi kết nối: $e'), backgroundColor: Colors.red),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi kết nối: $e')));
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFF5F5F5),
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
@@ -239,7 +206,7 @@ class _AddDishState extends State<AddDish> {
           icon: Icon(Icons.arrow_back, color: Colors.green[700]),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
+        title: const Text(
           'Thêm món',
           style: TextStyle(color: Colors.black87, fontSize: 18),
         ),
@@ -264,11 +231,11 @@ class _AddDishState extends State<AddDish> {
                 ),
                 _buildInputRow(
                   "Mô tả",
-                  "VD: Cà chua + Khoai tây chiên + Tương ớt",
+                  "VD: Cà chua + Khoai tây chiên",
                   _descriptionController,
                   maxLines: 3,
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 _buildInputRow("Nhóm Topping", "VD: Topping", _groupController),
               ],
             ),

@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/coupon.dart';
-import 'package:flutter_application_1/services/product_service.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -11,6 +10,7 @@ import 'foodpage.dart';
 import 'drinkpage.dart';
 import 'fastfood.dart';
 import '../../models/product.dart';
+import 'package:flutter_application_1/services/dish.dart';
 
 class BuyerHome extends StatefulWidget {
   const BuyerHome({super.key});
@@ -254,7 +254,7 @@ class _BuyerHomeState extends State<BuyerHome> {
               SizedBox(
                 height: 420,
                 child: FutureBuilder<List<Product>>(
-                  future: ProductService.fetchProducts().then(
+                  future: DishService.fetchDishes().then(
                     (data) => data.cast<Product>(),
                   ),
                   builder: (context, snap) {

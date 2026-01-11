@@ -12,6 +12,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final emailCtrl = TextEditingController();
   final passCtrl = TextEditingController();
   bool loading = false;
+
   void login() async {
     setState(() => loading = true);
 
@@ -60,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Container(
             width: double.infinity,
             height: 500,
-            padding: EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -70,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text(
-                  "Wellcome to Food Delivery",
+                  "Welcome to Food Delivery",
                   style: TextStyle(fontSize: 22),
                 ),
                 const Icon(
@@ -80,7 +81,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 TextField(
                   controller: emailCtrl,
-                  style: const TextStyle(color: Colors.black, fontSize: 18),
                   decoration: const InputDecoration(
                     labelText: "Email",
                     border: OutlineInputBorder(),

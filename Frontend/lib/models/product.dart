@@ -1,31 +1,36 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 class Product {
   final int id;
   final String name;
-  final String? description;
+  final String? img;
   final double price;
-  final String? img; // thay imageUrl thành img
-  final int categoryId;
-  final String? group;
 
   Product({
     required this.id,
     required this.name,
-    required this.description,
-    required this.price,
     this.img,
-    required this.categoryId,
-    this.group,
+    required this.price,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
       id: json['id'],
-      name: json['name'] ?? '',
-      description: json['description'] ?? '',
-      price: (json['price'] as num).toDouble(),
+      name: json['name'],
       img: json['img'],
-      categoryId: json['category_id'] ?? 0,
-      group: json['group'],
+      price: (json['price'] as num).toDouble(),
     );
+  }
+
+  /// ✅ GIẢI MÃ BASE64 → BYTES
+  Uint8List? get imageBytes {
+    if (img == null) return null;
+
+    if (img!.startsWith('data:image')) {
+      final base64Str = img!.split(',').last;
+      return base64Decode(base64Str);
+    }
+    return null;
   }
 }

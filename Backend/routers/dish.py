@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from database import get_db
-from models import Dish
-from models import Category
+from models import Dish, Category
+from supabase_client import supabase
 
 router = APIRouter(prefix="/api/dish", tags=["Dish"])
 
@@ -32,18 +33,43 @@ class DishResponse(BaseModel):
         from_attributes = True
 
 
-# ===== API =====
+# ===== Upload image =====
+@router.post("/upload-image", response_model=dict)
+async def upload_dish_image(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+
+        file_name = f"dishes/{int(datetime.now().timestamp())}_{file.filename}"
+
+        supabase.storage.from_("dish-images").upload(
+            file_name,
+            content,
+            {
+                "content-type": file.content_type,
+                "upsert": True,
+            }
+        )
+
+        public_url = supabase.storage.from_("dish-images").get_public_url(file_name)
+
+        return {
+            "success": True,
+            "image_url": public_url
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ===== Create dish =====
 @router.post("/", response_model=dict)
 def create_dish(
     dish: DishCreate,
     db: Session = Depends(get_db)
 ):
-    # Check category tồn tại
     category = db.query(Category).filter(Category.id == dish.category_id).first()
     if not category:
         raise HTTPException(status_code=400, detail="Danh mục không tồn tại")
 
-    # Check món ăn trùng
     existing = (
         db.query(Dish)
         .filter(Dish.name == dish.name, Dish.category_id == dish.category_id)
@@ -72,6 +98,7 @@ def create_dish(
     }
 
 
+# ===== Get dishes =====
 @router.get("/", response_model=List[DishResponse])
 def get_dishes(
     category_id: Optional[int] = None,
@@ -84,6 +111,7 @@ def get_dishes(
     return query.order_by(Dish.id).all()
 
 
+# ===== Get single dish =====
 @router.get("/{dish_id}", response_model=DishResponse)
 def get_dish(
     dish_id: int,
@@ -95,6 +123,7 @@ def get_dish(
     return dish
 
 
+# ===== Update dish =====
 @router.put("/{dish_id}", response_model=dict)
 def update_dish(
     dish_id: int,
@@ -105,7 +134,6 @@ def update_dish(
     if not db_dish:
         raise HTTPException(status_code=404, detail="Không tìm thấy món ăn")
 
-    # Check category tồn tại
     if not db.query(Category).filter(Category.id == dish.category_id).first():
         raise HTTPException(status_code=400, detail="Danh mục không tồn tại")
 
@@ -124,6 +152,7 @@ def update_dish(
     }
 
 
+# ===== Delete dish =====
 @router.delete("/{dish_id}", response_model=dict)
 def delete_dish(
     dish_id: int,
