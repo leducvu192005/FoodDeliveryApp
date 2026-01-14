@@ -6,14 +6,15 @@ SECRET_KEY = "leducvu192005"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# ✅ ĐỔI TỪ BCRYPT SANG ARGON2
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def hash_password(password: str) -> str:
-    password = password[:72]
+    if not password:
+        raise ValueError("Password cannot be empty")
     return pwd_context.hash(password)
 
 def verify_password(password: str, hashed: str) -> bool:
-    password = password[:72]
     return pwd_context.verify(password, hashed)
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):

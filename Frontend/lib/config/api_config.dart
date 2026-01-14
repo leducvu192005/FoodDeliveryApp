@@ -19,4 +19,5 @@ class ApiConfig {
   static String get categoryUrl => '$baseUrl/api/category/';
   static String get dishUrl => '$baseUrl/api/dish/';
   static String get toppingUrl => '$baseUrl/api/topping/';
+    static String get profileUrl => '$baseUrl/profile/'; 
 }

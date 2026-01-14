@@ -4,30 +4,61 @@ import 'dart:convert';
 import 'dart:io';
 import '../../../config/api_config.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-class AddDish extends StatefulWidget {
+// ============================================================
+// DISH SCREEN - GỘP THÊM VÀ SỬA MÓN ĂN
+// ============================================================
+class DishScreen extends StatefulWidget {
+  final Map<String, dynamic>? dish; // null = thêm mới, có giá trị = sửa
+
+  DishScreen({this.dish});
+
   @override
-  _AddDishState createState() => _AddDishState();
+  _DishScreenState createState() => _DishScreenState();
 }
 
-class _AddDishState extends State<AddDish> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _priceController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _groupController = TextEditingController();
+class _DishScreenState extends State<DishScreen> {
+  // Controllers
+  late TextEditingController _nameController;
+  late TextEditingController _priceController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _groupController;
 
+  // State variables
   int? _selectedCategoryId;
   String _selectedCategoryName = "Chọn danh mục";
   List<Map<String, dynamic>> _categories = [];
   bool _isLoading = false;
   bool _isLoadingCategories = true;
   File? _selectedImage;
+  String? _existingImageBase64; // Dùng cho edit món
   final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
+    
+    // ===== KHỞI TẠO - Nếu edit thì load dữ liệu cũ =====
+    if (widget.dish != null) {
+      _nameController = TextEditingController(text: widget.dish!['name']);
+      _priceController = TextEditingController(
+        text: widget.dish!['price'].toString(),
+      );
+      _descriptionController = TextEditingController(
+        text: widget.dish!['description'] ?? '',
+      );
+      _groupController = TextEditingController(
+        text: widget.dish!['group'] ?? '',
+      );
+      _selectedCategoryId = widget.dish!['category_id'];
+      _existingImageBase64 = widget.dish!['img'];
+    } else {
+      _nameController = TextEditingController();
+      _priceController = TextEditingController();
+      _descriptionController = TextEditingController();
+      _groupController = TextEditingController();
+    }
+
     _loadCategories();
   }
 
@@ -40,7 +71,9 @@ class _AddDishState extends State<AddDish> {
     super.dispose();
   }
 
-  // ================== LOAD CATEGORY ==================
+  // ============================================================
+  // LOAD DANH SÁCH DANH MỤC
+  // ============================================================
   Future<void> _loadCategories() async {
     try {
       final response = await http.get(Uri.parse(ApiConfig.categoryUrl));
@@ -49,18 +82,35 @@ class _AddDishState extends State<AddDish> {
         setState(() {
           _categories = data.cast<Map<String, dynamic>>();
           _isLoadingCategories = false;
+
+          // Nếu đang edit, tìm tên category hiện tại
+          if (widget.dish != null) {
+            final currentCategory = _categories.firstWhere(
+              (cat) => cat['id'] == _selectedCategoryId,
+              orElse: () => {'name': 'Chọn danh mục'},
+            );
+            _selectedCategoryName = currentCategory['name'];
+          }
         });
       }
     } catch (e) {
-      _isLoadingCategories = false;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi tải danh mục: $e')));
+      setState(() {
+        _isLoadingCategories = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi tải danh mục: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
+  // ============================================================
+  // CHỌN DANH MỤC
+  // ============================================================
   void _selectCategory() {
-    if (_isLoadingCategories) return;
+    if (_isLoadingCategories || _categories.isEmpty) return;
 
     showModalBottomSheet(
       context: context,
@@ -88,115 +138,133 @@ class _AddDishState extends State<AddDish> {
     );
   }
 
-  // ================== PICK IMAGE ==================
+  // ============================================================
+  // CHỌN ẢNH TỪ GALLERY
+  // ============================================================
   Future<void> _pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 800,
-      maxHeight: 800,
-      imageQuality: 85,
-    );
-
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImage = File(pickedFile.path);
-      });
-    }
-  }
-
-  // ================== UPLOAD IMAGE (LOGIC MỚI) ==================
-  Future<String?> _uploadImageToSupabase(File file) async {
     try {
-      final supabase = Supabase.instance.client;
-      final fileName = 'dishes/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
 
-      await supabase.storage
-          .from('dish-images')
-          .upload(
-            fileName,
-            file,
-            fileOptions: const FileOptions(contentType: 'image/jpeg'),
-          );
-
-      return supabase.storage.from('dish-images').getPublicUrl(fileName);
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+          _existingImageBase64 = null; // Xóa ảnh cũ khi chọn ảnh mới
+        });
+      }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi upload ảnh: $e')));
-      return null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi chọn ảnh: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
-  // ================== SAVE DISH (ĐÃ SỬA GỌN) ==================
+  // ============================================================
+  // LƯU MÓN ĂN (THÊM MỚI HOẶC CẬP NHẬT)
+  // ============================================================
   Future<void> _saveDish() async {
+    // Validate
     if (_nameController.text.trim().isEmpty ||
         _priceController.text.trim().isEmpty ||
         _selectedCategoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập đủ thông tin')),
+        const SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin')),
       );
       return;
     }
 
     final price = double.tryParse(_priceController.text.trim());
     if (price == null || price <= 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Giá không hợp lệ')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Giá không hợp lệ')),
+      );
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      String? imageUrl;
-
+      // Xử lý ảnh: chọn ảnh mới hoặc giữ ảnh cũ
+      String? imageBase64;
       if (_selectedImage != null) {
-        imageUrl = await _uploadImageToSupabase(_selectedImage!);
-        if (imageUrl == null) return;
+        final bytes = await _selectedImage!.readAsBytes();
+        imageBase64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      } else if (_existingImageBase64 != null) {
+        imageBase64 = _existingImageBase64;
       }
 
-      final response = await http.post(
-        Uri.parse(ApiConfig.dishUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'name': _nameController.text.trim(),
-          'price': price,
-          'category_id': _selectedCategoryId,
-          'img': imageUrl,
-          'description': _descriptionController.text.trim().isEmpty
-              ? null
-              : _descriptionController.text.trim(),
-          'group': _groupController.text.trim().isEmpty
-              ? null
-              : _groupController.text.trim(),
-        }),
-      );
+      final body = {
+        'name': _nameController.text.trim(),
+        'price': price,
+        'category_id': _selectedCategoryId,
+        'img': imageBase64 ?? '',
+        'description': _descriptionController.text.trim().isEmpty
+            ? null
+            : _descriptionController.text.trim(),
+        'group': _groupController.text.trim().isEmpty
+            ? null
+            : _groupController.text.trim(),
+      };
+
+      // ===== PHÂN BIỆT THÊM MỚI VÀ SỬA =====
+      final bool isEdit = widget.dish != null;
+      final response = isEdit
+          ? await http.put(
+              Uri.parse('${ApiConfig.dishUrl}${widget.dish!['id']}'),
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode(body),
+            )
+          : await http.post(
+              Uri.parse(ApiConfig.dishUrl),
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode(body),
+            );
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Thêm món ăn thành công'),
+          SnackBar(
+            content: Text(
+              isEdit ? 'Cập nhật món ăn thành công' : 'Thêm món ăn thành công',
+            ),
             backgroundColor: Colors.green,
           ),
         );
         Navigator.pop(context, true);
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi lưu món ăn')));
+        final error = json.decode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error['detail'] ?? 'Có lỗi xảy ra'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi kết nối: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi kết nối: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
+  // ============================================================
+  // BUILD UI
+  // ============================================================
   @override
   Widget build(BuildContext context) {
+    final bool isEdit = widget.dish != null;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
@@ -206,8 +274,8 @@ class _AddDishState extends State<AddDish> {
           icon: Icon(Icons.arrow_back, color: Colors.green[700]),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Thêm món',
+        title: Text(
+          isEdit ? 'Sửa món' : 'Thêm món',
           style: TextStyle(color: Colors.black87, fontSize: 18),
         ),
       ),
@@ -246,7 +314,9 @@ class _AddDishState extends State<AddDish> {
     );
   }
 
-  // Widget cho các dòng nhập liệu văn bản
+  // ============================================================
+  // WIDGET: DÒNG NHẬP LIỆU VĂN BẢN
+  // ============================================================
   Widget _buildInputRow(
     String label,
     String placeholder,
@@ -292,7 +362,9 @@ class _AddDishState extends State<AddDish> {
     );
   }
 
-  // Widget cho phần tải ảnh món ăn
+  // ============================================================
+  // WIDGET: PHẦN TẢI ẢNH MÓN ĂN
+  // ============================================================
   Widget _buildImageUploadSection() {
     return Container(
       color: Colors.white,
@@ -339,19 +411,30 @@ class _AddDishState extends State<AddDish> {
                           borderRadius: BorderRadius.circular(4),
                           child: Image.file(_selectedImage!, fit: BoxFit.cover),
                         )
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.add, color: Colors.orange[800]),
-                            Text(
-                              "Tải ảnh",
-                              style: TextStyle(
-                                color: Colors.orange[800],
-                                fontSize: 12,
+                      : _existingImageBase64 != null &&
+                              _existingImageBase64!.isNotEmpty
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: Image.memory(
+                                base64Decode(
+                                  _existingImageBase64!.split(',').last,
+                                ),
+                                fit: BoxFit.cover,
                               ),
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add, color: Colors.orange[800]),
+                                Text(
+                                  "Tải ảnh",
+                                  style: TextStyle(
+                                    color: Colors.orange[800],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
                 ),
               ),
             ],
@@ -375,7 +458,9 @@ class _AddDishState extends State<AddDish> {
     );
   }
 
-  // Widget cho các dòng chọn (chuyển trang)
+  // ============================================================
+  // WIDGET: DÒNG CHỌN (CHUYỂN TRANG)
+  // ============================================================
   Widget _buildSelectionRow(
     String label,
     String value, {
@@ -405,7 +490,12 @@ class _AddDishState extends State<AddDish> {
     );
   }
 
+  // ============================================================
+  // WIDGET: NÚT LƯU Ở DƯỚI CÙNG
+  // ============================================================
   Widget _buildBottomButton() {
+    final bool isEdit = widget.dish != null;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16),
@@ -437,7 +527,7 @@ class _AddDishState extends State<AddDish> {
                 ),
               )
             : Text(
-                'Lưu',
+                isEdit ? 'Cập nhật' : 'Lưu',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,

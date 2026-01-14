@@ -1,68 +1,51 @@
+// Frontend/lib/screen/seller/menu/category.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../../config/api_config.dart';
 
-class AddCategory extends StatefulWidget {
+// ==================== SCREEN CHÍNH: QUẢN LÝ DANH MỤC ====================
+class CategoryManagementScreen extends StatefulWidget {
+  const CategoryManagementScreen({Key? key}) : super(key: key);
+
   @override
-  _AddCategoryState createState() => _AddCategoryState();
+  State<CategoryManagementScreen> createState() => _CategoryManagementScreenState();
 }
 
-class _AddCategoryState extends State<AddCategory> {
-  final TextEditingController _nameController = TextEditingController();
+class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
+  List<Map<String, dynamic>> _categories = [];
   bool _isLoading = false;
 
   @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadCategories();
   }
 
-  Future<void> _saveCategory() async {
-
-    if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Vui lòng nhập tên danh mục'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+  // ==================== 📥 LOAD DANH SÁCH CATEGORY ====================
+  Future<void> _loadCategories() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-    
-      final response = await http.post(
-        Uri.parse(ApiConfig.categoryUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'name': _nameController.text.trim()}),
-      );
-
+      final response = await http.get(Uri.parse(ApiConfig.categoryUrl));
+      
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          _categories = data.cast<Map<String, dynamic>>();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(data['message'] ?? 'Thêm danh mục thành công'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context, true); 
-      } else {
-        final error = json.decode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error['detail'] ?? 'Có lỗi xảy ra'),
+            content: Text('Lỗi tải dữ liệu: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi kết nối: $e'), backgroundColor: Colors.red),
-      );
     } finally {
       setState(() {
         _isLoading = false;
@@ -70,97 +53,372 @@ class _AddCategoryState extends State<AddCategory> {
     }
   }
 
+  // ==================== ➕ THÊM CATEGORY MỚI ====================
+  Future<void> _addCategory() async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => _CategoryDialog(
+        title: 'Thêm danh mục',
+        initialName: '',
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final response = await http.post(
+          Uri.parse(ApiConfig.categoryUrl),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'name': result}),
+        );
+
+        if (response.statusCode == 200) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Thêm danh mục thành công'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            _loadCategories(); // Reload danh sách
+          }
+        } else {
+          final error = json.decode(response.body);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(error['detail'] ?? 'Có lỗi xảy ra'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Lỗi kết nối: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // ==================== ✏️ SỬA CATEGORY ====================
+  Future<void> _editCategory(Map<String, dynamic> category) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => _CategoryDialog(
+        title: 'Sửa danh mục',
+        initialName: category['name'],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final response = await http.put(
+          Uri.parse('${ApiConfig.categoryUrl}${category['id']}'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'name': result}),
+        );
+
+        if (response.statusCode == 200) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Cập nhật danh mục thành công'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            _loadCategories(); // Reload danh sách
+          }
+        } else {
+          final error = json.decode(response.body);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(error['detail'] ?? 'Có lỗi xảy ra'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Lỗi kết nối: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // ==================== 🗑️ XÓA CATEGORY ====================
+  Future<void> _deleteCategory(int categoryId, String name) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Xác nhận xóa'),
+        content: Text('Bạn có chắc muốn xóa danh mục "$name"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Xóa', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.categoryUrl}$categoryId'),
+      );
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Xóa danh mục thành công'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          _loadCategories(); // Reload danh sách
+        }
+      } else {
+        final error = json.decode(response.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(error['detail'] ?? 'Có lỗi xảy ra'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi kết nối: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // ==================== 🎨 BUILD UI ====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.green[700]),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: Text(
-          'Thêm danh mục',
-          style: TextStyle(color: Colors.black87, fontSize: 18),
+          'Quản lý danh mục',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context, true), // ✅ Return true để reload
         ),
       ),
-      body: Column(
-        children: [
-          Container(
-            color: Colors.white,
-            margin: EdgeInsets.only(top: 8),
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              children: [
-                Text("Tên", style: TextStyle(fontSize: 16)),
-                Text("*", style: TextStyle(color: Colors.red)),
-                Expanded(
-                  child: TextField(
-                    controller: _nameController,
-                    textAlign: TextAlign.right,
-                    decoration: InputDecoration(
-                      hintText: "VD: Đồ uống",
-                      border: InputBorder.none,
-                      hintStyle: TextStyle(color: Colors.grey[300]),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Spacer(),
-          _buildBottomButton(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomButton() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: Offset(0, -3),
-          ),
-        ],
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: _isLoading ? null : _saveCategory,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green[700],
-            padding: EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          child: _isLoading
-              ? SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : _categories.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.category, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text(
+                        'Chưa có danh mục nào',
+                        style: TextStyle(color: Colors.grey, fontSize: 16),
+                      ),
+                      SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: _addCategory,
+                        icon: Icon(Icons.add),
+                        label: Text('Thêm danh mục đầu tiên'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal[900],
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 )
-              : Text(
-                  'Lưu',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+              : ListView.builder(
+                  padding: EdgeInsets.all(8),
+                  itemCount: _categories.length,
+                  itemBuilder: (context, index) {
+                    final category = _categories[index];
+                    return Card(
+                      margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      elevation: 2,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.teal[100],
+                          child: Icon(Icons.category, color: Colors.teal[900]),
+                        ),
+                        title: Text(
+                          category['name'],
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        subtitle: Text('ID: ${category['id']}'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // ✏️ NÚT SỬA
+                            IconButton(
+                              icon: Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _editCategory(category),
+                              tooltip: 'Sửa',
+                            ),
+                            // 🗑️ NÚT XÓA
+                            IconButton(
+                              icon: Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _deleteCategory(
+                                category['id'],
+                                category['name'],
+                              ),
+                              tooltip: 'Xóa',
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
-        ),
-      ),
+      // ➕ NÚT THÊM FLOATING
+      floatingActionButton: _categories.isNotEmpty
+          ? FloatingActionButton(
+              onPressed: _addCategory,
+              backgroundColor: Colors.teal[900],
+              child: Icon(Icons.add),
+              tooltip: 'Thêm danh mục',
+            )
+          : null,
     );
+  }
+}
+
+// ==================== 💬 DIALOG NHẬP TÊN CATEGORY ====================
+class _CategoryDialog extends StatefulWidget {
+  final String title;
+  final String initialName;
+
+  const _CategoryDialog({
+    required this.title,
+    required this.initialName,
+  });
+
+  @override
+  State<_CategoryDialog> createState() => _CategoryDialogState();
+}
+
+class _CategoryDialogState extends State<_CategoryDialog> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialName);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: 'Tên danh mục',
+          hintText: 'VD: Đồ uống',
+          border: OutlineInputBorder(),
+        ),
+        onSubmitted: (value) {
+          if (value.trim().isNotEmpty) {
+            Navigator.pop(context, value.trim());
+          }
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Hủy'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_controller.text.trim().isNotEmpty) {
+              Navigator.pop(context, _controller.text.trim());
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.teal[900],
+          ),
+          child: Text('Lưu'),
+        ),
+      ],
+    );
+  }
+}
+
+
+//  widget nhỏ gọn hơn trong menu
+class AddCategory extends StatelessWidget {
+  const AddCategory({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return CategoryManagementScreen();
   }
 }

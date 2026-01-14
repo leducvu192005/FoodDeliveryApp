@@ -3,20 +3,23 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../../config/api_config.dart';
 
-class AddToppingGroupScreen extends StatefulWidget {
-  final Map<String, dynamic>? topping;
+// ============================================================
+// TOPPING SCREEN - GỘP THÊM VÀ SỬA NHÓM TOPPING
+// ============================================================
+class ToppingScreen extends StatefulWidget {
+  final Map<String, dynamic>? topping; // null = thêm mới, có giá trị = sửa
 
-  AddToppingGroupScreen({this.topping});
+  ToppingScreen({this.topping});
 
   @override
-  _AddToppingGroupScreenState createState() => _AddToppingGroupScreenState();
+  _ToppingScreenState createState() => _ToppingScreenState();
 }
 
-class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
+class _ToppingScreenState extends State<ToppingScreen> {
   final TextEditingController _nameController = TextEditingController();
   List<Map<String, dynamic>> _toppingItems = []; // Danh sách các topping items
-  List<int> _selectedDishIds = [];
-  List<Map<String, dynamic>> _allDishes = [];
+  List<int> _selectedDishIds = []; // Danh sách món được chọn
+  List<Map<String, dynamic>> _allDishes = []; // Tất cả món để chọn
   bool _isLoading = false;
 
   @override
@@ -24,7 +27,7 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
     super.initState();
     _loadDishes();
 
-    // Nếu đang edit, load dữ liệu
+    // ===== KHỞI TẠO - Nếu edit thì load dữ liệu cũ =====
     if (widget.topping != null) {
       _nameController.text = widget.topping!['name'] ?? '';
       _toppingItems = List<Map<String, dynamic>>.from(
@@ -34,6 +37,15 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  // ============================================================
+  // LOAD DANH SÁCH TẤT CẢ MÓN ĂN
+  // ============================================================
   Future<void> _loadDishes() async {
     try {
       final response = await http.get(Uri.parse(ApiConfig.dishUrl));
@@ -44,15 +56,24 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
         });
       }
     } catch (e) {
-      print('Lỗi khi load món: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi khi load món: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
+  // ============================================================
+  // LƯU TOPPING (THÊM MỚI HOẶC CẬP NHẬT)
+  // ============================================================
   Future<void> _saveTopping() async {
+    // Validate
     if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Vui lòng nhập tên nhóm topping')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Vui lòng nhập tên nhóm topping')),
+      );
       return;
     }
 
@@ -63,29 +84,25 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      final url = widget.topping == null
-          ? ApiConfig.toppingUrl
-          : '${ApiConfig.toppingUrl}/${widget.topping!['id']}';
-
       final body = json.encode({
         'name': _nameController.text.trim(),
         'items': _toppingItems,
         'dish_ids': _selectedDishIds,
       });
 
-      final response = widget.topping == null
-          ? await http.post(
-              Uri.parse(url),
+      // ===== PHÂN BIỆT THÊM MỚI VÀ SỬA =====
+      final bool isEdit = widget.topping != null;
+      final response = isEdit
+          ? await http.put(
+              Uri.parse('${ApiConfig.toppingUrl}${widget.topping!['id']}'),
               headers: {'Content-Type': 'application/json'},
               body: body,
             )
-          : await http.put(
-              Uri.parse(url),
+          : await http.post(
+              Uri.parse(ApiConfig.toppingUrl),
               headers: {'Content-Type': 'application/json'},
               body: body,
             );
@@ -94,30 +111,38 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              widget.topping == null
-                  ? 'Thêm nhóm topping thành công'
-                  : 'Cập nhật nhóm topping thành công',
+              isEdit
+                  ? 'Cập nhật nhóm topping thành công'
+                  : 'Thêm nhóm topping thành công',
             ),
+            backgroundColor: Colors.green,
           ),
         );
         Navigator.pop(context, true);
       } else {
         final error = json.decode(response.body);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi: ${error['detail']}')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${error['detail']}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi kết nối: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi kết nối: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
+  // ============================================================
+  // HIỂN THỊ DIALOG CHỌN MÓN ÁP DỤNG
+  // ============================================================
   void _showDishSelector() {
     showModalBottomSheet(
       context: context,
@@ -178,11 +203,14 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
     );
   }
 
+  // ============================================================
+  // HIỂN THỊ DIALOG THÊM/SỬA TOPPING ITEM
+  // ============================================================
   void _showAddToppingItemDialog({int? editIndex}) {
     final TextEditingController nameController = TextEditingController();
     final TextEditingController priceController = TextEditingController();
 
-    // Nếu đang edit, load dữ liệu
+    // ===== Nếu đang sửa, load dữ liệu cũ =====
     if (editIndex != null) {
       nameController.text = _toppingItems[editIndex]['name'];
       priceController.text = _toppingItems[editIndex]['price'].toString();
@@ -233,13 +261,13 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
 
               setState(() {
                 if (editIndex == null) {
-                  // Thêm mới
+                  // ===== THÊM MỚI =====
                   _toppingItems.add({
                     'name': nameController.text.trim(),
                     'price': price,
                   });
                 } else {
-                  // Sửa
+                  // ===== SỬA =====
                   _toppingItems[editIndex] = {
                     'name': nameController.text.trim(),
                     'price': price,
@@ -257,6 +285,9 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
     );
   }
 
+  // ============================================================
+  // XÓA TOPPING ITEM
+  // ============================================================
   void _deleteToppingItem(int index) {
     showDialog(
       context: context,
@@ -271,7 +302,7 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
           ElevatedButton(
             onPressed: () {
               setState(() {
-                _toppingItems.removeAt(index);
+                _toppingItems.removeAt(index); // ===== XÓA =====
               });
               Navigator.pop(context);
             },
@@ -283,8 +314,13 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
     );
   }
 
+  // ============================================================
+  // BUILD UI
+  // ============================================================
   @override
   Widget build(BuildContext context) {
+    final bool isEdit = widget.topping != null;
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -293,7 +329,7 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          widget.topping == null ? 'Thêm nhóm Topping' : 'Sửa nhóm Topping',
+          isEdit ? 'Sửa nhóm Topping' : 'Thêm nhóm Topping',
           style: TextStyle(color: Colors.black, fontSize: 18),
         ),
         backgroundColor: Colors.white,
@@ -304,9 +340,11 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
           Expanded(
             child: ListView(
               children: [
+                // ===== Ô NHẬP TÊN NHÓM =====
                 _buildInputSection('Tên nhóm*', 'VD: Size', _nameController),
                 SizedBox(height: 8),
-                // Danh sách topping items
+
+                // ===== DANH SÁCH TOPPING ITEMS =====
                 Container(
                   color: Colors.white,
                   padding: EdgeInsets.symmetric(vertical: 8),
@@ -326,6 +364,7 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
                           ),
                         ),
                       ),
+                      // Hiển thị danh sách items
                       ..._toppingItems.asMap().entries.map((entry) {
                         int index = entry.key;
                         Map<String, dynamic> item = entry.value;
@@ -335,11 +374,13 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              // ===== NÚT SỬA =====
                               IconButton(
                                 icon: Icon(Icons.edit, color: Colors.blue),
                                 onPressed: () =>
                                     _showAddToppingItemDialog(editIndex: index),
                               ),
+                              // ===== NÚT XÓA =====
                               IconButton(
                                 icon: Icon(Icons.delete, color: Colors.red),
                                 onPressed: () => _deleteToppingItem(index),
@@ -348,6 +389,7 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
                           ),
                         );
                       }).toList(),
+                      // ===== NÚT THÊM TOPPING ITEM =====
                       InkWell(
                         onTap: () => _showAddToppingItemDialog(),
                         child: Container(
@@ -367,6 +409,8 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
                   ),
                 ),
                 SizedBox(height: 8),
+
+                // ===== CHỌN MÓN ÁP DỤNG =====
                 _buildListTile(
                   'Món đã liên kết',
                   trailingText: _selectedDishIds.isEmpty
@@ -377,7 +421,8 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
               ],
             ),
           ),
-          // Nút Lưu ở dưới cùng
+
+          // ===== NÚT LƯU Ở DƯỚI CÙNG =====
           Container(
             padding: EdgeInsets.all(16),
             child: ElevatedButton(
@@ -392,7 +437,7 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
               child: _isLoading
                   ? CircularProgressIndicator(color: Colors.white)
                   : Text(
-                      'Lưu',
+                      isEdit ? 'Cập nhật' : 'Lưu',
                       style: TextStyle(color: Colors.white, fontSize: 16),
                     ),
             ),
@@ -402,7 +447,9 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
     );
   }
 
-  // Widget cho ô nhập tên
+  // ============================================================
+  // WIDGET: Ô NHẬP TÊN
+  // ============================================================
   Widget _buildInputSection(
     String label,
     String hint,
@@ -421,9 +468,7 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
             child: TextField(
               controller: controller,
               textAlign: TextAlign.right,
-              keyboardType: isNumber
-                  ? TextInputType.number
-                  : TextInputType.text,
+              keyboardType: isNumber ? TextInputType.number : TextInputType.text,
               decoration: InputDecoration(
                 hintText: hint,
                 border: InputBorder.none,
@@ -435,7 +480,9 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
     );
   }
 
-  // Widget cho các dòng chọn (ListTile)
+  // ============================================================
+  // WIDGET: DÒNG CHỌN (ListTile)
+  // ============================================================
   Widget _buildListTile(
     String title, {
     String? trailingText,
@@ -458,11 +505,5 @@ class _AddToppingGroupScreenState extends State<AddToppingGroupScreen> {
         onTap: onTap,
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
   }
 }

@@ -78,3 +78,15 @@ class Coupon(Base):
     active = Column(Boolean, default=True)
     create_by = Column(Integer,nullable=False)
     create_at = Column(Datetime, server_default=func.now())
+
+
+class Profile(Base):
+    __tablename__ = "profile"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)  # Tên quán
+    
+    sdt = Column(String, nullable=True)  # Số điện thoại
+    live = Column(String, nullable=True)  # Địa chỉ
+    img = Column(Text, nullable=True)  # Ảnh đại diện 
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Liên kết với User 
