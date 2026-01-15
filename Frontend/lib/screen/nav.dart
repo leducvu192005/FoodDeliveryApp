@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'home/home.dart';
-import 'menu/menu.dart';
-import 'order/order.dart';
-import 'profile/profile.dart';
+import 'seller/home/home.dart';
+import 'seller/menu/menu.dart';
+import 'seller/order/order.dart';
+import 'seller/marketing/marketing.dart';
+import 'seller/profile/profile.dart';
 
 class SellerNavScreen extends StatefulWidget {
   const SellerNavScreen({super.key});
@@ -18,6 +19,7 @@ class _SellerNavScreenState extends State<SellerNavScreen> {
     SellerHomeScreen(),
     OrderScreen(),
     MenuScreen(),
+    MarketingScreen(),
     ProfileScreen(),
   ];
 
@@ -50,6 +52,11 @@ class _SellerNavScreenState extends State<SellerNavScreen> {
             icon: Icon(Icons.menu_book_outlined),
             activeIcon: Icon(Icons.menu_book),
             label: 'Thực đơn',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.campaign_outlined),
+            activeIcon: Icon(Icons.campaign),
+            label: 'Marketing',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),

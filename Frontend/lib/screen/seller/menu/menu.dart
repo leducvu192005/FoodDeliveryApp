@@ -405,37 +405,42 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
   }
 
   // ========== XÂY DỰNG CÁC NÚT FLOATING (CHỈNH SỬA, SẮP XẾP, THÊM) ==========
+    // ========== XÂY DỰNG CÁC NÚT FLOATING (CHỈNH SỬA, SẮP XẾP, THÊM) ==========
   Widget _buildFloatingButtons() {
+    final isOnDishTab = _tabController?.index == 0;
+    
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        // Nút chỉnh sửa danh mục (màu xanh dương, mini)
-        FloatingActionButton(
-          heroTag: 'edit_categories',
-          onPressed: _navigateToEditCategories,
-          backgroundColor: Colors.blue,
-          child: Icon(Icons.edit, color: Colors.white),
-          mini: true,
-        ),
-        SizedBox(height: 12),
+        // Nút chỉnh sửa danh mục (chỉ hiện ở tab món, màu xanh dương, mini)
+        if (isOnDishTab)
+          FloatingActionButton(
+            heroTag: 'edit_categories',
+            onPressed: _navigateToEditCategories,
+            backgroundColor: Colors.blue,
+            child: Icon(Icons.edit, color: Colors.white),
+            mini: true,
+          ),
+        if (isOnDishTab) SizedBox(height: 12),
         
-        // Nút sắp xếp (màu cam, mini)
-        FloatingActionButton(
-          heroTag: 'sort',
-          onPressed: _showSortDialog,
-          backgroundColor: Colors.orange,
-          child: Icon(Icons.sort, color: Colors.white),
-          mini: true,
-        ),
-        SizedBox(height: 12),
+        // Nút sắp xếp (chỉ hiện ở tab món, màu cam, mini)
+        if (isOnDishTab)
+          FloatingActionButton(
+            heroTag: 'sort',
+            onPressed: _showSortDialog,
+            backgroundColor: Colors.orange,
+            child: Icon(Icons.sort, color: Colors.white),
+            mini: true,
+          ),
+        if (isOnDishTab) SizedBox(height: 12),
         
         // Nút thêm chính (màu xanh lá, kích thước bình thường)
         FloatingActionButton(
           heroTag: 'add',
           onPressed: () {
             // Kiểm tra tab hiện tại để hiển thị options phù hợp
-            if (_tabController?.index == 0) {
+            if (isOnDishTab) {
               _showAddOptionsForDishTab(context); // Tab món ăn
             } else {
               _showAddOptionsForToppingTab(context); // Tab topping
@@ -447,8 +452,8 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
       ],
     );
   }
-
   // ========== XÂY DỰNG GIAO DIỆN CHÍNH ==========
+   // ========== XÂY DỰNG GIAO DIỆN CHÍNH ==========
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -466,6 +471,9 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
           labelColor: Colors.teal[900],
           unselectedLabelColor: Colors.grey,
           labelStyle: TextStyle(fontWeight: FontWeight.bold),
+          onTap: (index) {
+            setState(() {}); // Rebuild để cập nhật floating buttons
+          },
           tabs: [
             Tab(text: 'Món'), // Tab danh sách món
             Tab(text: 'Tuỳ chọn nhóm'), // Tab danh sách topping
@@ -482,7 +490,6 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
       floatingActionButton: _buildFloatingButtons(), // Các nút floating
     );
   }
-
   // ========== NỘI DUNG TAB MÓN ĂN ==========
   Widget _buildDishTabContent() {
     return Column(
@@ -549,6 +556,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
   }
 
   // ========== NỘI DUNG TAB TOPPING ==========
+    // ========== NỘI DUNG TAB TOPPING (CLICK VÀO ĐỂ CHỈNH SỬA) ==========
   Widget _buildOptionGroupTabContent() {
     if (_isLoading) {
       return Center(child: CircularProgressIndicator()); // Đang tải
@@ -590,18 +598,46 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               subtitle: Text('${items.length} tùy chọn'),
-              trailing: IconButton(
-                icon: Icon(Icons.more_vert, color: Colors.grey),
-                onPressed: () => _showToppingOptions(context, topping),
-              ),
-              onTap: () => _showToppingOptions(context, topping),
+              // ===== BỎ TRAILING (NÚT 3 CHẤM) =====
+              // ===== CLICK VÀO ĐỂ CHỈNH SỬA =====
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ToppingScreen(topping: topping), // Mở màn hình sửa
+                  ),
+                );
+                if (result == true) _loadData(); // Tải lại nếu có thay đổi
+              },
+              // ===== NHẤN GIỮ ĐỂ XÓA =====
+              onLongPress: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text('Xác nhận xóa'),
+                    content: Text('Bạn có chắc muốn xóa nhóm topping "${topping['name']}"?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: Text('Hủy'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: Text('Xóa', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  _deleteTopping(topping['id'], topping['name']);
+                }
+              },
             ),
           );
         },
       ),
     );
   }
-
   // ========== HIỂN THỊ TỪNG MÓN ĂN ==========
   Widget _buildDishItem(Map<String, dynamic> dish) {
     return Container(

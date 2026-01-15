@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/Buyer/order.dart';
-import '../Buyer/cart.dart';
-import '../Buyer/buyer_home.dart';
-import '../Buyer/profile.dart';
+import 'package:flutter_application_1/screen/Buyer/order.dart';
+import 'cart.dart';
+import 'buyer_home.dart';
+import 'profile.dart';
 
 class Layout extends StatefulWidget {
   const Layout({super.key});

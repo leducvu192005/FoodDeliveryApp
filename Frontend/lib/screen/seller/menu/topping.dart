@@ -3,9 +3,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../../config/api_config.dart';
 
-// ============================================================
-// TOPPING SCREEN - GỘP THÊM VÀ SỬA NHÓM TOPPING
-// ============================================================
 class ToppingScreen extends StatefulWidget {
   final Map<String, dynamic>? topping; // null = thêm mới, có giá trị = sửa
 
@@ -16,23 +13,28 @@ class ToppingScreen extends StatefulWidget {
 }
 
 class _ToppingScreenState extends State<ToppingScreen> {
-  final TextEditingController _nameController = TextEditingController();
-  List<Map<String, dynamic>> _toppingItems = []; // Danh sách các topping items
-  List<int> _selectedDishIds = []; // Danh sách món được chọn
-  List<Map<String, dynamic>> _allDishes = []; // Tất cả món để chọn
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _minController = TextEditingController();
+  final _maxController = TextEditingController();
+  
+  List<Map<String, dynamic>> _items = []; // Danh sách các item trong nhóm topping
+  List<Map<String, dynamic>> _allDishes = []; // Danh sách tất cả món ăn
+  List<int> _selectedDishIds = []; // ID các món đã chọn
+  
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _loadDishes();
-
-    // ===== KHỞI TẠO - Nếu edit thì load dữ liệu cũ =====
+    
+    // Nếu đang sửa, load dữ liệu topping
     if (widget.topping != null) {
       _nameController.text = widget.topping!['name'] ?? '';
-      _toppingItems = List<Map<String, dynamic>>.from(
-        widget.topping!['items'] ?? [],
-      );
+      _minController.text = widget.topping!['min']?.toString() ?? '0';
+      _maxController.text = widget.topping!['max']?.toString() ?? '1';
+      _items = List<Map<String, dynamic>>.from(widget.topping!['items'] ?? []);
       _selectedDishIds = List<int>.from(widget.topping!['dish_ids'] ?? []);
     }
   }
@@ -40,206 +42,56 @@ class _ToppingScreenState extends State<ToppingScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _minController.dispose();
+    _maxController.dispose();
     super.dispose();
   }
 
-  // ============================================================
-  // LOAD DANH SÁCH TẤT CẢ MÓN ĂN
-  // ============================================================
+  // ========== TẢI DANH SÁCH MÓN ĂN ==========
   Future<void> _loadDishes() async {
     try {
       final response = await http.get(Uri.parse(ApiConfig.dishUrl));
       if (response.statusCode == 200) {
-        final List<dynamic> dishData = json.decode(response.body);
+        final List<dynamic> data = json.decode(response.body);
         setState(() {
-          _allDishes = dishData.cast<Map<String, dynamic>>();
+          _allDishes = data.cast<Map<String, dynamic>>();
         });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi khi load món: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Lỗi tải danh sách món: $e'), backgroundColor: Colors.red),
       );
     }
   }
 
-  // ============================================================
-  // LƯU TOPPING (THÊM MỚI HOẶC CẬP NHẬT)
-  // ============================================================
-  Future<void> _saveTopping() async {
-    // Validate
-    if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vui lòng nhập tên nhóm topping')),
-      );
-      return;
-    }
-
-    if (_toppingItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vui lòng thêm ít nhất một topping')),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final body = json.encode({
-        'name': _nameController.text.trim(),
-        'items': _toppingItems,
-        'dish_ids': _selectedDishIds,
-      });
-
-      // ===== PHÂN BIỆT THÊM MỚI VÀ SỬA =====
-      final bool isEdit = widget.topping != null;
-      final response = isEdit
-          ? await http.put(
-              Uri.parse('${ApiConfig.toppingUrl}${widget.topping!['id']}'),
-              headers: {'Content-Type': 'application/json'},
-              body: body,
-            )
-          : await http.post(
-              Uri.parse(ApiConfig.toppingUrl),
-              headers: {'Content-Type': 'application/json'},
-              body: body,
-            );
-
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isEdit
-                  ? 'Cập nhật nhóm topping thành công'
-                  : 'Thêm nhóm topping thành công',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context, true);
-      } else {
-        final error = json.decode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: ${error['detail']}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi kết nối: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  // ============================================================
-  // HIỂN THỊ DIALOG CHỌN MÓN ÁP DỤNG
-  // ============================================================
-  void _showDishSelector() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
-          height: MediaQuery.of(context).size.height * 0.7,
-          padding: EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Text(
-                'Chọn món áp dụng',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 16),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _allDishes.length,
-                  itemBuilder: (context, index) {
-                    final dish = _allDishes[index];
-                    final dishId = dish['id'];
-                    final isSelected = _selectedDishIds.contains(dishId);
-
-                    return CheckboxListTile(
-                      title: Text(dish['name']),
-                      subtitle: Text('đ ${dish['price']}'),
-                      value: isSelected,
-                      onChanged: (bool? value) {
-                        setModalState(() {
-                          if (value == true) {
-                            _selectedDishIds.add(dishId);
-                          } else {
-                            _selectedDishIds.remove(dishId);
-                          }
-                        });
-                        setState(() {}); // Cập nhật UI chính
-                      },
-                    );
-                  },
-                ),
-              ),
-              SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal[900],
-                  minimumSize: Size(double.infinity, 50),
-                ),
-                child: Text('Xong', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // HIỂN THỊ DIALOG THÊM/SỬA TOPPING ITEM
-  // ============================================================
-  void _showAddToppingItemDialog({int? editIndex}) {
-    final TextEditingController nameController = TextEditingController();
-    final TextEditingController priceController = TextEditingController();
-
-    // ===== Nếu đang sửa, load dữ liệu cũ =====
-    if (editIndex != null) {
-      nameController.text = _toppingItems[editIndex]['name'];
-      priceController.text = _toppingItems[editIndex]['price'].toString();
-    }
+  // ========== HIỂN THỊ DIALOG THÊM TOPPING ITEM ==========
+  void _showAddToppingItemDialog() {
+    final nameController = TextEditingController();
+    final priceController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(editIndex == null ? 'Thêm Topping' : 'Sửa Topping'),
+        title: Text('Thêm tùy chọn'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
               decoration: InputDecoration(
-                labelText: 'Tên topping*',
-                hintText: 'VD: Size M',
+                labelText: 'Tên tùy chọn *',
                 border: OutlineInputBorder(),
               ),
             ),
-            SizedBox(height: 16),
+            SizedBox(height: 12),
             TextField(
               controller: priceController,
-              keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                labelText: 'Giá tiền*',
-                hintText: 'VD: 5000',
+                labelText: 'Giá *',
                 border: OutlineInputBorder(),
+                suffixText: 'đ',
               ),
+              keyboardType: TextInputType.number,
             ),
           ],
         ),
@@ -250,50 +102,59 @@ class _ToppingScreenState extends State<ToppingScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (nameController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Vui lòng nhập tên topping')),
-                );
-                return;
-              }
-
-              final price = double.tryParse(priceController.text) ?? 0;
-
-              setState(() {
-                if (editIndex == null) {
-                  // ===== THÊM MỚI =====
-                  _toppingItems.add({
-                    'name': nameController.text.trim(),
-                    'price': price,
+              if (nameController.text.isNotEmpty && priceController.text.isNotEmpty) {
+                setState(() {
+                  _items.add({
+                    'name': nameController.text,
+                    'price': int.tryParse(priceController.text) ?? 0,
                   });
-                } else {
-                  // ===== SỬA =====
-                  _toppingItems[editIndex] = {
-                    'name': nameController.text.trim(),
-                    'price': price,
-                  };
-                }
-              });
-
-              Navigator.pop(context);
+                });
+                Navigator.pop(context);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Vui lòng điền đầy đủ thông tin')),
+                );
+              }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal[900]),
-            child: Text('Lưu', style: TextStyle(color: Colors.white)),
+            child: Text('Thêm'),
           ),
         ],
       ),
     );
   }
 
-  // ============================================================
-  // XÓA TOPPING ITEM
-  // ============================================================
-  void _deleteToppingItem(int index) {
+  // ========== HIỂN THỊ DIALOG SỬA TOPPING ITEM ==========
+  void _showEditToppingItemDialog(int index) {
+    final item = _items[index];
+    final nameController = TextEditingController(text: item['name']);
+    final priceController = TextEditingController(text: item['price'].toString());
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Xóa topping'),
-        content: Text('Bạn có chắc muốn xóa topping này?'),
+        title: Text('Sửa tùy chọn'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: InputDecoration(
+                labelText: 'Tên tùy chọn *',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 12),
+            TextField(
+              controller: priceController,
+              decoration: InputDecoration(
+                labelText: 'Giá *',
+                border: OutlineInputBorder(),
+                suffixText: 'đ',
+              ),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -301,208 +162,433 @@ class _ToppingScreenState extends State<ToppingScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              setState(() {
-                _toppingItems.removeAt(index); // ===== XÓA =====
-              });
-              Navigator.pop(context);
+              if (nameController.text.isNotEmpty && priceController.text.isNotEmpty) {
+                setState(() {
+                  _items[index] = {
+                    'name': nameController.text,
+                    'price': int.tryParse(priceController.text) ?? 0,
+                  };
+                });
+                Navigator.pop(context);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Vui lòng điền đầy đủ thông tin')),
+                );
+              }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('Xóa', style: TextStyle(color: Colors.white)),
+            child: Text('Lưu'),
           ),
         ],
       ),
     );
   }
 
-  // ============================================================
-  // BUILD UI
-  // ============================================================
+  // ========== XÓA TOPPING ITEM ==========
+  void _deleteToppingItem(int index) async {
+    final item = _items[index];
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Xác nhận xóa'),
+        content: Text('Bạn có chắc muốn xóa tùy chọn "${item['name']}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Xóa', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() {
+        _items.removeAt(index);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đã xóa tùy chọn'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  // ========== HIỂN THỊ DIALOG CHỌN MÓN ÁP DỤNG ==========
+  void _showSelectDishesDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Chọn món áp dụng'),
+        content: Container(
+          width: double.maxFinite,
+          child: _allDishes.isEmpty
+              ? Center(child: Text('Chưa có món nào'))
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _allDishes.length,
+                  itemBuilder: (context, index) {
+                    final dish = _allDishes[index];
+                    final dishId = dish['id'];
+                    final isSelected = _selectedDishIds.contains(dishId);
+                    
+                    return CheckboxListTile(
+                      title: Text(dish['name']),
+                      subtitle: Text('${dish['price']}đ'),
+                      value: isSelected,
+                      onChanged: (bool? value) {
+                        setState(() {
+                          if (value == true) {
+                            _selectedDishIds.add(dishId);
+                          } else {
+                            _selectedDishIds.remove(dishId);
+                          }
+                        });
+                        Navigator.pop(context);
+                        _showSelectDishesDialog(); // Refresh dialog
+                      },
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ========== LƯU TOPPING ==========
+  Future<void> _saveTopping() async {
+    if (!_formKey.currentState!.validate()) return;
+    
+    if (_items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Vui lòng thêm ít nhất 1 tùy chọn')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final data = {
+        'name': _nameController.text,
+        'min': int.tryParse(_minController.text) ?? 0,
+        'max': int.tryParse(_maxController.text) ?? 1,
+        'items': _items,
+        'dish_ids': _selectedDishIds,
+      };
+
+      final response = widget.topping == null
+          ? await http.post(
+              Uri.parse(ApiConfig.toppingUrl),
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode(data),
+            )
+          : await http.put(
+              Uri.parse('${ApiConfig.toppingUrl}${widget.topping!['id']}'),
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode(data),
+            );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.topping == null ? 'Thêm nhóm topping thành công' : 'Cập nhật nhóm topping thành công'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, true);
+      } else {
+        throw Exception('Lỗi: ${response.body}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // ========== XÓA TOPPING ==========
+  Future<void> _deleteTopping() async {
+    // Hiển thị dialog xác nhận
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Xác nhận xóa'),
+        content: Text('Bạn có chắc muốn xóa nhóm topping "${_nameController.text}"?\n\nHành động này không thể hoàn tác.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Xóa', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.toppingUrl}${widget.topping!['id']}'),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Xóa nhóm topping thành công'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, true); // Trả về true để reload data
+      } else {
+        throw Exception('Lỗi: ${response.body}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi xóa: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isEdit = widget.topping != null;
-
+    
     return Scaffold(
-      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.orange),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          isEdit ? 'Sửa nhóm Topping' : 'Thêm nhóm Topping',
-          style: TextStyle(color: Colors.black, fontSize: 18),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0.5,
+        title: Text(isEdit ? 'Sửa nhóm topping' : 'Thêm nhóm topping'),
+        backgroundColor: Colors.teal[900],
+        foregroundColor: Colors.white,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              children: [
-                // ===== Ô NHẬP TÊN NHÓM =====
-                _buildInputSection('Tên nhóm*', 'VD: Size', _nameController),
-                SizedBox(height: 8),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: EdgeInsets.all(16),
+          children: [
+            // ===== TÊN NHÓM TOPPING =====
+            TextFormField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Tên nhóm topping *',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.label),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Vui lòng nhập tên nhóm topping';
+                }
+                return null;
+              },
+            ),
+            SizedBox(height: 16),
 
-                // ===== DANH SÁCH TOPPING ITEMS =====
-                Container(
-                  color: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: Text(
-                          'Các topping*',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+            // ===== MIN/MAX =====
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _minController,
+                    decoration: InputDecoration(
+                      labelText: 'Tối thiểu',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _maxController,
+                    decoration: InputDecoration(
+                      labelText: 'Tối đa',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 24),
+
+            // ===== DANH SÁCH CÁC TÙY CHỌN =====
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Danh sách tùy chọn (${_items.length})',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _showAddToppingItemDialog,
+                  icon: Icon(Icons.add),
+                  label: Text('Thêm'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal[900],
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12),
+            
+            // Hiển thị các item với nút sửa/xóa
+            ..._items.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              return Card(
+                margin: EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.teal[100],
+                    child: Text(
+                      '${index + 1}',
+                      style: TextStyle(
+                        color: Colors.teal[900],
+                        fontWeight: FontWeight.bold,
                       ),
-                      // Hiển thị danh sách items
-                      ..._toppingItems.asMap().entries.map((entry) {
-                        int index = entry.key;
-                        Map<String, dynamic> item = entry.value;
-                        return ListTile(
-                          title: Text(item['name']),
-                          subtitle: Text('đ ${item['price']}'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // ===== NÚT SỬA =====
-                              IconButton(
-                                icon: Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () =>
-                                    _showAddToppingItemDialog(editIndex: index),
-                              ),
-                              // ===== NÚT XÓA =====
-                              IconButton(
-                                icon: Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _deleteToppingItem(index),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      // ===== NÚT THÊM TOPPING ITEM =====
-                      InkWell(
-                        onTap: () => _showAddToppingItemDialog(),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          alignment: Alignment.center,
-                          child: Text(
-                            '+ Thêm Topping',
-                            style: TextStyle(
-                              color: Colors.teal[700],
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
+                    ),
+                  ),
+                  title: Text(
+                    item['name'],
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: Text(
+                    '+${item['price']}đ',
+                    style: TextStyle(
+                      color: Colors.green[700],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Nút sửa
+                      IconButton(
+                        icon: Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () => _showEditToppingItemDialog(index),
+                        tooltip: 'Sửa',
+                      ),
+                      // Nút xóa
+                      IconButton(
+                        icon: Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _deleteToppingItem(index),
+                        tooltip: 'Xóa',
                       ),
                     ],
                   ),
                 ),
-                SizedBox(height: 8),
+              );
+            }).toList(),
+            
+            SizedBox(height: 24),
 
-                // ===== CHỌN MÓN ÁP DỤNG =====
-                _buildListTile(
-                  'Món đã liên kết',
-                  trailingText: _selectedDishIds.isEmpty
-                      ? 'Chọn món áp dụng'
-                      : '${_selectedDishIds.length} món',
-                  onTap: _showDishSelector,
+            // ===== CHỌN MÓN ÁP DỤNG =====
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Áp dụng cho món (${_selectedDishIds.length})',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _showSelectDishesDialog,
+                  icon: Icon(Icons.restaurant_menu),
+                  label: Text('Chọn món'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
               ],
             ),
-          ),
+            SizedBox(height: 12),
+            
+            // Hiển thị các món đã chọn
+            ..._selectedDishIds.map((dishId) {
+              final dish = _allDishes.firstWhere(
+                (d) => d['id'] == dishId,
+                orElse: () => {'name': 'Không tìm thấy', 'price': 0},
+              );
+              return Card(
+                margin: EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: Icon(Icons.check_circle, color: Colors.green),
+                  title: Text(dish['name']),
+                  subtitle: Text('${dish['price']}đ'),
+                  trailing: IconButton(
+                    icon: Icon(Icons.remove_circle, color: Colors.red),
+                    onPressed: () {
+                      setState(() {
+                        _selectedDishIds.remove(dishId);
+                      });
+                    },
+                  ),
+                ),
+              );
+            }).toList(),
+            
+            SizedBox(height: 32),
 
-          // ===== NÚT LƯU Ở DƯỚI CÙNG =====
-          Container(
-            padding: EdgeInsets.all(16),
-            child: ElevatedButton(
+            // ===== NÚT LƯU/CẬP NHẬT =====
+            ElevatedButton(
               onPressed: _isLoading ? null : _saveTopping,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepOrange,
-                minimumSize: Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                backgroundColor: Colors.teal[900],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 16),
               ),
               child: _isLoading
                   ? CircularProgressIndicator(color: Colors.white)
                   : Text(
-                      isEdit ? 'Cập nhật' : 'Lưu',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
+                      isEdit ? 'Cập nhật' : 'Thêm mới',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  // ============================================================
-  // WIDGET: Ô NHẬP TÊN
-  // ============================================================
-  Widget _buildInputSection(
-    String label,
-    String hint,
-    TextEditingController controller, {
-    bool isNumber = false,
-  }) {
-    return Container(
-      color: Colors.white,
-      margin: EdgeInsets.only(bottom: 1),
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Text(label, style: TextStyle(fontSize: 15)),
-          SizedBox(width: 20),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              textAlign: TextAlign.right,
-              keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-              decoration: InputDecoration(
-                hintText: hint,
-                border: InputBorder.none,
+            // ===== NÚT XÓA (CHỈ HIỆN KHI ĐANG SỬA) =====
+            if (isEdit) ...[
+              SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: _isLoading ? null : _deleteTopping,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: BorderSide(color: Colors.red, width: 2),
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: Text(
+                  'Xóa nhóm topping',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // WIDGET: DÒNG CHỌN (ListTile)
-  // ============================================================
-  Widget _buildListTile(
-    String title, {
-    String? trailingText,
-    Widget? trailing,
-    VoidCallback? onTap,
-  }) {
-    return Container(
-      margin: EdgeInsets.only(top: 1),
-      color: Colors.white,
-      child: ListTile(
-        title: Text(title, style: TextStyle(fontSize: 15)),
-        trailing: Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            if (trailingText != null)
-              Text(trailingText, style: TextStyle(color: Colors.grey)),
-            trailing ?? Icon(Icons.chevron_right, size: 20),
+            ],
           ],
         ),
-        onTap: onTap,
       ),
     );
   }

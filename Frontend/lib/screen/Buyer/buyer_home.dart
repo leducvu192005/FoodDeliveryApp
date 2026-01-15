@@ -9,7 +9,7 @@ import 'product_card.dart';
 import 'foodpage.dart';
 import 'drinkpage.dart';
 import 'fastfood.dart';
-import '../../models/product.dart';
+import '../../../models/product.dart';
 import 'package:flutter_application_1/services/dish.dart';
 
 class BuyerHome extends StatefulWidget {

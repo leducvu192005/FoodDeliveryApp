@@ -71,6 +71,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  // ========== ĐĂNG XUẤT ==========
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Xác nhận đăng xuất'),
+        content: Text('Bạn có chắc muốn đăng xuất?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Đăng xuất', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      // Xóa token hoặc session ở đây nếu có
+      // await TokenStorage.deleteToken();
+      
+      // Quay về màn hình login
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/login',
+        (route) => false,
+      );
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đăng xuất thành công'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
   // ========== BUILD UI ==========
   @override
   Widget build(BuildContext context) {
@@ -90,6 +130,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: Icon(Icons.edit, color: Colors.blue),
               onPressed: _openEditProfile,
             ),
+          // ===== NÚT ĐĂNG XUẤT =====
+          IconButton(
+            icon: Icon(Icons.logout, color: Colors.red),
+            onPressed: _logout,
+            tooltip: 'Đăng xuất',
+          ),
         ],
       ),
       body: _isLoading
@@ -164,6 +210,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SizedBox(height: 24),
           // Thông tin chi tiết
           _buildInfoCard(),
+          SizedBox(height: 24),
+          // ===== NÚT ĐĂNG XUẤT LỚN =====
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: OutlinedButton.icon(
+              onPressed: _logout,
+              icon: Icon(Icons.logout),
+              label: Text('Đăng xuất'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: BorderSide(color: Colors.red, width: 2),
+                padding: EdgeInsets.symmetric(vertical: 16),
+                minimumSize: Size(double.infinity, 50),
+              ),
+            ),
+          ),
+          SizedBox(height: 24),
         ],
       ),
     );
@@ -202,13 +265,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ========== DÒNG THÔNG TIN ==========
+  // ========== HIỂN THỊ MỘT DÒNG THÔNG TIN ==========
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Padding(
       padding: EdgeInsets.all(16),
       child: Row(
         children: [
-          Icon(icon, color: Colors.teal[700], size: 24),
+          Icon(icon, color: Colors.teal[900], size: 24),
           SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -238,11 +301,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// ============================================================
-// EDIT PROFILE SCREEN - CHỈ SỬA PROFILE (KHÔNG THÊM MỚI)
-// ============================================================
+// ========== MÀN HÌNH CHỈNH SỬA PROFILE ==========
 class EditProfileScreen extends StatefulWidget {
-  final Map<String, dynamic> profile; // Bắt buộc phải có profile để sửa
+  final Map<String, dynamic> profile; // Profile cần chỉnh sửa (bắt buộc)
 
   EditProfileScreen({required this.profile});
 
@@ -251,25 +312,22 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  // ========== KHAI BÁO BIẾN ==========
-  late TextEditingController _nameController;
-  late TextEditingController _sdtController;
-  late TextEditingController _liveController;
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _sdtController = TextEditingController();
+  final _liveController = TextEditingController();
 
-  File? _selectedImage;
-  String? _existingImageBase64;
-  final ImagePicker _picker = ImagePicker();
+  String? _imageBase64;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-
-    // ===== KHỞI TẠO - Load dữ liệu profile hiện tại =====
-    _nameController = TextEditingController(text: widget.profile['name']);
-    _sdtController = TextEditingController(text: widget.profile['sdt'] ?? '');
-    _liveController = TextEditingController(text: widget.profile['live'] ?? '');
-    _existingImageBase64 = widget.profile['img'];
+    // Load dữ liệu hiện tại vào form
+    _nameController.text = widget.profile['name'] ?? '';
+    _sdtController.text = widget.profile['sdt'] ?? '';
+    _liveController.text = widget.profile['live'] ?? '';
+    _imageBase64 = widget.profile['img'];
   }
 
   @override
@@ -280,70 +338,37 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
-  // ========== CHỌN ẢNH TỪ GALLERY ==========
+  // ========== CHỌN ẢNH ==========
   Future<void> _pickImage() async {
-    try {
-      final XFile? pickedFile = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 85,
-      );
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-      if (pickedFile != null) {
-        setState(() {
-          _selectedImage = File(pickedFile.path);
-          _existingImageBase64 = null; // Xóa ảnh cũ khi chọn ảnh mới
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi chọn ảnh: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    if (image != null) {
+      final bytes = await File(image.path).readAsBytes();
+      setState(() {
+        _imageBase64 = 'data:image/png;base64,${base64Encode(bytes)}';
+      });
     }
   }
 
-  // ========== CẬP NHẬT PROFILE ==========
-  Future<void> _updateProfile() async {
-    // Validate
-    if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vui lòng nhập tên quán')),
-      );
-      return;
-    }
+  // ========== LƯU THÔNG TIN ==========
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // Xử lý ảnh: chọn ảnh mới hoặc giữ ảnh cũ
-      String? imageBase64;
-      if (_selectedImage != null) {
-        final bytes = await _selectedImage!.readAsBytes();
-        imageBase64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-      } else if (_existingImageBase64 != null) {
-        imageBase64 = _existingImageBase64;
-      }
-
-      final body = {
-        'name': _nameController.text.trim(),
-        'sdt': _sdtController.text.trim().isEmpty 
-            ? null 
-            : _sdtController.text.trim(),
-        'live': _liveController.text.trim().isEmpty 
-            ? null 
-            : _liveController.text.trim(),
-        'img': imageBase64,
+      final data = {
+        'name': _nameController.text,
+        'sdt': _sdtController.text,
+        'live': _liveController.text,
+        'img': _imageBase64,
       };
 
-      // ===== GỌI API CẬP NHẬT =====
       final response = await http.put(
         Uri.parse('${ApiConfig.profileUrl}${widget.profile['id']}'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode(body),
+        body: json.encode(data),
       );
 
       if (response.statusCode == 200) {
@@ -353,15 +378,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context, true);
+        Navigator.pop(context, true); // Trả về true để reload
       } else {
-        final error = json.decode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error['detail'] ?? 'Có lỗi xảy ra'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        throw Exception('Lỗi: ${response.body}');
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -375,150 +394,111 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  // ========== BUILD UI ==========
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: Text(
-          'Chỉnh sửa thông tin',
-          style: TextStyle(color: Colors.black),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: Text('Chỉnh sửa hồ sơ'),
+        backgroundColor: Colors.teal[900],
+        foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        child: Column(
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: EdgeInsets.all(16),
           children: [
-            SizedBox(height: 24),
-            // ===== ẢNH ĐẠI DIỆN QUÁN =====
-            GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.grey[300],
-                  image: _selectedImage != null
-                      ? DecorationImage(
-                          image: FileImage(_selectedImage!),
-                          fit: BoxFit.cover,
-                        )
-                      : _existingImageBase64 != null &&
-                              _existingImageBase64!.isNotEmpty
-                          ? DecorationImage(
-                              image: MemoryImage(
-                                base64Decode(_existingImageBase64!.split(',').last),
-                              ),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
-                ),
-                child: _selectedImage == null &&
-                        (_existingImageBase64 == null ||
-                            _existingImageBase64!.isEmpty)
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.camera_alt, size: 30, color: Colors.grey[600]),
-                          SizedBox(height: 4),
-                          Text(
-                            'Thêm ảnh',
-                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                          ),
-                        ],
-                      )
-                    : Stack(
-                        children: [
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: CircleAvatar(
-                              radius: 18,
-                              backgroundColor: Colors.blue,
-                              child: Icon(Icons.camera_alt, size: 18, color: Colors.white),
+            // ===== CHỌN ẢNH =====
+            Center(
+              child: GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.grey[300],
+                    image: _imageBase64 != null && _imageBase64!.isNotEmpty
+                        ? DecorationImage(
+                            image: MemoryImage(
+                              base64Decode(_imageBase64!.split(',').last),
                             ),
-                          ),
-                        ],
-                      ),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: _imageBase64 == null || _imageBase64!.isEmpty
+                      ? Icon(Icons.add_a_photo, size: 40, color: Colors.grey[600])
+                      : null,
+                ),
+              ),
+            ),
+            SizedBox(height: 8),
+            Center(
+              child: Text(
+                'Nhấn để thay đổi ảnh',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             ),
             SizedBox(height: 24),
-            // ===== FORM NHẬP LIỆU =====
-            _buildInputField('Tên quán*', _nameController, Icons.store),
-            _buildInputField(
-              'Số điện thoại',
-              _sdtController,
-              Icons.phone,
+
+            // ===== TÊN QUÁN =====
+            TextFormField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Tên quán *',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.store),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Vui lòng nhập tên quán';
+                }
+                return null;
+              },
+            ),
+            SizedBox(height: 16),
+
+            // ===== SỐ ĐIỆN THOẠI =====
+            TextFormField(
+              controller: _sdtController,
+              decoration: InputDecoration(
+                labelText: 'Số điện thoại',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.phone),
+              ),
               keyboardType: TextInputType.phone,
             ),
-            _buildInputField(
-              'Địa chỉ',
-              _liveController,
-              Icons.location_on,
-            ),
-            SizedBox(height: 24),
-            // ===== NÚT CẬP NHẬT =====
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _updateProfile,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal[900],
-                  minimumSize: Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: _isLoading
-                    ? CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                        'Cập nhật',
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
+            SizedBox(height: 16),
+
+            // ===== ĐỊA CHỈ =====
+            TextFormField(
+              controller: _liveController,
+              decoration: InputDecoration(
+                labelText: 'Địa chỉ',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.location_on),
               ),
+              maxLines: 2,
+            ),
+            SizedBox(height: 32),
+
+            // ===== NÚT LƯU =====
+            ElevatedButton(
+              onPressed: _isLoading ? null : _saveProfile,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal[900],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: _isLoading
+                  ? CircularProgressIndicator(color: Colors.white)
+                  : Text(
+                      'Lưu thay đổi',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // ========== WIDGET: Ô NHẬP LIỆU ==========
-  Widget _buildInputField(
-    String label,
-    TextEditingController controller,
-    IconData icon, {
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.teal[700]),
-          SizedBox(width: 16),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              keyboardType: keyboardType,
-              decoration: InputDecoration(
-                labelText: label,
-                border: InputBorder.none,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
