@@ -5,20 +5,8 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Category
-
+from schemas import CategoryCreate,CategoryResponse
 router = APIRouter(prefix="/api/category", tags=["Category"])
-
-# ===== Pydantic schemas =====
-class CategoryCreate(BaseModel):
-    name: str
-
-class CategoryResponse(BaseModel):
-    id: int
-    name: str
-
-    class Config:
-        from_attributes = True
-
 
 # ===== API =====
 @router.post("/", response_model=dict)

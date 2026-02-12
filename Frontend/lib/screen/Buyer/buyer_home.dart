@@ -1,16 +1,24 @@
 import 'dart:convert';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/coupon.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'product_card.dart';
+<<<<<<< HEAD
 import 'foodpage.dart';
 import 'drinkpage.dart';
 import 'fastfood.dart';
 import '../../../models/product.dart';
+=======
+import 'category/category.dart';
+import '../../models/dish.dart';
+>>>>>>> 392c371 (làm giao diện giỏ hàng và xử lí thanh toán)
 import 'package:flutter_application_1/services/dish.dart';
+import 'package:flutter_application_1/services/cart_services.dart';
+import 'details_screen.dart';
 
 class BuyerHome extends StatefulWidget {
   const BuyerHome({super.key});
@@ -23,7 +31,7 @@ class _BuyerHomeState extends State<BuyerHome> {
   // location
   String _locationText = 'Đang xác định vị trí...';
   bool _locating = true;
-
+  final CartServices _cartServices = CartServices();
   @override
   void initState() {
     super.initState();
@@ -90,9 +98,8 @@ class _BuyerHomeState extends State<BuyerHome> {
         final city = p.administrativeArea ?? '';
 
         setState(() {
-          _locationText = district.isNotEmpty
-              ? '$district, $city'
-              : 'Vị trí hiện tại';
+          _locationText =
+              district.isNotEmpty ? '$district, $city' : 'Vị trí hiện tại';
           _locating = false;
         });
       } else {
@@ -141,10 +148,9 @@ class _BuyerHomeState extends State<BuyerHome> {
                 fontWeight: FontWeight.normal,
               ),
             ),
-
             Row(
               children: [
-                if (_locating)
+                /*S   if (_locating)
                   const SizedBox(
                     width: 12,
                     height: 12,
@@ -154,7 +160,7 @@ class _BuyerHomeState extends State<BuyerHome> {
                     ),
                   ),
                 if (_locating) const SizedBox(width: 6),
-
+*/
                 Row(
                   children: [
                     Icon(Icons.location_on, size: 16, color: Colors.white70),
@@ -190,7 +196,6 @@ class _BuyerHomeState extends State<BuyerHome> {
           ],
         ),
       ),
-
       body: SingleChildScrollView(
         child: Center(
           child: Column(
@@ -209,7 +214,10 @@ class _BuyerHomeState extends State<BuyerHome> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const Foodpage()),
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                Foodpage(categoryId: 1, categoryName: "Food"),
+                          ),
                         );
                       },
                     ),
@@ -220,7 +228,10 @@ class _BuyerHomeState extends State<BuyerHome> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const Drinkpage()),
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                Foodpage(categoryId: 2, categoryName: "Drink"),
+                          ),
                         );
                       },
                     ),
@@ -231,7 +242,12 @@ class _BuyerHomeState extends State<BuyerHome> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const Fastfood()),
+                          MaterialPageRoute(
+                            builder: (_) => Foodpage(
+                              categoryId: 3,
+                              categoryName: "Fast Food",
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -239,7 +255,15 @@ class _BuyerHomeState extends State<BuyerHome> {
                     categoryItem(
                       icon: Icons.rice_bowl,
                       label: "Cơm",
-                      onTap: (() {}),
+                      onTap: (() {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                Foodpage(categoryId: 4, categoryName: "Com"),
+                          ),
+                        );
+                      }),
                     ),
                     const SizedBox(width: 20),
                     categoryItem(
@@ -250,7 +274,6 @@ class _BuyerHomeState extends State<BuyerHome> {
                   ],
                 ),
               ),
-
               SizedBox(
                 height: 420,
                 child: FutureBuilder<List<Product>>(
@@ -275,126 +298,35 @@ class _BuyerHomeState extends State<BuyerHome> {
                       itemCount: products.length,
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 0.75,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
-                          ),
-                      itemBuilder: (context, i) =>
-                          ProductCard(product: products[i], onTap: () {}),
-                    );
-                  },
-                ),
-              ),
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.75,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                      ),
+                      itemBuilder: (context, i) => ProductCard(
+                        product: products[i],
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DetailsScreen(),
+                            ),
+                          );
+                        },
+                        onAdd: () async {
+                          await _cartServices.addToCart(
+                            dishId: products[i].id,
+                            quantity: 1,
+                          );
 
-              SizedBox(
-                height: 120,
-                child: FutureBuilder<List<Coupon>>(
-                  future: fetchCoupons(),
-                  builder: (context, snap) {
-                    if (!snap.hasData)
-                      return Center(child: CircularProgressIndicator());
-                    final coupons = snap.data!;
-                    return ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.symmetric(horizontal: 12),
-                      itemCount: coupons.length,
-                      separatorBuilder: (_, __) => SizedBox(width: 8),
-                      itemBuilder: (context, idx) {
-                        final c = coupons[idx];
-                        return Container(
-                          width: 260,
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black12, blurRadius: 6),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  c.discountType == 'percent'
-                                      ? '${c.discountValue.toStringAsFixed(0)}%'
-                                      : '${c.discountValue.toStringAsFixed(0)}đ',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      c.title ?? c.code,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    SizedBox(height: 6),
-                                    Text(
-                                      c.description ?? '',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                    SizedBox(height: 6),
-                                    Row(
-                                      children: [
-                                        ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            elevation: 0,
-                                            backgroundColor: Colors.deepOrange,
-                                          ),
-                                          onPressed: () async {
-                                            // gọi validate endpoint
-                                            final resp = await http.post(
-                                              Uri.parse(
-                                                'http://10.0.2.2:8000/coupons/validate',
-                                              ),
-                                              headers: {
-                                                'Content-Type':
-                                                    'application/json',
-                                              },
-                                              body: jsonEncode({
-                                                'code': c.code,
-                                                'cart_total': 100000,
-                                              }),
-                                            );
-                                            // xử lý kết quả: show dialog/toast
-                                          },
-                                          child: Text('Áp dụng'),
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'Min ${(c.minOrderValue ?? 0).toStringAsFixed(0)}đ',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Đã thêm ${products[i].name}'),
+                              duration: Duration(milliseconds: 800),
+                            ),
+                          );
+                        },
+                      ),
                     );
                   },
                 ),

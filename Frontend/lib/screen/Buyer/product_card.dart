@@ -1,12 +1,17 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 import '../../../models/product.dart';
+=======
+import '../../models/dish.dart';
+>>>>>>> 392c371 (làm giao diện giỏ hàng và xử lí thanh toán)
 
 class ProductCard extends StatelessWidget {
   final Product product;
   final VoidCallback? onTap;
+  final VoidCallback? onAdd;
 
-  const ProductCard({required this.product, this.onTap, super.key});
+  const ProductCard({required this.product, this.onTap, super.key, this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +23,40 @@ class ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(height: 140, width: double.infinity, child: _buildImage()),
+            Stack(
+              children: [
+                SizedBox(
+                  height: 140,
+                  width: double.infinity,
+                  child: _buildImage(),
+                ),
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () {
+                      if (onAdd != null) onAdd!();
+                    },
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.green[700],
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: Colors.black, blurRadius: 4),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.add,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text(
@@ -47,7 +85,6 @@ class ProductCard extends StatelessWidget {
       return Container(color: Colors.grey[200]);
     }
 
-    // 👉 Base64 image
     if (img.startsWith('data:image')) {
       try {
         final base64Str = img.split(',').last;
@@ -67,7 +104,6 @@ class ProductCard extends StatelessWidget {
       }
     }
 
-    // 👉 URL image
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
       child: Image.network(

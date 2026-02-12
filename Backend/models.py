@@ -2,11 +2,10 @@
 from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, JSON, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-
 from sqlalchemy.sql import  func
 from sqlalchemy import Column, Integer, String, Boolean, Numeric,ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.types import DateTime as Datetime
+from sqlalchemy.types import DateTime as Datetime 
 Base = declarative_base()
 
 class User(Base):
@@ -90,3 +89,44 @@ class Profile(Base):
     live = Column(String, nullable=True)  # Địa chỉ
     img = Column(Text, nullable=True)  # Ảnh đại diện 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Liên kết với User 
+class CartItem(Base):
+    __tablename__ ='cart_items'
+    
+    id = Column(Integer,primary_key=True,index=True)
+    user_id = Column(Integer,ForeignKey("users.id"))
+    dish_id =Column(Integer,ForeignKey("dish.id"))
+    quantity = Column(Integer,default=1)
+    dish = relationship("Dish")
+class Order(Base):
+    __tablename__ ='orders'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    total_price = Column(Float)
+    status = Column(String, default = "pending")
+    payment_method = Column(String)
+    created_at = Column(Datetime, server_default=func.now())
+class OrderItem(Base):
+    __tablename__ = 'order_items'
+    id = Column(Integer, primary_key= True, index = True)
+    order_id = Column(Integer, ForeignKey("orders.id"))
+    dish_id = Column(Integer)
+    dish_name = Column(String)
+    dish_image = Column(String)
+    dish_price = Column(Float)
+    quantity = Column(Integer)
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"))
+    amount = Column(Float, nullable=False)
+    method = Column(String)
+    status = Column(String, default="pending")
+
+    stripe_payment_intent = Column(String, nullable=True)
+
+    paid_at = Column(Datetime, nullable=True)
+    created_at = Column(Datetime, server_default=func.now())
+
+    order = relationship("Order")

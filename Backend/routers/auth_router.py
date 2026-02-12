@@ -5,7 +5,8 @@ from database import get_db
 from models import User
 from schemas import RegisterRequest, LoginRequest
 from auth import hash_password, verify_password
-
+from auth import create_access_token
+from datetime import timedelta
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/register")
@@ -38,8 +39,16 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     ):
         raise HTTPException(status_code=401, detail="Sai email hoặc mật khẩu")
 
+    access_token = create_access_token(
+        data={
+            "user_id": str(user.id),
+            "role": user.role
+        }
+    )
+
     return {
-        "message": "Đăng nhập thành công",
+        "access_token": access_token,
+        "token_type": "bearer",
         "user_id": user.id,
         "role": user.role
     }

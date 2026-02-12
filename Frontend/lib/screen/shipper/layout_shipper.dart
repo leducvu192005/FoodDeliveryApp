@@ -1,38 +1,35 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/screen/Buyer/order.dart';
-import 'cart.dart';
-import 'buyer_home.dart';
-import 'profile.dart';
+import 'package:flutter_application_1/screen/Buyer/profile.dart';
+import 'package:flutter_application_1/screen/shipper/order_shipper.dart';
+import 'package:flutter_application_1/screen/shipper/shipperment.dart';
+import 'shipper_home.dart';
 
-class Layout extends StatefulWidget {
-  const Layout({super.key});
+class LayoutShipper extends StatefulWidget {
+  const LayoutShipper({super.key});
 
   @override
-  State<Layout> createState() => _LayoutState();
+  State<LayoutShipper> createState() => _LayoutShipperState();
 }
 
-class _LayoutState extends State<Layout> {
+class _LayoutShipperState extends State<LayoutShipper> {
   int _selectedIndex = 0;
   final List<Widget> _pages = [
-    const BuyerHome(),
-    const Cart(),
-    const Order(),
+    const ShipperHome(),
+    const OrderShipper(),
+    const Shipperment(),
     const Profile(),
   ];
-  void _ontap(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: _ontap,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
         selectedItemColor: Colors.deepOrange,
         unselectedItemColor: Colors.grey,
         items: const [
@@ -42,9 +39,7 @@ class _LayoutState extends State<Layout> {
             label: "Order",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
-            label: "Cart",
-          ),
+              icon: Icon(Icons.delivery_dining), label: "Shipperment"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),
