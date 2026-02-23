@@ -7,15 +7,8 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'product_card.dart';
-<<<<<<< HEAD
-import 'foodpage.dart';
-import 'drinkpage.dart';
-import 'fastfood.dart';
-import '../../../models/product.dart';
-=======
 import 'category/category.dart';
 import '../../models/dish.dart';
->>>>>>> 392c371 (làm giao diện giỏ hàng và xử lí thanh toán)
 import 'package:flutter_application_1/services/dish.dart';
 import 'package:flutter_application_1/services/cart_services.dart';
 import 'details_screen.dart';

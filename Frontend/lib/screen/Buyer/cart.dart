@@ -1,11 +1,9 @@
-import 'package:flutter/material.dart';
-<<<<<<< HEAD
-=======
-import 'package:flutter_application_1/services/cart_services.dart';
 import 'dart:convert';
 import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/cart_services.dart';
 import 'package:flutter_application_1/services/payment_services.dart';
->>>>>>> 392c371 (làm giao diện giỏ hàng và xử lí thanh toán)
 
 class Cart extends StatefulWidget {
   const Cart({super.key});
@@ -15,19 +13,19 @@ class Cart extends StatefulWidget {
 }
 
 class _CartState extends State<Cart> {
-<<<<<<< HEAD
-=======
   final CartServices _cartServices = CartServices();
   late Future<List<Map<String, dynamic>>> _cartFuture;
-  Uint8List imageFromBase64(String base64String) {
-    final pureBase64 = base64String.split(',').last;
-    return base64Decode(pureBase64);
-  }
+  bool _isPaying = false;
 
   @override
   void initState() {
     super.initState();
     _cartFuture = _cartServices.getCartItems();
+  }
+
+  Uint8List imageFromBase64(String base64String) {
+    final pureBase64 = base64String.split(',').last;
+    return base64Decode(pureBase64);
   }
 
   void refreshCart() {
@@ -36,34 +34,36 @@ class _CartState extends State<Cart> {
     });
   }
 
-  // --- SỬA LỖI 1: Hàm tính tổng tiền an toàn ---
   double totalPrice(List<Map<String, dynamic>> items) {
     double total = 0;
     for (var item in items) {
-      // Lấy object dish ra trước
       final dish = item['dish'] ?? {};
-
-      // Lấy giá và số lượng an toàn (ép kiểu num rồi sang double/int)
       final price = (dish['price'] as num?)?.toDouble() ?? 0.0;
       final quantity = (item['quantity'] as num?)?.toInt() ?? 1;
-
       total += price * quantity;
     }
     return total;
   }
 
->>>>>>> 392c371 (làm giao diện giỏ hàng và xử lí thanh toán)
+  Future<bool> _waitForPaymentConfirmed(
+    PaymentServices paymentService,
+    int orderId,
+  ) async {
+    for (int i = 0; i < 5; i++) {
+      final status = await paymentService.checkPaymentStatus(orderId);
+      if (status == 'paid') {
+        return true;
+      }
+      await Future.delayed(const Duration(seconds: 1));
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-<<<<<<< HEAD
-        backgroundColor: Colors.deepOrange,
-        title: const Text('Cart'),
-      ),
-      body: const Center(child: Text('This is the Cart Screen')),
-=======
-        title: const Text('Giỏ hàng'),
+        title: const Text('Gio hang'),
         backgroundColor: Colors.deepOrange,
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
@@ -73,15 +73,13 @@ class _CartState extends State<Cart> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            // In lỗi ra console để dễ debug nếu có
-            print("Lỗi UI: ${snapshot.error}");
-            return const Center(child: Text('Lỗi tải giỏ hàng'));
+            debugPrint('Cart load error: ${snapshot.error}');
+            return const Center(child: Text('Loi tai gio hang'));
           }
 
           final cartItems = snapshot.data ?? [];
-
           if (cartItems.isEmpty) {
-            return const Center(child: Text('Giỏ hàng trống'));
+            return const Center(child: Text('Gio hang trong'));
           }
 
           return Column(
@@ -92,11 +90,9 @@ class _CartState extends State<Cart> {
                   itemBuilder: (context, index) {
                     final item = cartItems[index];
                     final dish = item['dish'] ?? {};
-                    final quantity = item['quantity'] ?? 1;
-
-                    // Xử lý ảnh và tên
+                    final quantity = (item['quantity'] as num?)?.toInt() ?? 1;
                     final imgUrl = dish['img'] ?? '';
-                    final name = dish['name'] ?? 'Món không tên';
+                    final name = dish['name'] ?? 'Mon khong ten';
                     final price = (dish['price'] as num?)?.toDouble() ?? 0.0;
 
                     return Card(
@@ -108,8 +104,6 @@ class _CartState extends State<Cart> {
                         padding: const EdgeInsets.all(10),
                         child: Row(
                           children: [
-                            // Ảnh món ăn
-
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: imgUrl.isNotEmpty
@@ -133,9 +127,7 @@ class _CartState extends State<Cart> {
                                       child: const Icon(Icons.fastfood),
                                     ),
                             ),
-
                             const SizedBox(width: 10),
-                            // Thông tin tên và giá
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,7 +143,7 @@ class _CartState extends State<Cart> {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    "${price.toStringAsFixed(0)} đ",
+                                    '${price.toStringAsFixed(0)} d',
                                     style: const TextStyle(
                                       color: Colors.deepOrange,
                                       fontWeight: FontWeight.bold,
@@ -160,19 +152,16 @@ class _CartState extends State<Cart> {
                                 ],
                               ),
                             ),
-                            // Các nút bấm tăng giảm
                             Column(
                               children: [
-                                // Nút Tăng
                                 IconButton(
                                   icon: const Icon(
                                     Icons.add_circle,
                                     color: Colors.green,
                                   ),
                                   onPressed: () async {
-                                    // Gọi API update (cộng dồn)
                                     await _cartServices.updateQuantity(
-                                      item['dish_id'], // dish_id nằm ở root
+                                      item['dish_id'],
                                       quantity + 1,
                                     );
                                     refreshCart();
@@ -185,7 +174,6 @@ class _CartState extends State<Cart> {
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                // Nút Giảm
                                 IconButton(
                                   icon: const Icon(
                                     Icons.remove_circle,
@@ -203,7 +191,6 @@ class _CartState extends State<Cart> {
                                 ),
                               ],
                             ),
-                            // Nút Xóa hẳn
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () async {
@@ -220,7 +207,6 @@ class _CartState extends State<Cart> {
                   },
                 ),
               ),
-              // Phần Tổng tiền dưới đáy
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: const BoxDecoration(
@@ -231,69 +217,98 @@ class _CartState extends State<Cart> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "Tổng tiền: ${totalPrice(cartItems).toStringAsFixed(0)} đ",
-                      style: TextStyle(
+                      'Tong tien: ${totalPrice(cartItems).toStringAsFixed(0)} d',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepOrange,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepOrange,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        onPressed: () async {
-                          try {
-                            final paymentService = PaymentServices();
-
-                            // 1️⃣ Tạo order
-                            final checkoutResult =
-                                await _cartServices.checkout();
-
-                            final orderId = checkoutResult["order_id"];
-
-                            if (orderId == null) {
-                              throw Exception(
-                                  "Không nhận được order_id từ server");
-                            }
-                            print(checkoutResult);
-
-                            // 2️⃣ Thanh toán Stripe
-                            await paymentService.processPayment(orderId);
-
-                            // 3️⃣ Hiển thị thành công
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text("Thanh toán thành công 🎉")),
-                            );
-
-                            refreshCart();
-                          } catch (e) {
-                            print("Lỗi thanh toán: $e");
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text("Thanh toán thất bại: $e")),
-                            );
-                          }
-                        },
-                        child: Text(
-                          "Thanh toán",
-                          style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white),
-                        ))
-                    /* Text(
-                      "${totalPrice(cartItems).toStringAsFixed(0)} đ",
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
                       ),
-                    ), */
+                      onPressed: _isPaying
+                          ? null
+                          : () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              final navigator = Navigator.of(context);
+
+                              setState(() {
+                                _isPaying = true;
+                              });
+
+                              try {
+                                final paymentService = PaymentServices();
+                                final checkoutResult =
+                                    await _cartServices.checkout();
+                                final orderId = checkoutResult['order_id'];
+
+                                if (orderId == null) {
+                                  throw Exception(
+                                      'Khong nhan duoc order_id tu server');
+                                }
+
+                                await paymentService.processPayment(orderId);
+                                final isPaid = await _waitForPaymentConfirmed(
+                                  paymentService,
+                                  orderId,
+                                );
+
+                                if (!mounted) return;
+
+                                if (isPaid) {
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Thanh toan thanh cong'),
+                                    ),
+                                  );
+                                  refreshCart();
+                                  navigator.pushNamed('/buyer/order');
+                                } else {
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Da tao giao dich nhung chua xac nhan thanh toan. Vui long kiem tra lai don hang.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                debugPrint('Payment error: $e');
+                                final msg = e.toString().toLowerCase();
+                                final isCanceled = msg.contains('canceled') ||
+                                    msg.contains('cancelled') ||
+                                    msg.contains('huy');
+
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      isCanceled
+                                          ? 'Ban da huy thanh toan'
+                                          : 'Thanh toan that bai: $e',
+                                    ),
+                                  ),
+                                );
+                              } finally {
+                                if (mounted) {
+                                  setState(() {
+                                    _isPaying = false;
+                                  });
+                                }
+                              }
+                            },
+                      child: Text(
+                        _isPaying ? 'Dang xu ly...' : 'Thanh toan',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -301,7 +316,6 @@ class _CartState extends State<Cart> {
           );
         },
       ),
->>>>>>> 392c371 (làm giao diện giỏ hàng và xử lí thanh toán)
     );
   }
 }

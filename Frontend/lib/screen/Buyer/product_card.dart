@@ -1,10 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
-import '../../../models/product.dart';
-=======
 import '../../models/dish.dart';
->>>>>>> 392c371 (làm giao diện giỏ hàng và xử lí thanh toán)
 
 class ProductCard extends StatelessWidget {
   final Product product;

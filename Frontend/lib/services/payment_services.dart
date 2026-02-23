@@ -1,19 +1,18 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:http/http.dart' as http;
+
 import 'auth_services.dart';
 
 class PaymentServices {
   static const String baseUrl = "http://10.0.2.2:8000";
 
-  // =============================
-  // 🔐 Header có token
-  // =============================
   static Future<Map<String, String>> _authHeaders() async {
     final token = await AuthService.getToken();
     if (token == null) {
-      throw Exception("Chưa đăng nhập");
+      throw Exception("Chua dang nhap");
     }
 
     return {
@@ -22,9 +21,6 @@ class PaymentServices {
     };
   }
 
-  // =============================
-  // 1️⃣ Tạo PaymentIntent từ backend
-  // =============================
   Future<Map<String, dynamic>> createPayment(int orderId) async {
     final url = Uri.parse("$baseUrl/api/payment/create");
 
@@ -38,25 +34,28 @@ class PaymentServices {
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
-    } else {
-      throw Exception("Tạo payment thất bại: ${response.body}");
     }
+    throw Exception("Tao payment that bai: ${response.body}");
   }
 
-  // =============================
-  // 2️⃣ Thanh toán bằng Stripe Payment Sheet
-  // =============================
   Future<void> processPayment(int orderId) async {
     try {
-      // 🔹 Tạo payment intent
+      final pubKey = Stripe.publishableKey;
+      if (pubKey.trim().isEmpty) {
+        throw Exception(
+          "Stripe publishableKey is not set in main.dart",
+        );
+      }
+
+      await Stripe.instance.applySettings();
+
       final paymentData = await createPayment(orderId);
       final clientSecret = paymentData["client_secret"];
 
       if (clientSecret == null) {
-        throw Exception("Không nhận được client_secret");
+        throw Exception("Khong nhan duoc client_secret");
       }
 
-      // 🔹 Init Payment Sheet
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
@@ -65,20 +64,25 @@ class PaymentServices {
         ),
       );
 
-      // 🔹 Hiển thị Payment Sheet
       await Stripe.instance.presentPaymentSheet();
+    } on StripeException catch (e, st) {
+      final message = e.error.message;
+      final errorCode = e.error.code.toString().toLowerCase();
+      debugPrint("StripeException: $errorCode - $message");
+      debugPrintStack(stackTrace: st);
 
-      print("Thanh toán thành công 🎉");
-    } on StripeException catch (e) {
-      throw Exception("Thanh toán bị huỷ hoặc lỗi: ${e.error.message}");
-    } catch (e) {
-      throw Exception("Lỗi thanh toán: $e");
+      final fullMsg = "$errorCode $message".toLowerCase();
+      if (fullMsg.contains("canceled") || fullMsg.contains("cancelled")) {
+        throw Exception("Payment canceled by user");
+      }
+      throw Exception("Stripe payment failed: ${message ?? e.toString()}");
+    } catch (e, st) {
+      debugPrint("Unhandled payment error: ${e.runtimeType} - $e");
+      debugPrintStack(stackTrace: st);
+      throw Exception("Payment error: ${e.runtimeType}: $e");
     }
   }
 
-  // =============================
-  // 3️⃣ Check trạng thái thanh toán
-  // =============================
   Future<String> checkPaymentStatus(int orderId) async {
     final url = Uri.parse("$baseUrl/api/payment/check-status/$orderId");
 
@@ -90,8 +94,7 @@ class PaymentServices {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       return data["status"];
-    } else {
-      throw Exception("Không check được trạng thái thanh toán");
     }
+    throw Exception("Khong check duoc trang thai thanh toan");
   }
 }
