@@ -5,9 +5,10 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:http/http.dart' as http;
 
 import 'auth_services.dart';
+import '../config/api_config.dart';
 
 class PaymentServices {
-  static const String baseUrl = "http://10.0.2.2:8000";
+  static String get baseUrl => ApiConfig.baseUrl;
 
   static Future<Map<String, String>> _authHeaders() async {
     final token = await AuthService.getToken();

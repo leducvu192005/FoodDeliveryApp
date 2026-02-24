@@ -15,7 +15,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // ========== KHAI BÁO BIẾN ==========
   Map<String, dynamic>? _profileData; // Dữ liệu profile
   bool _isLoading = true; // Trạng thái đang tải
-  int? _profileId; // ID của profile hiện tại
 
   @override
   void initState() {
@@ -37,7 +36,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Lấy profile đầu tiên (hoặc theo user_id nếu có auth)
           setState(() {
             _profileData = profiles[0];
-            _profileId = _profileData!['id'];
           });
         }
       }

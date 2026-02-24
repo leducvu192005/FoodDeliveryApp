@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
+
 import '../../models/dish.dart';
 
 class ProductCard extends StatelessWidget {
@@ -7,7 +9,12 @@ class ProductCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onAdd;
 
-  const ProductCard({required this.product, this.onTap, super.key, this.onAdd});
+  const ProductCard({
+    required this.product,
+    this.onTap,
+    super.key,
+    this.onAdd,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +22,8 @@ class ProductCard extends StatelessWidget {
       onTap: onTap,
       child: Card(
         elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -30,17 +38,15 @@ class ProductCard extends StatelessWidget {
                   bottom: 8,
                   right: 8,
                   child: GestureDetector(
-                    onTap: () {
-                      if (onAdd != null) onAdd!();
-                    },
+                    onTap: onAdd,
                     child: Container(
                       width: 32,
                       height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.green[700],
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE67E22),
                         shape: BoxShape.circle,
                         boxShadow: [
-                          BoxShadow(color: Colors.black, blurRadius: 4),
+                          BoxShadow(color: Colors.black26, blurRadius: 4),
                         ],
                       ),
                       child: const Icon(
@@ -64,8 +70,11 @@ class ProductCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
               child: Text(
-                '${product.price.toStringAsFixed(0)}đ',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                '\$${product.price.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFE67E22),
+                ),
               ),
             ),
           ],
@@ -78,7 +87,7 @@ class ProductCard extends StatelessWidget {
     final img = product.img;
 
     if (img == null || img.isEmpty) {
-      return Container(color: Colors.grey[200]);
+      return Container(color: const Color(0xFFFFF1DD));
     }
 
     if (img.startsWith('data:image')) {
@@ -87,7 +96,7 @@ class ProductCard extends StatelessWidget {
         final bytes = base64Decode(base64Str);
 
         return ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
           child: Image.memory(
             bytes,
             fit: BoxFit.cover,
@@ -95,19 +104,19 @@ class ProductCard extends StatelessWidget {
             height: double.infinity,
           ),
         );
-      } catch (e) {
-        return Container(color: Colors.grey[300]);
+      } catch (_) {
+        return Container(color: const Color(0xFFFFE8CC));
       }
     }
 
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
       child: Image.network(
         img,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
-        errorBuilder: (_, __, ___) => Container(color: Colors.grey[300]),
+        errorBuilder: (_, __, ___) => Container(color: const Color(0xFFFFE8CC)),
       ),
     );
   }

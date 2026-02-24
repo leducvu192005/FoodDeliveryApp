@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/screen/Buyer/order.dart';
-import 'cart.dart';
+
 import 'buyer_home.dart';
+import 'favorites.dart';
+import 'order.dart';
 import 'profile.dart';
 
 class Layout extends StatefulWidget {
@@ -13,39 +14,48 @@ class Layout extends StatefulWidget {
 
 class _LayoutState extends State<Layout> {
   int _selectedIndex = 0;
-  final List<Widget> _pages = [
-    const BuyerHome(),
-    const Cart(),
-    const Order(),
-    const Profile(),
+
+  final List<Widget> _pages = const [
+    BuyerHome(),
+    Order(),
+    Favorites(),
+    Profile(),
   ];
-  void _ontap(int index) {
+
+  void _onTap(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: const Color(0xFFFFF3E0),
         currentIndex: _selectedIndex,
-        onTap: _ontap,
-        selectedItemColor: Colors.deepOrange,
-        unselectedItemColor: Colors.grey,
+        onTap: _onTap,
+        selectedItemColor: const Color(0xFFE67E22),
+        unselectedItemColor: Colors.black45,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
           BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long),
-            label: "Order",
+            icon: Icon(Icons.home_rounded),
+            label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
-            label: "Cart",
+            icon: Icon(Icons.receipt_long_rounded),
+            label: 'Orders',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite_rounded),
+            label: 'Favorites',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_rounded),
+            label: 'Profile',
+          ),
         ],
       ),
     );

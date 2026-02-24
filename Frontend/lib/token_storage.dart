@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'config/api_config.dart';
 
 class Api {
-  static const base = "http://10.0.2.2:8000";
+  static String get base => ApiConfig.baseUrl;
 
   static Future login(String email, String pass) async {
     final res = await http.post(

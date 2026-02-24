@@ -16,6 +16,55 @@ from dependencies import get_current_user
 router = APIRouter(prefix="/cart", tags=["Cart"])
 
 
+@router.get("/orders")
+def get_user_orders(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    orders = (
+        db.query(Order)
+        .filter(Order.user_id == user.id)
+        .order_by(Order.id.desc())
+        .all()
+    )
+
+    result = []
+    for order in orders:
+        order_items = (
+            db.query(OrderItem)
+            .filter(OrderItem.order_id == order.id)
+            .all()
+        )
+        payment = (
+            db.query(Payment)
+            .filter(Payment.order_id == order.id)
+            .order_by(Payment.id.desc())
+            .first()
+        )
+
+        result.append({
+            "id": order.id,
+            "status": order.status,
+            "payment_method": order.payment_method,
+            "total_price": order.total_price,
+            "created_at": order.created_at,
+            "payment_status": payment.status if payment else "pending",
+            "items": [
+                {
+                    "id": item.id,
+                    "dish_id": item.dish_id,
+                    "dish_name": item.dish_name,
+                    "dish_image": item.dish_image,
+                    "dish_price": item.dish_price,
+                    "quantity": item.quantity,
+                }
+                for item in order_items
+            ],
+        })
+
+    return result
+
+
 @router.get("/items", response_model=List[CartItemResponse])
 def get_cart_items(
     db: Session = Depends(get_db),
@@ -159,4 +208,3 @@ def checkout_cart(
         "order_id": order.id,
         "total_price": total_amount,
     }
-

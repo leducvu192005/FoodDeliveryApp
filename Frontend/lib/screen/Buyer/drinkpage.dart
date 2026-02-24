@@ -1,21 +1,61 @@
 import 'package:flutter/material.dart';
 
-class Drinkpage extends StatefulWidget {
+import '../../models/dish.dart';
+import '../../services/dish.dart';
+import 'details_screen.dart';
+import 'product_card.dart';
+
+class Drinkpage extends StatelessWidget {
   const Drinkpage({super.key});
 
   @override
-  State<Drinkpage> createState() => _DrinkpageState();
-}
-
-class _DrinkpageState extends State<Drinkpage> {
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFFFAF0),
       appBar: AppBar(
-        backgroundColor: Colors.deepOrange,
-        title: const Text('Drink Page'),
+        title: const Text('Drinks'),
+        backgroundColor: const Color(0xFFFFFAF0),
       ),
-      body: const Center(child: Text('This is the Drink Page Screen')),
+      body: FutureBuilder<List<Product>>(
+        future: DishService.fetchDishes(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFFE67E22)));
+          }
+          if (snapshot.hasError) {
+            return const Center(child: Text('Loi tai danh sach do uong'));
+          }
+
+          final products = (snapshot.data ?? [])
+              .where((p) => p.name.toLowerCase().contains('nuoc') || p.name.toLowerCase().contains('drink'))
+              .toList();
+          final display = products.isEmpty ? (snapshot.data ?? []) : products;
+          if (display.isEmpty) {
+            return const Center(child: Text('Khong co mon nao'));
+          }
+
+          return GridView.builder(
+            padding: const EdgeInsets.all(8),
+            itemCount: display.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.75,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemBuilder: (_, index) {
+              final product = display[index];
+              return ProductCard(
+                product: product,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => DetailsScreen(product: product)),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../../models/dish.dart';
-import '../../../../services/dish.dart';
+
+import '../../../models/dish.dart';
+import '../../../services/dish.dart';
+import '../details_screen.dart';
 import '../product_card.dart';
-import 'package:flutter_application_1/screen/Buyer/details_screen.dart';
 
 class Foodpage extends StatelessWidget {
   final int categoryId;
@@ -17,25 +18,25 @@ class Foodpage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFFFAF0),
       appBar: AppBar(
         title: Text(categoryName),
-        backgroundColor: Colors.deepOrange,
+        backgroundColor: const Color(0xFFFFFAF0),
       ),
       body: FutureBuilder<List<Product>>(
         future: DishService.fetchDishesByCategory(categoryId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator(color: Color(0xFFE67E22)));
           }
 
           if (snapshot.hasError) {
-            return const Center(child: Text('Lỗi tải món ăn'));
+            return const Center(child: Text('Loi tai mon an'));
           }
 
           final products = snapshot.data ?? [];
-
           if (products.isEmpty) {
-            return const Center(child: Text('Không có món nào'));
+            return const Center(child: Text('Khong co mon nao'));
           }
 
           return GridView.builder(
@@ -48,12 +49,13 @@ class Foodpage extends StatelessWidget {
               mainAxisSpacing: 8,
             ),
             itemBuilder: (context, index) {
+              final product = products[index];
               return ProductCard(
-                product: products[index],
+                product: product,
                 onAdd: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Đã thêm ${products[index].name}'),
+                      content: Text('Da them ${product.name}'),
                       duration: const Duration(milliseconds: 600),
                     ),
                   );
@@ -61,7 +63,7 @@ class Foodpage extends StatelessWidget {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => DetailsScreen(),
+                    builder: (_) => DetailsScreen(product: product),
                   ),
                 ),
               );

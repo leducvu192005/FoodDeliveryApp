@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../config/api_config.dart';
 
 class AuthService {
-  static const String baseUrl = "http://10.0.2.2:8000/auth";
+  static String get baseUrl => ApiConfig.path('/auth');
 
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
   static Future<bool> register(

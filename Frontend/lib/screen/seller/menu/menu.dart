@@ -289,50 +289,6 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
     );
   }
 
-  // ========== HIỂN THỊ TÙY CHỌN CHO TOPPING (SỬA/XÓA) ==========
-  void _showToppingOptions(BuildContext context, Map<String, dynamic> topping) {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: EdgeInsets.symmetric(vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ===== NÚT SỬA TOPPING =====
-            ListTile(
-              leading: Icon(Icons.edit, color: Colors.blue),
-              title: Text('Sửa nhóm topping'),
-              onTap: () async {
-                Navigator.pop(context);
-                // Mở màn hình ToppingScreen với topping để sửa
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ToppingScreen(topping: topping), // Truyền topping = chế độ sửa
-                  ),
-                );
-                if (result == true) _loadData(); // Tải lại nếu có thay đổi
-              },
-            ),
-            Divider(),
-            // ===== NÚT XÓA TOPPING =====
-            ListTile(
-              leading: Icon(Icons.delete, color: Colors.red),
-              title: Text('Xóa nhóm topping', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                Navigator.pop(context);
-                _deleteTopping(topping['id'], topping['name']); // Gọi hàm xóa
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ========== CHUYỂN ĐẾN MÀN HÌNH QUẢN LÝ DANH MỤC ==========
   void _navigateToEditCategories() async {
     final result = await Navigator.push(

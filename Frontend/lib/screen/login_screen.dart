@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../config/api_config.dart';
 import '../services/auth_services.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -13,42 +15,64 @@ class _LoginScreenState extends State<LoginScreen> {
   final passCtrl = TextEditingController();
   bool loading = false;
 
-  void login() async {
+  Future<void> login() async {
+    if (loading) return;
     setState(() => loading = true);
 
-    final role = await AuthService.login(
-      emailCtrl.text.trim(),
-      passCtrl.text.trim(),
-    );
-
-    setState(() => loading = false);
-
-    if (!mounted) return;
-
-    if (role != null) {
-      switch (role) {
-        case "buyer":
-          Navigator.pushReplacementNamed(context, "/buyer/layout");
-          break;
-        case "seller":
-          Navigator.pushReplacementNamed(context, "/seller");
-          break;
-        case "shipper":
-          Navigator.pushReplacementNamed(context, "/shipper");
-          break;
-        case "admin":
-          Navigator.pushReplacementNamed(context, "/admin");
-          break;
-        default:
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text("Role không hợp lệ")));
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Sai tài khoản hoặc mật khẩu")),
+    try {
+      final role = await AuthService.login(
+        emailCtrl.text.trim(),
+        passCtrl.text.trim(),
       );
+
+      if (!mounted) return;
+
+      if (role != null) {
+        switch (role) {
+          case 'buyer':
+            Navigator.pushReplacementNamed(context, '/buyer/layout');
+            break;
+          case 'seller':
+            Navigator.pushReplacementNamed(context, '/seller');
+            break;
+          case 'shipper':
+            Navigator.pushReplacementNamed(context, '/shipper');
+            break;
+          case 'admin':
+            Navigator.pushReplacementNamed(context, '/admin');
+            break;
+          default:
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Role khong hop le')),
+            );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sai tai khoan hoac mat khau')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Dang nhap loi: $e\nAPI: ${ApiConfig.baseUrl}',
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    emailCtrl.dispose();
+    passCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -71,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text(
-                  "Welcome to Food Delivery",
+                  'Welcome to Food Delivery',
                   style: TextStyle(fontSize: 22),
                 ),
                 const Icon(
@@ -82,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: emailCtrl,
                   decoration: const InputDecoration(
-                    labelText: "Email",
+                    labelText: 'Email',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -90,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: passCtrl,
                   decoration: const InputDecoration(
-                    labelText: "Password",
+                    labelText: 'Password',
                     border: OutlineInputBorder(),
                   ),
                   obscureText: true,
@@ -99,12 +123,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 ElevatedButton(
                   onPressed: loading ? null : login,
                   child: loading
-                      ? const CircularProgressIndicator()
-                      : const Text("Login"),
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Login'),
                 ),
                 TextButton(
-                  onPressed: () => Navigator.pushNamed(context, "/register"),
-                  child: const Text("Đăng ký"),
+                  onPressed: () => Navigator.pushNamed(context, '/register'),
+                  child: const Text('Dang ky'),
                 ),
               ],
             ),

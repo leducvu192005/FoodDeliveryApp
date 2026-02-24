@@ -5,21 +5,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'routes/app_routers.dart';
 import 'screen/login_screen.dart';
 
-const String _stripePublishableKey = String.fromEnvironment(
-  'STRIPE_PUBLISHABLE_KEY',
-  defaultValue: '',
-);
-
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (_stripePublishableKey.isEmpty) {
-    throw Exception(
-      'Missing STRIPE_PUBLISHABLE_KEY. Run with --dart-define=STRIPE_PUBLISHABLE_KEY=pk_test_xxx',
-    );
-  }
+  // Stripe key: DEV dùng fallback, PROD truyền qua --dart-define
+  const stripeKey = String.fromEnvironment(
+    'STRIPE_PUBLISHABLE_KEY',
+    defaultValue:
+        'pk_test_51SzzRqFk1s2i0vMsjdJUZWcGBALXKMMFTy7E9a5M5q1gr0O38jc9UlOuVt2yy34UDiCxWxjjk32t2X5ehrTsl1aA00GQzxTYW2',
+  );
 
-  Stripe.publishableKey = _stripePublishableKey;
+  Stripe.publishableKey = stripeKey;
   await Stripe.instance.applySettings();
 
   await Supabase.initialize(
@@ -38,6 +34,22 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Food Delivery',
+      theme: ThemeData(
+        useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFFFFAF0),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFE67E22),
+          primary: const Color(0xFFE67E22),
+          secondary: const Color(0xFFFFB347),
+          surface: Colors.white,
+          brightness: Brightness.light,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFFFFFAF0),
+          foregroundColor: Colors.black87,
+          elevation: 0,
+        ),
+      ),
       routes: AppRoutes.routes,
       home: const LoginScreen(),
     );

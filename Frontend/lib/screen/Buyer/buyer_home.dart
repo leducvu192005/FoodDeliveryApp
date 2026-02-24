@@ -1,17 +1,15 @@
 import 'dart:convert';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/models/coupon.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
-import 'product_card.dart';
-import 'category/category.dart';
+
+import '../../models/category.dart';
 import '../../models/dish.dart';
-import 'package:flutter_application_1/services/dish.dart';
-import 'package:flutter_application_1/services/cart_services.dart';
+import '../../services/cart_services.dart';
+import '../../services/category_services.dart';
+import '../../services/dish.dart';
+import 'cart.dart';
 import 'details_screen.dart';
+import 'category/category.dart';
 
 class BuyerHome extends StatefulWidget {
   const BuyerHome({super.key});
@@ -21,344 +19,301 @@ class BuyerHome extends StatefulWidget {
 }
 
 class _BuyerHomeState extends State<BuyerHome> {
-  // location
-  String _locationText = 'Đang xác định vị trí...';
-  bool _locating = true;
+  final TextEditingController _searchController = TextEditingController();
   final CartServices _cartServices = CartServices();
+  late Future<Map<String, dynamic>> _homeDataFuture;
+
   @override
   void initState() {
     super.initState();
-
-    _determineAndSetLocation();
+    _homeDataFuture = _loadData();
+    _searchController.addListener(() => setState(() {}));
   }
 
-  // Xác định vị trí và cập nhật địa chỉ hiển thị
-  Future<void> _determineAndSetLocation() async {
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<Map<String, dynamic>> _loadData() async {
+    final results = await Future.wait([
+      CategoryService.fetchCategories(),
+      DishService.fetchDishes(),
+    ]);
+    return {
+      'categories': results[0] as List<Category>,
+      'dishes': results[1] as List<Product>,
+    };
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _homeDataFuture = _loadData();
+    });
+    await _homeDataFuture;
+  }
+
+  Future<void> _addToCart(Product product) async {
     try {
-      print('[location] start _determineAndSetLocation');
-      // 1. Check GPS
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      print('[location] serviceEnabled=$serviceEnabled');
-      if (!serviceEnabled) {
-        setState(() {
-          _locationText = 'Bật GPS';
-          _locating = false;
-        });
-        return;
-      }
-
-      // 2. Check permission
-      LocationPermission permission = await Geolocator.checkPermission();
-
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      // 🔴 QUAN TRỌNG: check lại SAU khi request
-      if (permission == LocationPermission.denied) {
-        setState(() {
-          _locationText = 'Chưa cấp quyền vị trí';
-          _locating = false;
-        });
-        return;
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        setState(() {
-          _locationText = 'Vào cài đặt để cấp quyền vị trí';
-          _locating = false;
-        });
-        return;
-      }
-
-      print('[location] permission=$permission');
-
-      // 3. Lấy tọa độ
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      print('[location] position=${position.latitude},${position.longitude}');
-
-      // 4. Reverse geocoding
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-
-      if (placemarks.isNotEmpty) {
-        final p = placemarks.first;
-        final district = p.subAdministrativeArea ?? '';
-        final city = p.administrativeArea ?? '';
-
-        setState(() {
-          _locationText =
-              district.isNotEmpty ? '$district, $city' : 'Vị trí hiện tại';
-          _locating = false;
-        });
-      } else {
-        setState(() {
-          _locationText = 'Vị trí hiện tại';
-          _locating = false;
-        });
-      }
-    } catch (e) {
-      print('[location] error: $e');
+      final ok = await _cartServices.addToCart(dishId: product.id);
       if (!mounted) return;
-      setState(() {
-        _locationText = 'Không lấy được vị trí';
-        _locating = false;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? 'Da them ${product.name}' : 'Khong them duoc ${product.name}'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Loi them gio: $e')),
+      );
     }
   }
 
-  Future<List<Coupon>> fetchCoupons() async {
-    final res = await http.get(
-      Uri.parse('http://10.0.2.2:8000/coupons/active'),
-    );
-    if (res.statusCode == 200) {
-      final List data = jsonDecode(res.body);
-      return data.map((e) => Coupon.fromJson(e)).toList();
-    } else
-      throw Exception('Failed to load coupons');
+  Widget _buildDishImage(Product product) {
+    final img = product.img;
+    if (img == null || img.isEmpty) {
+      return Container(
+        color: const Color(0xFFFFF1DD),
+        child: const Icon(Icons.fastfood_rounded, color: Color(0xFFE67E22)),
+      );
+    }
+    if (img.startsWith('data:image')) {
+      final bytes = base64Decode(img.split(',').last);
+      return Image.memory(bytes, fit: BoxFit.cover);
+    }
+    return Image.network(img, fit: BoxFit.cover);
   }
 
   @override
   Widget build(BuildContext context) {
+    const pageBg = Color(0xFFFFFAF0);
+    const cardBg = Colors.white;
+    const accent = Color(0xFFE67E22);
+
     return Scaffold(
+      backgroundColor: pageBg,
       appBar: AppBar(
-        toolbarHeight: 100,
-        backgroundColor: const Color.fromRGBO(255, 87, 34, 1),
-        titleSpacing: 16,
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Giao đến:",
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white70,
-                fontWeight: FontWeight.normal,
-              ),
+        backgroundColor: pageBg,
+        elevation: 0,
+        title: const Text('Hom nay ban muon an gi?'),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const Cart()),
             ),
-            Row(
-              children: [
-                /*S   if (_locating)
-                  const SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white70,
-                    ),
-                  ),
-                if (_locating) const SizedBox(width: 6),
-*/
-                Row(
-                  children: [
-                    Icon(Icons.location_on, size: 16, color: Colors.white70),
-                    Text(
-                      _locationText,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white70,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 40,
-              child: TextField(
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search),
-                  hintText: 'Search products...',
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: EdgeInsets.zero,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+            icon: const Icon(Icons.shopping_bag_outlined),
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 12),
-              SizedBox(
-                // 2
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    const SizedBox(width: 12),
-                    categoryItem(
-                      icon: Icons.fastfood,
-                      label: "Food",
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                Foodpage(categoryId: 1, categoryName: "Food"),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 20),
-                    categoryItem(
-                      icon: Icons.local_drink,
-                      label: "Drink",
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                Foodpage(categoryId: 2, categoryName: "Drink"),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 20),
-                    categoryItem(
-                      icon: Icons.restaurant,
-                      label: "Fast Food",
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => Foodpage(
-                              categoryId: 3,
-                              categoryName: "Fast Food",
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 20),
-                    categoryItem(
-                      icon: Icons.rice_bowl,
-                      label: "Cơm",
-                      onTap: (() {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                Foodpage(categoryId: 4, categoryName: "Com"),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(width: 20),
-                    categoryItem(
-                      icon: Icons.local_offer,
-                      label: "Khuyến mãi",
-                      onTap: (() {}),
-                    ),
-                  ],
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _homeDataFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: accent));
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'Khong tai duoc du lieu: ${snapshot.error}',
+                  style: const TextStyle(color: Colors.black87),
+                  textAlign: TextAlign.center,
                 ),
               ),
-              SizedBox(
-                height: 420,
-                child: FutureBuilder<List<Product>>(
-                  future: DishService.fetchDishes().then(
-                    (data) => data.cast<Product>(),
+            );
+          }
+
+          final categories = (snapshot.data?['categories'] as List<Category>? ?? []);
+          final allDishes = (snapshot.data?['dishes'] as List<Product>? ?? []);
+          final keyword = _searchController.text.trim().toLowerCase();
+          final dishes = keyword.isEmpty
+              ? allDishes
+              : allDishes.where((d) => d.name.toLowerCase().contains(keyword)).toList();
+
+          return RefreshIndicator(
+            color: accent,
+            onRefresh: _refresh,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+              children: [
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Tim mon an...',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    filled: true,
+                    fillColor: cardBg,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
-                  builder: (context, snap) {
-                    if (snap.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (snap.hasError) {
-                      return const Center(child: Text('Lỗi tải sản phẩm'));
-                    }
-
-                    final List<Product> products = snap.data ?? [];
-
-                    if (products.isEmpty) {
-                      return const Center(child: Text('Không có sản phẩm'));
-                    }
-
-                    return GridView.builder(
-                      itemCount: products.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.75,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFD580), Color(0xFFFF9F43)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.local_fire_department_rounded, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${allDishes.length} mon dang san sang - ${categories.length} danh muc',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                      itemBuilder: (context, i) => ProductCard(
-                        product: products[i],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Danh muc',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 44,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: categories.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (_, i) {
+                      final c = categories[i];
+                      return ActionChip(
+                        backgroundColor: cardBg,
+                        side: const BorderSide(color: Color(0xFFFFE2BE)),
+                        label: Text(c.name),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Foodpage(
+                                categoryId: c.id,
+                                categoryName: c.name,
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Mon noi bat',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 10),
+                if (dishes.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: Text('Khong tim thay mon an phu hop')),
+                  )
+                else
+                  GridView.builder(
+                    itemCount: dishes.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.74,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                    ),
+                    itemBuilder: (_, i) {
+                      final product = dishes[i];
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(16),
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => DetailsScreen(),
+                              builder: (_) => DetailsScreen(product: product),
                             ),
                           );
                         },
-                        onAdd: () async {
-                          await _cartServices.addToCart(
-                            dishId: products[i].id,
-                            quantity: 1,
-                          );
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Đã thêm ${products[i].name}'),
-                              duration: Duration(milliseconds: 800),
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
-              ),
-              SizedBox(height: 400),
-            ],
-          ),
-        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x14000000),
+                                blurRadius: 8,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(16),
+                                  ),
+                                  child: SizedBox(width: double.infinity, child: _buildDishImage(product)),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+                                child: Text(
+                                  product.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      '\$${product.price.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        color: accent,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    InkWell(
+                                      onTap: () => _addToCart(product),
+                                      child: const CircleAvatar(
+                                        radius: 14,
+                                        backgroundColor: accent,
+                                        child: Icon(Icons.add, size: 16, color: Colors.white),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
-}
-
-//widget category item
-Widget categoryItem({
-  required IconData icon,
-  required String label,
-  required VoidCallback onTap,
-}) {
-  return GestureDetector(
-    onTap: onTap,
-    child: Column(
-      children: [
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            color: const Color.fromARGB(255, 250, 232, 232),
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: Icon(
-            icon,
-            color: const Color.fromARGB(255, 255, 60, 1),
-            size: 30,
-          ),
-        ),
-        SizedBox(height: 6),
-        Text(label, style: TextStyle(fontSize: 12)),
-      ],
-    ),
-  );
 }
