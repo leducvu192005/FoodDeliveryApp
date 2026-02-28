@@ -15,21 +15,34 @@ class SellerNavScreen extends StatefulWidget {
 class _SellerNavScreenState extends State<SellerNavScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    SellerHomeScreen(),
-    OrderScreen(),
-    MenuScreen(),
-    MarketingScreen(),
-    ProfileScreen(),
-  ];
+  // ✅ Khởi tạo danh sách screens một lần
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      const SellerHomeScreen(),
+      const OrderScreen(),
+      const MenuScreen(),
+      const MarketingScreen(),
+      const ProfileScreen(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex],
+      // ✅ Dùng IndexedStack thay vì truy cập trực tiếp _screens[_currentIndex]
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
+          // ✅ Thêm debug để kiểm tra
+          print('Tapped: $index');
           setState(() {
             _currentIndex = index;
           });
@@ -37,6 +50,9 @@ class _SellerNavScreenState extends State<SellerNavScreen> {
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.deepOrange,
         unselectedItemColor: Colors.grey,
+        // ✅ Thêm backgroundColor để rõ hơn
+        backgroundColor: Colors.white,
+        elevation: 8,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),

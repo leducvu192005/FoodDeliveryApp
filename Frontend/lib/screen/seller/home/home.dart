@@ -3,6 +3,7 @@ import '../menu/menu.dart';
 import '../order/order.dart';
 
 class SellerHomeScreen extends StatelessWidget {
+  const SellerHomeScreen({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(

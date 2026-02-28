@@ -5,7 +5,8 @@ from typing import List, Optional
 import json
 
 from database import get_db
-from models import Topping
+from models import Topping, User
+from dependencies import get_current_user
 
 router = APIRouter(prefix="/api/topping", tags=["Topping"])
 
@@ -16,20 +17,34 @@ class ToppingItem(BaseModel):
 
 class ToppingCreate(BaseModel):
     name: str
+    min: Optional[int] = 0
+    max: Optional[int] = 1
     items: List[ToppingItem] = []
     dish_ids: Optional[List[int]] = []
 
 class ToppingUpdate(BaseModel):
     name: Optional[str] = None
+    min: Optional[int] = None
+    max: Optional[int] = None
     items: Optional[List[ToppingItem]] = None
     dish_ids: Optional[List[int]] = None
 
 # ✅ GET tất cả topping
 @router.get("/", response_model=List[dict])
-def get_all_toppings(db: Session = Depends(get_db)):
-    """Lấy danh sách tất cả topping"""
+def get_all_toppings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Lấy danh sách tất cả topping (seller: của mình, buyer: tất cả)"""
     try:
-        toppings = db.query(Topping).order_by(Topping.id).all()
+        # Nếu là seller: chỉ lấy topping của seller đó
+        # Nếu là buyer: lấy tất cả topping
+        if current_user.role == 'seller':
+            toppings = db.query(Topping).filter(
+                Topping.seller_id == current_user.id
+            ).order_by(Topping.id).all()
+        else:
+            toppings = db.query(Topping).order_by(Topping.id).all()
         
         result = []
         for topping in toppings:
@@ -40,6 +55,8 @@ def get_all_toppings(db: Session = Depends(get_db)):
             result.append({
                 "id": topping.id,
                 "name": topping.name,
+                "min": topping.min if hasattr(topping, 'min') else 0,
+                "max": topping.max if hasattr(topping, 'max') else 1,
                 "items": items,
                 "dish_ids": dish_ids
             })
@@ -52,9 +69,16 @@ def get_all_toppings(db: Session = Depends(get_db)):
 
 # ✅ GET topping theo ID
 @router.get("/{topping_id}", response_model=dict)
-def get_topping(topping_id: int, db: Session = Depends(get_db)):
+def get_topping(
+    topping_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Lấy thông tin chi tiết một topping"""
-    topping = db.query(Topping).filter(Topping.id == topping_id).first()
+    topping = db.query(Topping).filter(
+        Topping.id == topping_id,
+        Topping.seller_id == current_user.id
+    ).first()
     
     if not topping:
         raise HTTPException(status_code=404, detail="Không tìm thấy topping")
@@ -62,17 +86,26 @@ def get_topping(topping_id: int, db: Session = Depends(get_db)):
     return {
         "id": topping.id,
         "name": topping.name,
+        "min": topping.min if hasattr(topping, 'min') else 0,
+        "max": topping.max if hasattr(topping, 'max') else 1,
         "items": topping.items if topping.items else [],
         "dish_ids": topping.dish_ids if topping.dish_ids else []
     }
 
 # ✅ POST thêm topping
 @router.post("/", response_model=dict)
-def create_topping(topping: ToppingCreate, db: Session = Depends(get_db)):
+def create_topping(
+    topping: ToppingCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Thêm nhóm topping mới"""
     try:
-        # Kiểm tra trùng tên
-        existing = db.query(Topping).filter(Topping.name == topping.name).first()
+        # Kiểm tra trùng tên trong danh sách của seller
+        existing = db.query(Topping).filter(
+            Topping.name == topping.name,
+            Topping.seller_id == current_user.id
+        ).first()
         if existing:
             raise HTTPException(status_code=400, detail="Nhóm topping đã tồn tại")
         
@@ -82,6 +115,9 @@ def create_topping(topping: ToppingCreate, db: Session = Depends(get_db)):
         # Tạo topping mới
         new_topping = Topping(
             name=topping.name,
+            seller_id=current_user.id,
+            min=topping.min,
+            max=topping.max,
             items=items_list,  # SQLAlchemy tự convert sang JSON
             dish_ids=topping.dish_ids
         )
@@ -101,9 +137,17 @@ def create_topping(topping: ToppingCreate, db: Session = Depends(get_db)):
 
 # ✅ PUT cập nhật topping
 @router.put("/{topping_id}", response_model=dict)
-def update_topping(topping_id: int, topping: ToppingUpdate, db: Session = Depends(get_db)):
+def update_topping(
+    topping_id: int,
+    topping: ToppingUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Cập nhật thông tin topping"""
-    db_topping = db.query(Topping).filter(Topping.id == topping_id).first()
+    db_topping = db.query(Topping).filter(
+        Topping.id == topping_id,
+        Topping.seller_id == current_user.id
+    ).first()
     
     if not db_topping:
         raise HTTPException(status_code=404, detail="Không tìm thấy topping")
@@ -111,6 +155,12 @@ def update_topping(topping_id: int, topping: ToppingUpdate, db: Session = Depend
     try:
         if topping.name is not None:
             db_topping.name = topping.name
+        
+        if topping.min is not None:
+            db_topping.min = topping.min
+            
+        if topping.max is not None:
+            db_topping.max = topping.max
         
         if topping.items is not None:
             items_list = [item.dict() for item in topping.items]
@@ -129,9 +179,16 @@ def update_topping(topping_id: int, topping: ToppingUpdate, db: Session = Depend
 
 # ✅ DELETE xóa topping
 @router.delete("/{topping_id}", response_model=dict)
-def delete_topping(topping_id: int, db: Session = Depends(get_db)):
+def delete_topping(
+    topping_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Xóa topping"""
-    topping = db.query(Topping).filter(Topping.id == topping_id).first()
+    topping = db.query(Topping).filter(
+        Topping.id == topping_id,
+        Topping.seller_id == current_user.id
+    ).first()
     
     if not topping:
         raise HTTPException(status_code=404, detail="Không tìm thấy topping")

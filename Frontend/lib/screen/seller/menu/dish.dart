@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 import '../../../config/api_config.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../services/auth_services.dart';
 
 // ============================================================
 // DISH SCREEN - GỘP THÊM VÀ SỬA MÓN ĂN
@@ -37,7 +38,7 @@ class _DishScreenState extends State<DishScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // ===== KHỞI TẠO - Nếu edit thì load dữ liệu cũ =====
     if (widget.dish != null) {
       _nameController = TextEditingController(text: widget.dish!['name']);
@@ -76,7 +77,18 @@ class _DishScreenState extends State<DishScreen> {
   // ============================================================
   Future<void> _loadCategories() async {
     try {
-      final response = await http.get(Uri.parse(ApiConfig.categoryUrl));
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Đã hết phiên đăng nhập');
+      }
+
+      final response = await http.get(
+        Uri.parse(ApiConfig.categoryUrl),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
       if (response.statusCode == 200) {
         final List data = json.decode(response.body);
         setState(() {
@@ -92,6 +104,8 @@ class _DishScreenState extends State<DishScreen> {
             _selectedCategoryName = currentCategory['name'];
           }
         });
+      } else if (response.statusCode == 401) {
+        throw Exception('Đã hết phiên đăng nhập');
       }
     } catch (e) {
       setState(() {
@@ -191,6 +205,11 @@ class _DishScreenState extends State<DishScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Đã hết phiên đăng nhập');
+      }
+
       // Xử lý ảnh: chọn ảnh mới hoặc giữ ảnh cũ
       String? imageBase64;
       if (_selectedImage != null) {
@@ -218,12 +237,18 @@ class _DishScreenState extends State<DishScreen> {
       final response = isEdit
           ? await http.put(
               Uri.parse('${ApiConfig.dishUrl}${widget.dish!['id']}'),
-              headers: {'Content-Type': 'application/json'},
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
               body: json.encode(body),
             )
           : await http.post(
               Uri.parse(ApiConfig.dishUrl),
-              headers: {'Content-Type': 'application/json'},
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
               body: json.encode(body),
             );
 

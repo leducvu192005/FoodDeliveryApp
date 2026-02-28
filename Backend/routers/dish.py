@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from database import get_db
-from models import Dish, Category
+from models import Dish, Category, User
 from supabase_client import supabase
+from dependencies import get_current_user
 
 router = APIRouter(prefix="/api/dish", tags=["Dish"])
 
@@ -64,15 +65,25 @@ async def upload_dish_image(file: UploadFile = File(...)):
 @router.post("/", response_model=dict)
 def create_dish(
     dish: DishCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    category = db.query(Category).filter(Category.id == dish.category_id).first()
+    # Kiểm tra category có thuộc về seller này không
+    category = db.query(Category).filter(
+        Category.id == dish.category_id,
+        Category.seller_id == current_user.id
+    ).first()
     if not category:
-        raise HTTPException(status_code=400, detail="Danh mục không tồn tại")
+        raise HTTPException(status_code=400, detail="Danh mục không tồn tại hoặc không thuộc về bạn")
 
+    # Kiểm tra trùng tên trong danh mục của seller
     existing = (
         db.query(Dish)
-        .filter(Dish.name == dish.name, Dish.category_id == dish.category_id)
+        .filter(
+            Dish.name == dish.name,
+            Dish.category_id == dish.category_id,
+            Dish.seller_id == current_user.id
+        )
         .first()
     )
     if existing:
@@ -83,6 +94,7 @@ def create_dish(
         img=dish.img,
         price=dish.price,
         category_id=dish.category_id,
+        seller_id=current_user.id,
         description=dish.description,
         group=dish.group
     )
@@ -102,9 +114,17 @@ def create_dish(
 @router.get("/", response_model=List[DishResponse])
 def get_dishes(
     category_id: Optional[int] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Dish)
+    # Nếu là seller: chỉ lấy món của seller đó
+    # Nếu là buyer/customer: lấy tất cả món
+    if current_user.role == 'seller':
+        query = db.query(Dish).filter(Dish.seller_id == current_user.id)
+    else:
+        # Buyer/Customer: xem tất cả dishes
+        query = db.query(Dish)
+    
     if category_id:
         query = query.filter(Dish.category_id == category_id)
 
@@ -115,9 +135,13 @@ def get_dishes(
 @router.get("/{dish_id}", response_model=DishResponse)
 def get_dish(
     dish_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    dish = db.query(Dish).filter(Dish.id == dish_id).first()
+    dish = db.query(Dish).filter(
+        Dish.id == dish_id,
+        Dish.seller_id == current_user.id
+    ).first()
     if not dish:
         raise HTTPException(status_code=404, detail="Không tìm thấy món ăn")
     return dish
@@ -128,14 +152,23 @@ def get_dish(
 def update_dish(
     dish_id: int,
     dish: DishCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    db_dish = db.query(Dish).filter(Dish.id == dish_id).first()
+    db_dish = db.query(Dish).filter(
+        Dish.id == dish_id,
+        Dish.seller_id == current_user.id
+    ).first()
     if not db_dish:
         raise HTTPException(status_code=404, detail="Không tìm thấy món ăn")
 
-    if not db.query(Category).filter(Category.id == dish.category_id).first():
-        raise HTTPException(status_code=400, detail="Danh mục không tồn tại")
+    # Kiểm tra category thuộc về seller
+    category = db.query(Category).filter(
+        Category.id == dish.category_id,
+        Category.seller_id == current_user.id
+    ).first()
+    if not category:
+        raise HTTPException(status_code=400, detail="Danh mục không tồn tại hoặc không thuộc về bạn")
 
     db_dish.name = dish.name
     db_dish.img = dish.img
@@ -156,9 +189,13 @@ def update_dish(
 @router.delete("/{dish_id}", response_model=dict)
 def delete_dish(
     dish_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    dish = db.query(Dish).filter(Dish.id == dish_id).first()
+    dish = db.query(Dish).filter(
+        Dish.id == dish_id,
+        Dish.seller_id == current_user.id
+    ).first()
     if not dish:
         raise HTTPException(status_code=404, detail="Không tìm thấy món ăn")
 

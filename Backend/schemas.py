@@ -20,7 +20,8 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
-class CouponCreate(BaseModel):
+
+class DiscountCodeCreate(BaseModel):
     code:str
     title: Optional[str] 
     description: Optional[str]
@@ -29,6 +30,7 @@ class CouponCreate(BaseModel):
     min_order_value: Optional[float]
     start_at: Optional[datetime]
     end_at: Optional[datetime]
+    user_id: Optional[int] = None  # None = áp dụng cho tất cả user
 
 
 class ProductResponse(BaseModel):
@@ -47,7 +49,7 @@ class ProductCreate(BaseModel):
     image_url: Optional[str]
     create_at: int
 
-class CouponResponse(BaseModel):
+class DiscountCodeResponse(BaseModel):
     id :int 
     code: str 
     title: Optional[str]
@@ -58,12 +60,27 @@ class CouponResponse(BaseModel):
     start_at: Optional[datetime]
     end_at: Optional[datetime]
     active:bool
+    user_id: Optional[int] = None
     class Config:
         from_attributes =True
-class CouponValidateRequest(BaseModel):
+
+class DiscountCodeUpdate(BaseModel):
+    code: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    min_order_value: Optional[float] = None
+    start_at: Optional[datetime] = None
+    end_at: Optional[datetime] = None
+    active: Optional[bool] = None
+    user_id: Optional[int] = None
+
+class DiscountCodeValidateRequest(BaseModel):
     code: str
-    order_value: float
-class CouponValidateResponse(BaseModel):
+    cart_total: float
+
+class DiscountCodeValidateResponse(BaseModel):
     valid: bool
     discount_value: float
     message: Optional[str]    
@@ -94,14 +111,10 @@ class CartItemResponse(BaseModel):
 
 class CategoryCreate(BaseModel):
     name: str
-    description: Optional[str] = None
-    image: Optional[str] = None
 
 class CategoryResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str] = None
-    image: Optional[str] = None
 
     class Config:
         from_attributes = True
