@@ -105,7 +105,8 @@ class _ProfileState extends State<Profile> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              (_profile?['name'] ?? 'Chua cap nhat ten').toString(),
+                              (_profile?['name'] ?? 'Chua cap nhat ten')
+                                  .toString(),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
@@ -113,12 +114,14 @@ class _ProfileState extends State<Profile> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              (_profile?['sdt'] ?? 'Chua cap nhat SDT').toString(),
+                              (_profile?['sdt'] ?? 'Chua cap nhat SDT')
+                                  .toString(),
                               style: const TextStyle(color: Colors.black54),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              (_profile?['live'] ?? 'Chua cap nhat dia chi').toString(),
+                              (_profile?['live'] ?? 'Chua cap nhat dia chi')
+                                  .toString(),
                               style: const TextStyle(color: Colors.black45),
                             ),
                           ],
@@ -152,7 +155,8 @@ class _ProfileState extends State<Profile> {
                     foregroundColor: Colors.redAccent,
                     side: const BorderSide(color: Colors.redAccent),
                     minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ],

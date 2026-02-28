@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../config/api_config.dart';
@@ -13,6 +15,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final emailCtrl = TextEditingController();
   final passCtrl = TextEditingController();
+  final sdtCtrl = TextEditingController();
   bool loading = false;
 
   Future<void> login() async {
@@ -22,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final role = await AuthService.login(
         emailCtrl.text.trim(),
+        sdtCtrl.text.trim(),
         passCtrl.text.trim(),
       );
 
@@ -106,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: emailCtrl,
                   decoration: const InputDecoration(
-                    labelText: 'Email',
+                    labelText: 'Email or số diện thoại',
                     border: OutlineInputBorder(),
                   ),
                 ),

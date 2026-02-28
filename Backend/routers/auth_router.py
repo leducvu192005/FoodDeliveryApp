@@ -1,3 +1,5 @@
+from operator import or_
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -16,10 +18,12 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
 
     if db.query(User).filter(User.email == data.email).first():
         raise HTTPException(status_code=400, detail="Email đã tồn tại")
-
+    if db.query(User).filter(User.sdt == data.sdt).first():
+        raise HTTPException(status_code=400, detail="Số điện thoại đã tồn tại")
     user = User(
         full_name=data.full_name,
         email=data.email,
+        sdt =data.sdt,
         password_hash=hash_password(data.password.strip()),
 
         role=data.role
@@ -31,13 +35,13 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     return {"message": "Đăng ký thành công"}
 @router.post("/login")
 def login(data: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == data.email.strip()).first()
+    user = db.query(User).filter(or_(User.email == data.email, User.sdt == data.email)).first()
 
     if not user or not verify_password(
         data.password.strip(),
         user.password_hash
     ):
-        raise HTTPException(status_code=401, detail="Sai email hoặc mật khẩu")
+        raise HTTPException(status_code=401, detail="Sai email, sdt hoặc mật khẩu")
 
     access_token = create_access_token(
         data={

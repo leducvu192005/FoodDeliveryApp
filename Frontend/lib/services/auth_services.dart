@@ -10,6 +10,7 @@ class AuthService {
   static Future<bool> register(
     String fullName,
     String email,
+    String sdt,
     String password,
     String role,
   ) async {
@@ -19,6 +20,7 @@ class AuthService {
       body: jsonEncode({
         "full_name": fullName,
         "email": email,
+        "sdt": sdt,
         "password": password,
         "role": role,
       }),
@@ -27,12 +29,14 @@ class AuthService {
     return res.statusCode == 200;
   }
 
-  static Future<String?> login(String email, String password) async {
+  static Future<String?> login(
+      String email, String sdt, String password) async {
     final res = await http.post(
       Uri.parse("$baseUrl/login"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "email": email,
+        "sdt": sdt,
         "password": password,
       }),
     );

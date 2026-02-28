@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../services/auth_services.dart';
 
@@ -11,6 +13,7 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final nameCtrl = TextEditingController();
   final emailCtrl = TextEditingController();
+  final sdtCtrl = TextEditingController();
   final passCtrl = TextEditingController();
 
   String role = "buyer";
@@ -19,6 +22,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void register() async {
     if (nameCtrl.text.isEmpty ||
         emailCtrl.text.isEmpty ||
+        sdtCtrl.text.isEmpty ||
         passCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Vui lòng nhập đầy đủ thông tin")),
@@ -31,6 +35,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     bool ok = await AuthService.register(
       nameCtrl.text.trim(),
       emailCtrl.text.trim(),
+      sdtCtrl.text.trim(),
       passCtrl.text.trim(),
       role,
     );
@@ -65,7 +70,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: SingleChildScrollView(
           child: Container(
             width: double.infinity,
-            height: 600,
             padding: EdgeInsets.symmetric(vertical: 24, horizontal: 16),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -80,9 +84,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   style: TextStyle(fontSize: 22),
                 ),
                 const Icon(Icons.food_bank, size: 80, color: Colors.deepOrange),
-
                 const SizedBox(height: 20),
-
                 TextField(
                   controller: nameCtrl,
                   decoration: const InputDecoration(
@@ -91,7 +93,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
                 TextField(
                   controller: emailCtrl,
                   decoration: const InputDecoration(
@@ -101,7 +102,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 12),
-
+                TextField(
+                  controller: sdtCtrl,
+                  decoration: const InputDecoration(
+                    labelText: "Số điện thoại",
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: passCtrl,
                   decoration: const InputDecoration(
@@ -111,7 +120,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   obscureText: true,
                 ),
                 const SizedBox(height: 12),
-
                 DropdownButtonFormField<String>(
                   value: role,
                   decoration: const InputDecoration(
@@ -126,7 +134,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onChanged: (v) => setState(() => role = v!),
                 ),
                 const SizedBox(height: 20),
-
                 SizedBox(
                   width: double.infinity,
                   height: 48,

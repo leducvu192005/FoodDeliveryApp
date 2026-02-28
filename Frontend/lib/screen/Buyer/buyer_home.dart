@@ -60,7 +60,9 @@ class _BuyerHomeState extends State<BuyerHome> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(ok ? 'Da them ${product.name}' : 'Khong them duoc ${product.name}'),
+          content: Text(ok
+              ? 'Da them ${product.name}'
+              : 'Khong them duoc ${product.name}'),
         ),
       );
     } catch (e) {
@@ -112,7 +114,8 @@ class _BuyerHomeState extends State<BuyerHome> {
         future: _homeDataFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: accent));
+            return const Center(
+                child: CircularProgressIndicator(color: accent));
           }
 
           if (snapshot.hasError) {
@@ -128,12 +131,15 @@ class _BuyerHomeState extends State<BuyerHome> {
             );
           }
 
-          final categories = (snapshot.data?['categories'] as List<Category>? ?? []);
+          final categories =
+              (snapshot.data?['categories'] as List<Category>? ?? []);
           final allDishes = (snapshot.data?['dishes'] as List<Product>? ?? []);
           final keyword = _searchController.text.trim().toLowerCase();
           final dishes = keyword.isEmpty
               ? allDishes
-              : allDishes.where((d) => d.name.toLowerCase().contains(keyword)).toList();
+              : allDishes
+                  .where((d) => d.name.toLowerCase().contains(keyword))
+                  .toList();
 
           return RefreshIndicator(
             color: accent,
@@ -167,7 +173,8 @@ class _BuyerHomeState extends State<BuyerHome> {
                   padding: const EdgeInsets.all(14),
                   child: Row(
                     children: [
-                      const Icon(Icons.local_fire_department_rounded, color: Colors.white),
+                      const Icon(Icons.local_fire_department_rounded,
+                          color: Colors.white),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -216,7 +223,7 @@ class _BuyerHomeState extends State<BuyerHome> {
                 ),
                 const SizedBox(height: 18),
                 const Text(
-                  'Mon noi bat',
+                  'Món ăn nổi bật',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 10),
@@ -230,7 +237,8 @@ class _BuyerHomeState extends State<BuyerHome> {
                     itemCount: dishes.length,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       childAspectRatio: 0.74,
                       crossAxisSpacing: 10,
@@ -268,20 +276,25 @@ class _BuyerHomeState extends State<BuyerHome> {
                                   borderRadius: const BorderRadius.vertical(
                                     top: Radius.circular(16),
                                   ),
-                                  child: SizedBox(width: double.infinity, child: _buildDishImage(product)),
+                                  child: SizedBox(
+                                      width: double.infinity,
+                                      child: _buildDishImage(product)),
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+                                padding:
+                                    const EdgeInsets.fromLTRB(10, 8, 10, 6),
                                 child: Text(
                                   product.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700),
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                                padding:
+                                    const EdgeInsets.fromLTRB(10, 0, 10, 10),
                                 child: Row(
                                   children: [
                                     Text(
@@ -297,7 +310,8 @@ class _BuyerHomeState extends State<BuyerHome> {
                                       child: const CircleAvatar(
                                         radius: 14,
                                         backgroundColor: accent,
-                                        child: Icon(Icons.add, size: 16, color: Colors.white),
+                                        child: Icon(Icons.add,
+                                            size: 16, color: Colors.white),
                                       ),
                                     ),
                                   ],

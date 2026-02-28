@@ -5,17 +5,20 @@ from uuid import UUID
 class RegisterRequest(BaseModel):
     full_name: str
     email: EmailStr
+    sdt : str
     password: str
     role: str
 
 class LoginRequest(BaseModel):
     email: EmailStr
+    sdt : str
     password: str
 
 class UserResponse(BaseModel):
     id: int
     full_name: str
     email: str
+    sdt: str
     role: str
 
     class Config:
