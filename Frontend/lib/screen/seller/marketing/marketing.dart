@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'discount_codes.dart';
 
 class MarketingScreen extends StatefulWidget {
-  @override
+  const MarketingScreen({super.key});
   _MarketingScreenState createState() => _MarketingScreenState();
 }
 
@@ -92,42 +93,21 @@ class _MarketingScreenState extends State<MarketingScreen> {
               Icons.local_offer,
               Colors.red,
               () {
-                // TODO: Navigate to coupon management
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Chức năng đang phát triển')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DiscountCodesScreen(),
+                  ),
                 );
               },
             ),
-            SizedBox(height: 12),
-            _buildMarketingTool(
-              'Chương trình khuyến mãi',
-              'Tạo chương trình ưu đãi đặc biệt',
-              Icons.campaign,
-              Colors.purple,
-              () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Chức năng đang phát triển')),
-                );
-              },
-            ),
+
             SizedBox(height: 12),
             _buildMarketingTool(
               'Thông báo khách hàng',
               'Gửi thông báo đến khách hàng',
               Icons.notifications,
               Colors.teal,
-              () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Chức năng đang phát triển')),
-                );
-              },
-            ),
-            SizedBox(height: 12),
-            _buildMarketingTool(
-              'Phân tích khách hàng',
-              'Xem thông tin chi tiết về khách hàng',
-              Icons.analytics,
-              Colors.indigo,
               () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Chức năng đang phát triển')),
@@ -141,7 +121,8 @@ class _MarketingScreenState extends State<MarketingScreen> {
   }
 
   // ========== CARD THỐNG KÊ ==========
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(

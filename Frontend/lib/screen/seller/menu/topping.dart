@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../../config/api_config.dart';
+import '../../../services/auth_services.dart';
 
 class ToppingScreen extends StatefulWidget {
   final Map<String, dynamic>? topping; // null = thêm mới, có giá trị = sửa
@@ -17,18 +18,19 @@ class _ToppingScreenState extends State<ToppingScreen> {
   final _nameController = TextEditingController();
   final _minController = TextEditingController();
   final _maxController = TextEditingController();
-  
-  List<Map<String, dynamic>> _items = []; // Danh sách các item trong nhóm topping
+
+  List<Map<String, dynamic>> _items =
+      []; // Danh sách các item trong nhóm topping
   List<Map<String, dynamic>> _allDishes = []; // Danh sách tất cả món ăn
   List<int> _selectedDishIds = []; // ID các món đã chọn
-  
+
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _loadDishes();
-    
+
     // Nếu đang sửa, load dữ liệu topping
     if (widget.topping != null) {
       _nameController.text = widget.topping!['name'] ?? '';
@@ -50,16 +52,31 @@ class _ToppingScreenState extends State<ToppingScreen> {
   // ========== TẢI DANH SÁCH MÓN ĂN ==========
   Future<void> _loadDishes() async {
     try {
-      final response = await http.get(Uri.parse(ApiConfig.dishUrl));
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Đã hết phiên đăng nhập');
+      }
+
+      final response = await http.get(
+        Uri.parse(ApiConfig.dishUrl),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
           _allDishes = data.cast<Map<String, dynamic>>();
         });
+      } else if (response.statusCode == 401) {
+        throw Exception('Đã hết phiên đăng nhập');
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi tải danh sách món: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Lỗi tải danh sách món: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -102,7 +119,8 @@ class _ToppingScreenState extends State<ToppingScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (nameController.text.isNotEmpty && priceController.text.isNotEmpty) {
+              if (nameController.text.isNotEmpty &&
+                  priceController.text.isNotEmpty) {
                 setState(() {
                   _items.add({
                     'name': nameController.text,
@@ -127,7 +145,8 @@ class _ToppingScreenState extends State<ToppingScreen> {
   void _showEditToppingItemDialog(int index) {
     final item = _items[index];
     final nameController = TextEditingController(text: item['name']);
-    final priceController = TextEditingController(text: item['price'].toString());
+    final priceController =
+        TextEditingController(text: item['price'].toString());
 
     showDialog(
       context: context,
@@ -162,7 +181,8 @@ class _ToppingScreenState extends State<ToppingScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (nameController.text.isNotEmpty && priceController.text.isNotEmpty) {
+              if (nameController.text.isNotEmpty &&
+                  priceController.text.isNotEmpty) {
                 setState(() {
                   _items[index] = {
                     'name': nameController.text,
@@ -234,7 +254,7 @@ class _ToppingScreenState extends State<ToppingScreen> {
                     final dish = _allDishes[index];
                     final dishId = dish['id'];
                     final isSelected = _selectedDishIds.contains(dishId);
-                    
+
                     return CheckboxListTile(
                       title: Text(dish['name']),
                       subtitle: Text('${dish['price']}đ'),
@@ -267,7 +287,7 @@ class _ToppingScreenState extends State<ToppingScreen> {
   // ========== LƯU TOPPING ==========
   Future<void> _saveTopping() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     if (_items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Vui lòng thêm ít nhất 1 tùy chọn')),
@@ -280,6 +300,11 @@ class _ToppingScreenState extends State<ToppingScreen> {
     });
 
     try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Đã hết phiên đăng nhập');
+      }
+
       final data = {
         'name': _nameController.text,
         'min': int.tryParse(_minController.text) ?? 0,
@@ -291,19 +316,27 @@ class _ToppingScreenState extends State<ToppingScreen> {
       final response = widget.topping == null
           ? await http.post(
               Uri.parse(ApiConfig.toppingUrl),
-              headers: {'Content-Type': 'application/json'},
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
               body: json.encode(data),
             )
           : await http.put(
               Uri.parse('${ApiConfig.toppingUrl}${widget.topping!['id']}'),
-              headers: {'Content-Type': 'application/json'},
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
               body: json.encode(data),
             );
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.topping == null ? 'Thêm nhóm topping thành công' : 'Cập nhật nhóm topping thành công'),
+            content: Text(widget.topping == null
+                ? 'Thêm nhóm topping thành công'
+                : 'Cập nhật nhóm topping thành công'),
             backgroundColor: Colors.green,
           ),
         );
@@ -329,7 +362,8 @@ class _ToppingScreenState extends State<ToppingScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Xác nhận xóa'),
-        content: Text('Bạn có chắc muốn xóa nhóm topping "${_nameController.text}"?\n\nHành động này không thể hoàn tác.'),
+        content: Text(
+            'Bạn có chắc muốn xóa nhóm topping "${_nameController.text}"?\n\nHành động này không thể hoàn tác.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -337,7 +371,9 @@ class _ToppingScreenState extends State<ToppingScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Xóa', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: Text('Xóa',
+                style:
+                    TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -350,8 +386,16 @@ class _ToppingScreenState extends State<ToppingScreen> {
     });
 
     try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Đã hết phiên đăng nhập');
+      }
+
       final response = await http.delete(
         Uri.parse('${ApiConfig.toppingUrl}${widget.topping!['id']}'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -379,7 +423,7 @@ class _ToppingScreenState extends State<ToppingScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isEdit = widget.topping != null;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(isEdit ? 'Sửa nhóm topping' : 'Thêm nhóm topping'),
@@ -456,7 +500,7 @@ class _ToppingScreenState extends State<ToppingScreen> {
               ],
             ),
             SizedBox(height: 12),
-            
+
             // Hiển thị các item với nút sửa/xóa
             ..._items.asMap().entries.map((entry) {
               final index = entry.key;
@@ -505,7 +549,7 @@ class _ToppingScreenState extends State<ToppingScreen> {
                 ),
               );
             }).toList(),
-            
+
             SizedBox(height: 24),
 
             // ===== CHỌN MÓN ÁP DỤNG =====
@@ -528,7 +572,7 @@ class _ToppingScreenState extends State<ToppingScreen> {
               ],
             ),
             SizedBox(height: 12),
-            
+
             // Hiển thị các món đã chọn
             ..._selectedDishIds.map((dishId) {
               final dish = _allDishes.firstWhere(
@@ -552,7 +596,7 @@ class _ToppingScreenState extends State<ToppingScreen> {
                 ),
               );
             }).toList(),
-            
+
             SizedBox(height: 32),
 
             // ===== NÚT LƯU/CẬP NHẬT =====
@@ -567,7 +611,8 @@ class _ToppingScreenState extends State<ToppingScreen> {
                   ? CircularProgressIndicator(color: Colors.white)
                   : Text(
                       isEdit ? 'Cập nhật' : 'Thêm mới',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
             ),
 

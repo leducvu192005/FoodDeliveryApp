@@ -24,10 +24,12 @@ class Category(Base):
     __tablename__ = "category"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False)
+    name = Column(String, nullable=False)
+    seller_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     
     # Relationship với Dish
     dishes = relationship("Dish", back_populates="category")
+    seller = relationship("User", foreign_keys=[seller_id])
 
 
 class Dish(Base):
@@ -38,11 +40,13 @@ class Dish(Base):
     img = Column(String, nullable=True)
     price = Column(Float, nullable=False)
     category_id = Column(Integer, ForeignKey("category.id"), nullable=False)
+    seller_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     description = Column(Text, nullable=True)
     group = Column(String, nullable=True)
     
     # Relationship với Category
     category = relationship("Category", back_populates="dishes")
+    seller = relationship("User", foreign_keys=[seller_id])
 
 
 class Topping(Base):
@@ -50,8 +54,13 @@ class Topping(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
+    seller_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    min = Column(Integer, default=0)
+    max = Column(Integer, default=1)
     items = Column(JSON, nullable=True)  # Lưu danh sách topping items dưới dạng JSON
     dish_ids = Column(JSON, nullable=True)  # Lưu danh sách dish_ids dưới dạng JSON
+    
+    seller = relationship("User", foreign_keys=[seller_id])
 
 
 
@@ -63,8 +72,9 @@ class Product(Base):
     price = Column(Numeric(10,2), nullable =False)
     image_url = Column(String, nullable =True)
     create_at = Column(Integer, nullable =False)
-class Coupon(Base):
-    __tablename__ = "coupons"
+
+class DiscountCode(Base):
+    __tablename__ = "discount_code"
 
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String, unique=True, index=True)
@@ -76,6 +86,7 @@ class Coupon(Base):
     start_at = Column(Datetime, nullable=True)
     end_at = Column(Datetime, nullable=True)
     active = Column(Boolean, default=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # NULL = áp dụng cho tất cả user
     create_by = Column(Integer,nullable=False)
     create_at = Column(Datetime, server_default=func.now())
 

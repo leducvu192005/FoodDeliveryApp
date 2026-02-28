@@ -3,13 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../../config/api_config.dart';
+import '../../../services/auth_services.dart';
 
 // ==================== SCREEN CHÍNH: QUẢN LÝ DANH MỤC ====================
 class CategoryManagementScreen extends StatefulWidget {
   const CategoryManagementScreen({Key? key}) : super(key: key);
 
   @override
-  State<CategoryManagementScreen> createState() => _CategoryManagementScreenState();
+  State<CategoryManagementScreen> createState() =>
+      _CategoryManagementScreenState();
 }
 
 class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
@@ -29,13 +31,25 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
     });
 
     try {
-      final response = await http.get(Uri.parse(ApiConfig.categoryUrl));
-      
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Đã hết phiên đăng nhập');
+      }
+
+      final response = await http.get(
+        Uri.parse(ApiConfig.categoryUrl),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
           _categories = data.cast<Map<String, dynamic>>();
         });
+      } else if (response.statusCode == 401) {
+        throw Exception('Đã hết phiên đăng nhập');
       }
     } catch (e) {
       if (mounted) {
@@ -69,9 +83,17 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
       });
 
       try {
+        final token = await AuthService.getToken();
+        if (token == null) {
+          throw Exception('Đã hết phiên đăng nhập');
+        }
+
         final response = await http.post(
           Uri.parse(ApiConfig.categoryUrl),
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
           body: json.encode({'name': result}),
         );
 
@@ -129,9 +151,17 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
       });
 
       try {
+        final token = await AuthService.getToken();
+        if (token == null) {
+          throw Exception('Đã hết phiên đăng nhập');
+        }
+
         final response = await http.put(
           Uri.parse('${ApiConfig.categoryUrl}${category['id']}'),
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
           body: json.encode({'name': result}),
         );
 
@@ -200,8 +230,16 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
     });
 
     try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Đã hết phiên đăng nhập');
+      }
+
       final response = await http.delete(
         Uri.parse('${ApiConfig.categoryUrl}$categoryId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -254,7 +292,8 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context, true), // ✅ Return true để reload
+          onPressed: () =>
+              Navigator.pop(context, true), // ✅ Return true để reload
         ),
       ),
       body: _isLoading
@@ -411,7 +450,6 @@ class _CategoryDialogState extends State<_CategoryDialog> {
     );
   }
 }
-
 
 //  widget nhỏ gọn hơn trong menu
 class AddCategory extends StatelessWidget {

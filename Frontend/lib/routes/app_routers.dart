@@ -7,7 +7,8 @@ import '../screen/Buyer/cart.dart';
 import '../screen/Buyer/layout.dart';
 import '../screen/Buyer/order.dart';
 import '../screen/Buyer/favorites.dart';
-import '../screen/seller/home/home.dart';
+// import '../screen/seller/home/home.dart';
+import '../screen/nav.dart';
 import '../screen/Shipper/shipper_home.dart';
 import '../screen/Shipper/order_shipper.dart';
 
@@ -22,7 +23,7 @@ class AppRoutes {
     "/buyer/layout": (_) => const Layout(),
     "/buyer/order": (_) => const Order(),
     "/buyer/favorites": (_) => const Favorites(),
-    "/seller": (_) => SellerHomeScreen(),
+    "/seller": (_) => const SellerNavScreen(),
     "/shipper": (_) => const ShipperHome(),
     "/shipper/order": (_) => const OrderShipper(),
   };

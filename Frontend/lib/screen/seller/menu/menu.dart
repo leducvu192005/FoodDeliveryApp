@@ -5,20 +5,24 @@ import 'category.dart';
 import 'dish.dart'; // File đã gộp add + edit
 import 'topping.dart'; // File đã gộp add + edit
 import '../../../config/api_config.dart';
+import '../../../services/auth_services.dart';
 
 class MenuScreen extends StatefulWidget {
+  const MenuScreen({super.key});
   @override
   _MenuScreenState createState() => _MenuScreenState();
 }
 
-class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateMixin {
+class _MenuScreenState extends State<MenuScreen>
+    with SingleTickerProviderStateMixin {
   // ========== KHAI BÁO BIẾN ==========
   List<Map<String, dynamic>> _categories = []; // Danh sách danh mục
-  Map<int, List<Map<String, dynamic>>> _dishesByCategory = {}; // Món ăn theo danh mục
+  Map<int, List<Map<String, dynamic>>> _dishesByCategory =
+      {}; // Món ăn theo danh mục
   Map<int, bool> _expandedCategories = {}; // Trạng thái mở/đóng của danh mục
   List<Map<String, dynamic>> _toppings = []; // Danh sách nhóm topping
   bool _isLoading = true; // Trạng thái đang tải dữ liệu
-  
+
   TabController? _tabController; // Controller cho tab
 
   @override
@@ -41,15 +45,28 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
     });
 
     try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Đã hết phiên đăng nhập');
+      }
+
+      final headers = {'Authorization': 'Bearer $token'};
+
       // Tải danh sách danh mục
-      final categoryResponse = await http.get(Uri.parse(ApiConfig.categoryUrl));
+      final categoryResponse = await http.get(
+        Uri.parse(ApiConfig.categoryUrl),
+        headers: headers,
+      );
 
       if (categoryResponse.statusCode == 200) {
         final List<dynamic> categoryData = json.decode(categoryResponse.body);
         _categories = categoryData.cast<Map<String, dynamic>>();
 
         // Tải danh sách món ăn
-        final dishResponse = await http.get(Uri.parse(ApiConfig.dishUrl));
+        final dishResponse = await http.get(
+          Uri.parse(ApiConfig.dishUrl),
+          headers: headers,
+        );
 
         if (dishResponse.statusCode == 200) {
           final List<dynamic> dishData = json.decode(dishResponse.body);
@@ -67,12 +84,14 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
       }
 
       // Tải danh sách nhóm topping
-      final toppingResponse = await http.get(Uri.parse(ApiConfig.toppingUrl));
+      final toppingResponse = await http.get(
+        Uri.parse(ApiConfig.toppingUrl),
+        headers: headers,
+      );
       if (toppingResponse.statusCode == 200) {
         final List<dynamic> toppingData = json.decode(toppingResponse.body);
         _toppings = toppingData.cast<Map<String, dynamic>>();
       }
-      
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -110,11 +129,17 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
       ),
     );
     if (confirm != true) return;
-    
+
     try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Đã hết phiên đăng nhập');
+      }
+
       // Gọi API xóa món
       final response = await http.delete(
         Uri.parse('${ApiConfig.dishUrl}$dishId'),
+        headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -145,7 +170,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
       );
       return;
     }
-    
+
     // Hiển thị dialog xác nhận
     final confirm = await showDialog<bool>(
       context: context,
@@ -165,11 +190,17 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
       ),
     );
     if (confirm != true) return;
-    
+
     try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Đã hết phiên đăng nhập');
+      }
+
       // Gọi API xóa danh mục
       final response = await http.delete(
         Uri.parse('${ApiConfig.categoryUrl}$categoryId'),
+        headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -210,9 +241,15 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
     if (confirm != true) return;
 
     try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Đã hết phiên đăng nhập');
+      }
+
       // Gọi API xóa topping
       final response = await http.delete(
         Uri.parse('${ApiConfig.toppingUrl}$toppingId'),
+        headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -252,7 +289,8 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => DishScreen(dish: dish), // Truyền dish = chế độ sửa
+                    builder: (context) =>
+                        DishScreen(dish: dish), // Truyền dish = chế độ sửa
                   ),
                 );
                 if (result == true) _loadData(); // Tải lại nếu có thay đổi
@@ -297,7 +335,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
         builder: (context) => CategoryManagementScreen(),
       ),
     );
-    
+
     if (result == true) {
       _loadData(); // Tải lại dữ liệu nếu có thay đổi
     }
@@ -320,9 +358,8 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
               onTap: () {
                 Navigator.pop(context);
                 setState(() {
-                  _categories.sort((a, b) => 
-                    a['name'].toString().compareTo(b['name'].toString())
-                  );
+                  _categories.sort((a, b) =>
+                      a['name'].toString().compareTo(b['name'].toString()));
                 });
               },
             ),
@@ -335,9 +372,8 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
               onTap: () {
                 Navigator.pop(context);
                 setState(() {
-                  _categories.sort((a, b) => 
-                    b['name'].toString().compareTo(a['name'].toString())
-                  );
+                  _categories.sort((a, b) =>
+                      b['name'].toString().compareTo(a['name'].toString()));
                 });
               },
             ),
@@ -361,10 +397,10 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
   }
 
   // ========== XÂY DỰNG CÁC NÚT FLOATING (CHỈNH SỬA, SẮP XẾP, THÊM) ==========
-    // ========== XÂY DỰNG CÁC NÚT FLOATING (CHỈNH SỬA, SẮP XẾP, THÊM) ==========
+  // ========== XÂY DỰNG CÁC NÚT FLOATING (CHỈNH SỬA, SẮP XẾP, THÊM) ==========
   Widget _buildFloatingButtons() {
     final isOnDishTab = _tabController?.index == 0;
-    
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -379,7 +415,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
             mini: true,
           ),
         if (isOnDishTab) SizedBox(height: 12),
-        
+
         // Nút sắp xếp (chỉ hiện ở tab món, màu cam, mini)
         if (isOnDishTab)
           FloatingActionButton(
@@ -390,7 +426,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
             mini: true,
           ),
         if (isOnDishTab) SizedBox(height: 12),
-        
+
         // Nút thêm chính (màu xanh lá, kích thước bình thường)
         FloatingActionButton(
           heroTag: 'add',
@@ -408,8 +444,9 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
       ],
     );
   }
+
   // ========== XÂY DỰNG GIAO DIỆN CHÍNH ==========
-   // ========== XÂY DỰNG GIAO DIỆN CHÍNH ==========
+  // ========== XÂY DỰNG GIAO DIỆN CHÍNH ==========
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -446,6 +483,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
       floatingActionButton: _buildFloatingButtons(), // Các nút floating
     );
   }
+
   // ========== NỘI DUNG TAB MÓN ĂN ==========
   Widget _buildDishTabContent() {
     return Column(
@@ -460,7 +498,8 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
           child: _isLoading
               ? Center(child: CircularProgressIndicator()) // Đang tải
               : _categories.isEmpty
-                  ? Center(child: Text('Chưa có danh mục nào')) // Không có dữ liệu
+                  ? Center(
+                      child: Text('Chưa có danh mục nào')) // Không có dữ liệu
                   : RefreshIndicator(
                       onRefresh: _loadData, // Kéo để refresh
                       child: ListView.builder(
@@ -469,7 +508,8 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                           final category = _categories[index];
                           final categoryId = category['id'];
                           final dishes = _dishesByCategory[categoryId] ?? [];
-                          final isExpanded = _expandedCategories[categoryId] ?? false;
+                          final isExpanded =
+                              _expandedCategories[categoryId] ?? false;
 
                           return Column(
                             children: [
@@ -489,17 +529,21 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                                 onTap: () {
                                   // Mở/đóng danh sách món trong danh mục
                                   setState(() {
-                                    _expandedCategories[categoryId] = !isExpanded;
+                                    _expandedCategories[categoryId] =
+                                        !isExpanded;
                                   });
                                 },
                                 onLongPress: () {
                                   // Nhấn giữ để hiển thị options xóa danh mục
-                                  _showCategoryOptions(categoryId, category['name']);
+                                  _showCategoryOptions(
+                                      categoryId, category['name']);
                                 },
                               ),
                               // Hiển thị danh sách món nếu được mở rộng
                               if (isExpanded)
-                                ...dishes.map((dish) => _buildDishItem(dish)).toList(),
+                                ...dishes
+                                    .map((dish) => _buildDishItem(dish))
+                                    .toList(),
                               Divider(height: 1),
                             ],
                           );
@@ -512,7 +556,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
   }
 
   // ========== NỘI DUNG TAB TOPPING ==========
-    // ========== NỘI DUNG TAB TOPPING (CLICK VÀO ĐỂ CHỈNH SỬA) ==========
+  // ========== NỘI DUNG TAB TOPPING (CLICK VÀO ĐỂ CHỈNH SỬA) ==========
   Widget _buildOptionGroupTabContent() {
     if (_isLoading) {
       return Center(child: CircularProgressIndicator()); // Đang tải
@@ -541,7 +585,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
         itemBuilder: (context, index) {
           final topping = _toppings[index];
           final items = topping['items'] as List? ?? [];
-          
+
           return Card(
             margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ListTile(
@@ -560,7 +604,8 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ToppingScreen(topping: topping), // Mở màn hình sửa
+                    builder: (context) =>
+                        ToppingScreen(topping: topping), // Mở màn hình sửa
                   ),
                 );
                 if (result == true) _loadData(); // Tải lại nếu có thay đổi
@@ -571,7 +616,8 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                   context: context,
                   builder: (context) => AlertDialog(
                     title: Text('Xác nhận xóa'),
-                    content: Text('Bạn có chắc muốn xóa nhóm topping "${topping['name']}"?'),
+                    content: Text(
+                        'Bạn có chắc muốn xóa nhóm topping "${topping['name']}"?'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context, false),
@@ -594,6 +640,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
       ),
     );
   }
+
   // ========== HIỂN THỊ TỪNG MÓN ĂN ==========
   Widget _buildDishItem(Map<String, dynamic> dish) {
     return Container(
