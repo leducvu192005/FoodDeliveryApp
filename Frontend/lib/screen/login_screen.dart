@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-
 import '../config/api_config.dart';
 import '../services/auth_services.dart';
 
@@ -40,7 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Navigator.pushReplacementNamed(context, '/seller');
             break;
           case 'shipper':
-            Navigator.pushReplacementNamed(context, '/shipper');
+            Navigator.pushReplacementNamed(context, '/shipper/layout');
             break;
           case 'admin':
             Navigator.pushReplacementNamed(context, '/admin');

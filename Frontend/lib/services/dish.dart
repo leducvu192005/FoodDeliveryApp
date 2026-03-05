@@ -68,4 +68,26 @@ class DishService {
       rethrow;
     }
   }
+
+  static Future<List<Product>> fetchDishesBySeller(int sellerId) async {
+    final url = Uri.parse('$_baseUrl/api/dish?seller_id=$sellerId');
+
+    try {
+      final token = await AuthService.getToken();
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+
+      final res = await http.get(url, headers: headers);
+      if (res.statusCode == 200) {
+        final List data = jsonDecode(res.body);
+        return data.map((e) => Product.fromJson(e)).toList();
+      }
+      throw Exception('HTTP ${res.statusCode}');
+    } catch (e) {
+      print('[DishService] fetchDishesBySeller error: $e');
+      rethrow;
+    }
+  }
 }

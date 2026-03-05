@@ -12,7 +12,7 @@ class _OrderShipperState extends State<OrderShipper> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.deepOrange,
+        backgroundColor: Colors.white,
         title: const Text("Order Shipper Screen"),
       ),
       body: SingleChildScrollView(

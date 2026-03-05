@@ -142,3 +142,16 @@ class Payment(Base):
     created_at = Column(Datetime, server_default=func.now())
 
     order = relationship("Order")
+class Shipper(Base):
+    __tablename__ = "shippers"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id =Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    full_name = Column(String, nullable=False)
+    phone = Column(String, nullable=False)
+    verhice_type = Column(String, nullable=False)
+    is_online = Column(Boolean, default=False)
+    rating = Column(Numeric(2,1), default=0.0)
+    total_completed_orders = Column(Integer, default=0)
+    created_at = Column(Datetime, server_default=func.now())
+    user = relationship("User")

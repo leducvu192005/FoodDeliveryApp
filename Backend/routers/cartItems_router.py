@@ -197,13 +197,10 @@ def checkout_cart(
         )
         db.add(order_item)
 
-    # 3️⃣ Xóa giỏ hàng
-    for item in cart_items:
-        db.delete(item)
-
     db.commit()
 
-    # 4️⃣ Trả về đúng cho Flutter
+    # Trả về order để frontend thực hiện thanh toán.
+    # Giỏ hàng chỉ được cập nhật sau khi payment thành công (webhook).
     return {
         "order_id": order.id,
         "total_price": total_amount,

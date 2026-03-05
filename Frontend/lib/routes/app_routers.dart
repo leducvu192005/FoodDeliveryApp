@@ -11,6 +11,7 @@ import '../screen/Buyer/favorites.dart';
 import '../screen/nav.dart';
 import '../screen/Shipper/shipper_home.dart';
 import '../screen/Shipper/order_shipper.dart';
+import '../screen/shipper/layout_shipper.dart';
 
 class AppRoutes {
   static Map<String, WidgetBuilder> routes = {
@@ -26,5 +27,6 @@ class AppRoutes {
     "/seller": (_) => const SellerNavScreen(),
     "/shipper": (_) => const ShipperHome(),
     "/shipper/order": (_) => const OrderShipper(),
+    "/shipper/layout": (_) => const LayoutShipper(),
   };
 }

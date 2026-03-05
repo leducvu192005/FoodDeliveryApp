@@ -4,7 +4,7 @@ from datetime import datetime
 import stripe
 import models
 from database import get_db
-from models import Order, Payment
+from models import CartItem, Order, OrderItem, Payment
 from schemas import PaymentCreateRequest, PaymentResponse
 import os
 from dependencies import get_current_user
@@ -82,7 +82,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             .filter(models.Payment.stripe_payment_intent == intent["id"])\
             .first()
 
-        if payment:
+        if payment and payment.status != "paid":
             payment.status = "paid"
             payment.paid_at = datetime.utcnow()
 
@@ -91,6 +91,30 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 
             if order:
                 order.status = "confirmed"
+                order_items = (
+                    db.query(OrderItem)
+                    .filter(OrderItem.order_id == order.id)
+                    .all()
+                )
+
+                # Clear cart only after successful payment.
+                # Reduce quantity by purchased amount to avoid deleting newly added items.
+                for order_item in order_items:
+                    cart_item = (
+                        db.query(CartItem)
+                        .filter(
+                            CartItem.user_id == order.user_id,
+                            CartItem.dish_id == order_item.dish_id,
+                        )
+                        .first()
+                    )
+                    if not cart_item:
+                        continue
+                    remaining_quantity = cart_item.quantity - order_item.quantity
+                    if remaining_quantity > 0:
+                        cart_item.quantity = remaining_quantity
+                    else:
+                        db.delete(cart_item)
 
             db.commit()
 

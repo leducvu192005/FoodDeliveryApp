@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/api_config.dart';
@@ -29,8 +30,7 @@ class AuthService {
     return res.statusCode == 200;
   }
 
-  static Future<String?> login(
-      String email, String sdt, String password) async {
+  static Future<String?> login(String email, String sdt, String password) async {
     final res = await http.post(
       Uri.parse("$baseUrl/login"),
       headers: {"Content-Type": "application/json"},
@@ -44,7 +44,7 @@ class AuthService {
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
 
-      print("TOKEN NHẬN ĐƯỢC: ${data["access_token"]}");
+      debugPrint("Nhan access token thanh cong");
 
       await _storage.write(
         key: "access_token",
@@ -56,9 +56,9 @@ class AuthService {
     return null;
   }
 
-// lấy token
+  // Lay token da luu trong secure storage.
   static Future<String?> getToken() async {
-    return await _storage.read(key: "access_token");
+    return _storage.read(key: "access_token");
   }
 
   static Future<void> logout() async {

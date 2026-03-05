@@ -26,6 +26,7 @@ class DishResponse(BaseModel):
     name: str
     img: Optional[str]
     price: float
+    seller_id: int
     category_id: int
     description: Optional[str]
     group: Optional[str]
@@ -114,6 +115,7 @@ def create_dish(
 @router.get("/", response_model=List[DishResponse])
 def get_dishes(
     category_id: Optional[int] = None,
+    seller_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -127,6 +129,8 @@ def get_dishes(
     
     if category_id:
         query = query.filter(Dish.category_id == category_id)
+    if seller_id:
+        query = query.filter(Dish.seller_id == seller_id)
 
     return query.order_by(Dish.id).all()
 

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import '../services/auth_services.dart';
 
@@ -25,7 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         sdtCtrl.text.isEmpty ||
         passCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Vui lòng nhập đầy đủ thông tin")),
+        const SnackBar(content: Text("Vui long nhap day du thong tin")),
       );
       return;
     }
@@ -49,7 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } else {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Đăng ký thất bại")));
+      ).showSnackBar(const SnackBar(content: Text("Dang ky that bai")));
     }
   }
 
@@ -57,6 +55,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     nameCtrl.dispose();
     emailCtrl.dispose();
+    sdtCtrl.dispose();
     passCtrl.dispose();
     super.dispose();
   }
@@ -80,7 +79,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text(
-                  "Nhập thông tin để đăng kí!",
+                  "Nhap thong tin de dang ky!",
                   style: TextStyle(fontSize: 22),
                 ),
                 const Icon(Icons.food_bank, size: 80, color: Colors.deepOrange),
@@ -105,7 +104,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextField(
                   controller: sdtCtrl,
                   decoration: const InputDecoration(
-                    labelText: "Số điện thoại",
+                    labelText: "So dien thoai",
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.phone,
@@ -121,7 +120,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: role,
+                  initialValue: role,
                   decoration: const InputDecoration(
                     labelText: "Role",
                     border: OutlineInputBorder(),
@@ -146,7 +145,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text("Đã có tài khoản? Đăng nhập"),
+                  child: const Text("Da co tai khoan? Dang nhap"),
                 ),
               ],
             ),

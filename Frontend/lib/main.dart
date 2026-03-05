@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/providers/auth_provider.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'package:provider/provider.dart';
 import 'routes/app_routers.dart';
 import 'screen/login_screen.dart';
 
@@ -23,7 +24,12 @@ Future<void> main() async {
     anonKey: 'sb_publishable_rsoTTaoxacfdZeeAH--oHQ_Jwp1a8Dr',
   );
 
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => AuthProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
