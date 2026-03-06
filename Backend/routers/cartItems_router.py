@@ -180,7 +180,7 @@ def checkout_cart(
         user_id=user.id,
         total_price=total_amount,
         status="pending",
-        payment_method="stripe",
+        payment_method="sepay_bank_transfer",
     )
     db.add(order)
     db.flush()
@@ -203,5 +203,8 @@ def checkout_cart(
     # Giỏ hàng chỉ được cập nhật sau khi payment thành công (webhook).
     return {
         "order_id": order.id,
-        "total_price": total_amount,
+        "total_amount": total_amount,
+        "payment_method": "sepay_bank_transfer",
+        "payment_status": "pending",
+        "message": "Order created successfully",
     }

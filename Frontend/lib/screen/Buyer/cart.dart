@@ -71,15 +71,6 @@ class _CartState extends State<Cart> {
     return (total + _deliveryFee - discount).clamp(0, 999999);
   }
 
-  Future<bool> _waitForPaymentConfirmed(PaymentServices paymentService, int orderId) async {
-    for (int i = 0; i < 5; i++) {
-      final status = await paymentService.checkPaymentStatus(orderId);
-      if (status == 'paid') return true;
-      await Future.delayed(const Duration(seconds: 1));
-    }
-    return false;
-  }
-
   Future<void> _placeOrder() async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
@@ -97,27 +88,30 @@ class _CartState extends State<Cart> {
         throw Exception('Khong nhan duoc order_id tu server');
       }
 
-      await paymentService.processPayment(orderId);
-      final isPaid = await _waitForPaymentConfirmed(paymentService, orderId);
+      // Sử dụng Sepay payment thay vì Stripe
+      if (!mounted) return;
+      await paymentService.processSepayPayment(context, orderId);
 
+      // Dialog đã tự động kiểm tra và chỉ đóng khi thanh toán thành công
+      // Nếu đến đây nghĩa là thanh toán đã thành công
       if (!mounted) return;
 
-      if (isPaid) {
-        messenger.showSnackBar(const SnackBar(content: Text('Thanh toan thanh cong')));
-        _refreshCart();
-        navigator.pushNamed('/buyer/order');
-      } else {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Da tao giao dich nhung chua xac nhan thanh toan.'),
-          ),
-        );
-      }
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Thanh toan thanh cong!')));
+      _refreshCart();
+
+      // Chuyển sang trang orders
+      navigator.pushReplacementNamed('/buyer/order');
     } catch (e) {
       final msg = e.toString().toLowerCase();
-      final isCanceled = msg.contains('canceled') || msg.contains('cancelled') || msg.contains('huy');
+      final isCanceled = msg.contains('canceled') ||
+          msg.contains('cancelled') ||
+          msg.contains('huy');
       messenger.showSnackBar(
-        SnackBar(content: Text(isCanceled ? 'Ban da huy thanh toan' : 'Thanh toan that bai: $e')),
+        SnackBar(
+            content: Text(isCanceled
+                ? 'Ban da huy thanh toan'
+                : 'Thanh toan that bai: $e')),
       );
     } finally {
       if (mounted) {
@@ -144,7 +138,8 @@ class _CartState extends State<Cart> {
         future: _cartFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: accent));
+            return const Center(
+                child: CircularProgressIndicator(color: accent));
           }
           if (snapshot.hasError) {
             return const Center(child: Text('Loi tai gio hang'));
@@ -170,7 +165,8 @@ class _CartState extends State<Cart> {
                 final name = dish['name'] ?? 'Mon khong ten';
                 final price = (dish['price'] as num?)?.toDouble() ?? 0.0;
 
-                final noteController = _noteControllers.putIfAbsent(dishId, () => TextEditingController());
+                final noteController = _noteControllers.putIfAbsent(
+                    dishId, () => TextEditingController());
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
@@ -202,14 +198,16 @@ class _CartState extends State<Cart> {
                                       width: 82,
                                       height: 82,
                                       color: const Color(0xFFFFF1DD),
-                                      child: const Icon(Icons.fastfood, color: Colors.black45),
+                                      child: const Icon(Icons.fastfood,
+                                          color: Colors.black45),
                                     ),
                                   )
                                 : Container(
                                     width: 82,
                                     height: 82,
                                     color: const Color(0xFFFFF1DD),
-                                    child: const Icon(Icons.fastfood, color: Colors.black45),
+                                    child: const Icon(Icons.fastfood,
+                                        color: Colors.black45),
                                   ),
                           ),
                           const SizedBox(width: 10),
@@ -219,12 +217,16 @@ class _CartState extends State<Cart> {
                               children: [
                                 Text(
                                   name,
-                                  style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.black87),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.black87),
                                 ),
                                 const SizedBox(height: 5),
                                 Text(
                                   '\$${price.toStringAsFixed(2)}',
-                                  style: const TextStyle(color: accent, fontWeight: FontWeight.w700),
+                                  style: const TextStyle(
+                                      color: accent,
+                                      fontWeight: FontWeight.w700),
                                 ),
                               ],
                             ),
@@ -234,22 +236,28 @@ class _CartState extends State<Cart> {
                               IconButton(
                                 onPressed: () async {
                                   if (quantity > 1) {
-                                    await _cartServices.updateQuantity(dishId, quantity - 1);
+                                    await _cartServices.updateQuantity(
+                                        dishId, quantity - 1);
                                     _refreshCart();
                                   }
                                 },
-                                icon: const Icon(Icons.remove_circle_outline, color: Colors.black54),
+                                icon: const Icon(Icons.remove_circle_outline,
+                                    color: Colors.black54),
                               ),
                               Text(
                                 '$quantity',
-                                style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.w700),
                               ),
                               IconButton(
                                 onPressed: () async {
-                                  await _cartServices.updateQuantity(dishId, quantity + 1);
+                                  await _cartServices.updateQuantity(
+                                      dishId, quantity + 1);
                                   _refreshCart();
                                 },
-                                icon: const Icon(Icons.add_circle_outline, color: accent),
+                                icon: const Icon(Icons.add_circle_outline,
+                                    color: accent),
                               ),
                             ],
                           ),
@@ -266,13 +274,15 @@ class _CartState extends State<Cart> {
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
                           ),
-                          prefixIcon: const Icon(Icons.edit_note_rounded, color: Colors.black45),
+                          prefixIcon: const Icon(Icons.edit_note_rounded,
+                              color: Colors.black45),
                           suffixIcon: IconButton(
                             onPressed: () async {
                               await _cartServices.removeFromCart(dishId);
                               _refreshCart();
                             },
-                            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                            icon: const Icon(Icons.delete_outline_rounded,
+                                color: Colors.redAccent),
                           ),
                         ),
                       ),
@@ -312,8 +322,12 @@ class _CartState extends State<Cart> {
                 padding: const EdgeInsets.all(14),
                 child: Column(
                   children: [
-                    _PriceRow(label: 'Items total', value: '\$${itemsTotal.toStringAsFixed(2)}'),
-                    _PriceRow(label: 'Delivery fee', value: '\$${_deliveryFee.toStringAsFixed(2)}'),
+                    _PriceRow(
+                        label: 'Items total',
+                        value: '\$${itemsTotal.toStringAsFixed(2)}'),
+                    _PriceRow(
+                        label: 'Delivery fee',
+                        value: '\$${_deliveryFee.toStringAsFixed(2)}'),
                     _PriceRow(
                       label: 'Discount',
                       value: '- \$${discount.toStringAsFixed(2)}',
@@ -344,7 +358,8 @@ class _CartState extends State<Cart> {
                   backgroundColor: accent,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 52),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                 ),
                 child: Text(
                   _isPaying ? 'Dang xu ly thanh toan...' : 'Dat don',

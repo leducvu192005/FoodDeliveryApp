@@ -145,3 +145,22 @@ class PaymentResponse(BaseModel):
 
 class PaymentStatusResponse(BaseModel):
     status: str
+
+
+class SepayPaymentResponse(BaseModel):
+    payment_id: int
+    transaction_id: str
+    qr_url: str
+    bank_code: str
+    account_number: str
+    account_name: str
+    amount: float
+    transfer_content: str
+    message: str
+
+
+class SepayStatusResponse(BaseModel):
+    status: str
+    amount: float
+    transaction_id: str
+    paid_at: Optional[datetime]

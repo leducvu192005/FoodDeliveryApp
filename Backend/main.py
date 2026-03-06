@@ -11,6 +11,7 @@ from routers.topping import router as topping_router
 from routers.profile import router as profile_router
 from routers.cartItems_router import router as cart_router
 from routers.payment_router import router as payment_router
+from routers.sepay_router import router as sepay_router
 from routers.shipper_router import router as shipper_router
 Base.metadata.create_all(bind=engine)
 
@@ -27,6 +28,7 @@ app.include_router(cart_router)
 app.include_router(shipper_router)
 # 🔥 Payment thêm prefix cho đúng
 app.include_router(payment_router, prefix="/api/payment", tags=["Payment"])
+app.include_router(sepay_router, prefix="/api/sepay", tags=["Sepay Payment"])
 
 @app.get("/")
 def read_root():

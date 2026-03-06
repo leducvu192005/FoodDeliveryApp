@@ -137,6 +137,7 @@ class Payment(Base):
     status = Column(String, default="pending")
 
     stripe_payment_intent = Column(String, nullable=True)
+    transaction_id = Column(String, nullable=True, unique=True)  # For Sepay transactions
 
     paid_at = Column(Datetime, nullable=True)
     created_at = Column(Datetime, server_default=func.now())
