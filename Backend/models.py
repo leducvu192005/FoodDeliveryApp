@@ -114,6 +114,7 @@ class Order(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
+    seller_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     total_price = Column(Float)
     status = Column(String, default = "pending")
     payment_method = Column(String)

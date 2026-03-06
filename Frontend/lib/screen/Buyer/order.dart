@@ -26,9 +26,8 @@ class _OrderState extends State<Order> {
   }
 
   bool _isHistoryOrder(Map<String, dynamic> order) {
-    final paymentStatus = (order['payment_status'] ?? '').toString().toLowerCase();
     final status = (order['status'] ?? '').toString().toLowerCase();
-    return paymentStatus == 'paid' || status == 'completed' || status == 'cancelled';
+    return status == 'done';
   }
 
   String _formatDate(dynamic rawDate) {
@@ -72,7 +71,8 @@ class _OrderState extends State<Order> {
           future: _ordersFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: accent));
+              return const Center(
+                  child: CircularProgressIndicator(color: accent));
             }
 
             if (snapshot.hasError) {
@@ -86,7 +86,8 @@ class _OrderState extends State<Order> {
             }
 
             final allOrders = snapshot.data ?? [];
-            final ongoing = allOrders.where((o) => !_isHistoryOrder(o)).toList();
+            final ongoing =
+                allOrders.where((o) => !_isHistoryOrder(o)).toList();
             final history = allOrders.where(_isHistoryOrder).toList();
 
             return TabBarView(

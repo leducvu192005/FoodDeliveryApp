@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from database import get_db
-from models import CartItem, Order, OrderItem, Payment, User
+from models import CartItem, Dish, Order, OrderItem, Payment, User
 from schemas import (
     CartCheckoutRequest,
     CartCheckoutResponse,
@@ -11,7 +11,7 @@ from schemas import (
     CartItemResponse,
     CartItemUpdate,
 )
-from dependencies import get_current_user
+from dependencies import get_current_user, require_role
 
 router = APIRouter(prefix="/cart", tags=["Cart"])
 
@@ -62,6 +62,49 @@ def get_user_orders(
             ],
         })
 
+    return result
+
+
+@router.get("/seller-orders")
+def get_seller_orders(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("seller")),
+):
+    """Lấy đơn hàng thuộc về seller hiện tại (status = 'seller' trở đi)"""
+    orders = (
+        db.query(Order)
+        .filter(
+            Order.seller_id == user.id,
+            Order.status.in_(["seller", "done"]),
+        )
+        .order_by(Order.id.desc())
+        .all()
+    )
+
+    result = []
+    for order in orders:
+        order_items = (
+            db.query(OrderItem)
+            .filter(OrderItem.order_id == order.id)
+            .all()
+        )
+        result.append({
+            "id": order.id,
+            "user_id": order.user_id,
+            "status": order.status,
+            "total_price": order.total_price,
+            "created_at": order.created_at,
+            "items": [
+                {
+                    "id": item.id,
+                    "dish_name": item.dish_name,
+                    "dish_image": item.dish_image,
+                    "dish_price": item.dish_price,
+                    "quantity": item.quantity,
+                }
+                for item in order_items
+            ],
+        })
     return result
 
 
@@ -175,9 +218,14 @@ def checkout_cart(
         for item in cart_items
     )
 
+    # Lấy seller_id từ món đầu tiên trong giỏ hàng
+    first_dish = db.query(Dish).filter(Dish.id == cart_items[0].dish_id).first()
+    seller_id = first_dish.seller_id if first_dish else None
+
     # 1️⃣ Tạo Order
     order = Order(
         user_id=user.id,
+        seller_id=seller_id,
         total_price=total_amount,
         status="pending",
         payment_method="sepay_bank_transfer",

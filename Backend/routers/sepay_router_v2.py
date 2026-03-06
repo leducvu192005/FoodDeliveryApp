@@ -225,7 +225,7 @@ async def sepay_webhook(
         # Update order
         order = db.query(Order).filter(Order.id == payment.order_id).first()
         if order:
-            order.status = "confirmed"
+            order.status = "shipper"
             
             # Clear cart
             order_items = db.query(OrderItem).filter(
@@ -333,9 +333,8 @@ def cancel_sepay_payment(
     if payment.status == "paid":
         raise HTTPException(status_code=400, detail="Không thể hủy thanh toán đã hoàn thành")
     
-    payment.status = "cancelled"
-    order.status = "cancelled"
-    
+    db.delete(payment)
+    db.delete(order)
     db.commit()
     
     return {"status": "success", "message": "Đã hủy thanh toán"}

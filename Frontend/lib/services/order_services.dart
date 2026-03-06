@@ -30,4 +30,16 @@ class OrderServices {
 
     throw Exception('Khong tai duoc don hang: ${response.statusCode}');
   }
+
+  Future<List<Map<String, dynamic>>> getSellerOrders() async {
+    final url = Uri.parse('$_baseUrl/seller-orders');
+    final response = await http.get(url, headers: await _authHeaders());
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    }
+
+    throw Exception('Khong tai duoc don hang: ${response.statusCode}');
+  }
 }
