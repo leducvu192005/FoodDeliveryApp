@@ -4,9 +4,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/cart_services.dart';
 import 'package:flutter_application_1/services/payment_services.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
 enum _CheckoutPaymentMethod { cod, stripe }
+
+enum _CheckoutDeliveryMethod { currentLocation, customAddress }
 
 extension on _CheckoutPaymentMethod {
   String get apiValue {
@@ -46,6 +49,47 @@ extension on _CheckoutPaymentMethod {
   }
 }
 
+extension on _CheckoutDeliveryMethod {
+  String get title {
+    switch (this) {
+      case _CheckoutDeliveryMethod.currentLocation:
+        return 'Dung vi tri hien tai';
+      case _CheckoutDeliveryMethod.customAddress:
+        return 'Nhap dia chi giao hang';
+    }
+  }
+
+  String get subtitle {
+    switch (this) {
+      case _CheckoutDeliveryMethod.currentLocation:
+        return 'Lay GPS hien tai cua thiet bi de giao hang tai noi ban dang dung.';
+      case _CheckoutDeliveryMethod.customAddress:
+        return 'Nhap mot dia chi khac va he thong se tim toa do tu dia chi do.';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case _CheckoutDeliveryMethod.currentLocation:
+        return Icons.my_location_outlined;
+      case _CheckoutDeliveryMethod.customAddress:
+        return Icons.edit_location_alt_outlined;
+    }
+  }
+}
+
+class _ResolvedDeliveryLocation {
+  const _ResolvedDeliveryLocation({
+    required this.address,
+    required this.latitude,
+    required this.longitude,
+  });
+
+  final String address;
+  final double latitude;
+  final double longitude;
+}
+
 class Cart extends StatefulWidget {
   const Cart({super.key});
 
@@ -62,6 +106,10 @@ class _CartState extends State<Cart> {
   late Future<List<Map<String, dynamic>>> _cartFuture;
   bool _isPaying = false;
   _CheckoutPaymentMethod _selectedPaymentMethod = _CheckoutPaymentMethod.cod;
+  _CheckoutDeliveryMethod _selectedDeliveryMethod =
+      _CheckoutDeliveryMethod.currentLocation;
+  bool _isResolvingCurrentLocation = false;
+  String? _currentLocationAddress;
 
   static const double _deliveryFee = 1.5;
 
@@ -141,12 +189,12 @@ class _CartState extends State<Cart> {
     });
 
     try {
-      final deliveryPosition = await _getDeliveryPosition();
+      final deliveryLocation = await _resolveSelectedDeliveryLocation();
       final paymentService = PaymentServices();
       final checkoutResult = await _cartServices.checkout(
-        deliveryAddress: _deliveryAddressController.text.trim(),
-        deliveryLat: deliveryPosition.latitude,
-        deliveryLng: deliveryPosition.longitude,
+        deliveryAddress: deliveryLocation.address,
+        deliveryLat: deliveryLocation.latitude,
+        deliveryLng: deliveryLocation.longitude,
         method: _selectedPaymentMethod.apiValue,
       );
 
@@ -174,15 +222,16 @@ class _CartState extends State<Cart> {
       final clientSecret = checkoutResult['client_secret']?.toString();
 
       if (checkoutId == null || clientSecret == null || clientSecret.isEmpty) {
-        throw Exception('Khong nhan duoc thong tin thanh toan Stripe tu server');
+        throw Exception(
+            'Khong nhan duoc thong tin thanh toan Stripe tu server');
       }
 
       await paymentService.processPaymentSheet(clientSecret);
       final paymentResult =
           await _waitForStripeOrderCreated(paymentService, checkoutId);
-      final isPaid = (paymentResult['status'] ?? '').toString().toLowerCase() ==
-              'paid' &&
-          paymentResult['order_id'] != null;
+      final isPaid =
+          (paymentResult['status'] ?? '').toString().toLowerCase() == 'paid' &&
+              paymentResult['order_id'] != null;
 
       if (!mounted) return;
 
@@ -194,7 +243,7 @@ class _CartState extends State<Cart> {
       } else {
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('Thanh toan chua hoan tat. Don hang chua duoc tao.'),
+            content: Text('Thanh toan hoan tat. Don hang chua duoc tao.'),
           ),
         );
       }
@@ -219,10 +268,43 @@ class _CartState extends State<Cart> {
     }
   }
 
-  Future<Position> _getDeliveryPosition() async {
+  Future<_ResolvedDeliveryLocation> _resolveSelectedDeliveryLocation() async {
+    if (_selectedDeliveryMethod == _CheckoutDeliveryMethod.currentLocation) {
+      return _getCurrentDeliveryLocation();
+    }
+
+    final deliveryAddress = _deliveryAddressController.text.trim();
+    if (deliveryAddress.isEmpty) {
+      throw Exception('Vui long nhap dia chi giao hang truoc khi dat don.');
+    }
+
+    final deliveryLocation =
+        await _getDeliveryLocationFromAddress(deliveryAddress);
+    return _ResolvedDeliveryLocation(
+      address: deliveryAddress,
+      latitude: deliveryLocation.latitude,
+      longitude: deliveryLocation.longitude,
+    );
+  }
+
+  Future<Location> _getDeliveryLocationFromAddress(String address) async {
+    try {
+      final locations = await locationFromAddress(address);
+      if (locations.isEmpty) {
+        throw Exception();
+      }
+      return locations.first;
+    } catch (_) {
+      throw Exception(
+        'Khong tim thay toa do tu dia chi da nhap. Vui long nhap dia chi cu the hon.',
+      );
+    }
+  }
+
+  Future<_ResolvedDeliveryLocation> _getCurrentDeliveryLocation() async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      throw Exception('Hay bat dich vu vi tri de dat don.');
+      throw Exception('Hay bat dich vu vi tri tren thiet bi.');
     }
 
     var permission = await Geolocator.checkPermission();
@@ -232,14 +314,76 @@ class _CartState extends State<Cart> {
 
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
-      throw Exception('Ung dung can quyen vi tri de tinh phi giao hang.');
+      throw Exception(
+          'Ung dung can quyen vi tri de giao hang tai vi tri hien tai.');
     }
 
-    return Geolocator.getCurrentPosition(
+    final position = await Geolocator.getCurrentPosition(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
       ),
     );
+
+    final resolvedAddress = await _reverseGeocodeAddress(
+      position.latitude,
+      position.longitude,
+    );
+
+    return _ResolvedDeliveryLocation(
+      address: resolvedAddress,
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+  }
+
+  Future<String> _reverseGeocodeAddress(
+      double latitude, double longitude) async {
+    try {
+      final placemarks = await placemarkFromCoordinates(latitude, longitude);
+      if (placemarks.isNotEmpty) {
+        final placemark = placemarks.first;
+        final parts = [
+          placemark.street,
+          placemark.subLocality,
+          placemark.locality,
+          placemark.administrativeArea,
+          placemark.country,
+        ]
+            .where((part) => part != null && part!.trim().isNotEmpty)
+            .map((part) => part!.trim())
+            .toList();
+        if (parts.isNotEmpty) {
+          return parts.join(', ');
+        }
+      }
+    } catch (_) {}
+
+    return 'Lat: ${latitude.toStringAsFixed(6)}, Lng: ${longitude.toStringAsFixed(6)}';
+  }
+
+  Future<void> _refreshCurrentLocationPreview() async {
+    setState(() {
+      _isResolvingCurrentLocation = true;
+    });
+
+    try {
+      final location = await _getCurrentDeliveryLocation();
+      if (!mounted) return;
+      setState(() {
+        _currentLocationAddress = location.address;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Khong lay duoc vi tri hien tai: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isResolvingCurrentLocation = false;
+        });
+      }
+    }
   }
 
   @override
@@ -434,24 +578,90 @@ class _CartState extends State<Cart> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    TextField(
-                      controller: _deliveryAddressController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        hintText:
-                            'Nhap dia chi giao hang. De trong se dung dia chi trong ho so neu co.',
-                        alignLabelWithHint: true,
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.only(bottom: 48),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFFFFF6EA),
-                      ),
+                    _DeliveryMethodTile(
+                      method: _CheckoutDeliveryMethod.currentLocation,
+                      selectedMethod: _selectedDeliveryMethod,
+                      accent: accent,
+                      onTap: () {
+                        setState(() {
+                          _selectedDeliveryMethod =
+                              _CheckoutDeliveryMethod.currentLocation;
+                        });
+                        if (_currentLocationAddress == null &&
+                            !_isResolvingCurrentLocation) {
+                          _refreshCurrentLocationPreview();
+                        }
+                      },
                     ),
+                    if (_selectedDeliveryMethod ==
+                        _CheckoutDeliveryMethod.currentLocation) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF6EA),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _isResolvingCurrentLocation
+                                  ? 'Dang lay vi tri hien tai...'
+                                  : _currentLocationAddress ??
+                                      'Nhan "Cap nhat vi tri" de xem dia chi se duoc dung khi giao hang.',
+                              style: const TextStyle(
+                                color: Colors.black87,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              onPressed: _isResolvingCurrentLocation
+                                  ? null
+                                  : _refreshCurrentLocationPreview,
+                              icon: const Icon(Icons.gps_fixed_outlined),
+                              label: const Text('Cap nhat vi tri'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    _DeliveryMethodTile(
+                      method: _CheckoutDeliveryMethod.customAddress,
+                      selectedMethod: _selectedDeliveryMethod,
+                      accent: accent,
+                      onTap: () {
+                        setState(() {
+                          _selectedDeliveryMethod =
+                              _CheckoutDeliveryMethod.customAddress;
+                        });
+                      },
+                    ),
+                    if (_selectedDeliveryMethod ==
+                        _CheckoutDeliveryMethod.customAddress) ...[
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _deliveryAddressController,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          hintText:
+                              'Nhap dia chi giao hang de he thong xac dinh dung toa do giao.',
+                          alignLabelWithHint: true,
+                          prefixIcon: const Padding(
+                            padding: EdgeInsets.only(bottom: 48),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFFFFF6EA),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -576,6 +786,87 @@ class _CartState extends State<Cart> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _DeliveryMethodTile extends StatelessWidget {
+  const _DeliveryMethodTile({
+    required this.method,
+    required this.selectedMethod,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final _CheckoutDeliveryMethod method;
+  final _CheckoutDeliveryMethod selectedMethod;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = method == selectedMethod;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFFF3E4) : const Color(0xFFFFFBF6),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? accent : const Color(0x1F000000),
+            width: isSelected ? 1.4 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: isSelected ? accent.withOpacity(0.12) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                method.icon,
+                color: isSelected ? accent : Colors.black54,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    method.title,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    method.subtitle,
+                    style: const TextStyle(
+                      color: Colors.black54,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Radio<_CheckoutDeliveryMethod>(
+              value: method,
+              groupValue: selectedMethod,
+              activeColor: accent,
+              onChanged: (_) => onTap(),
+            ),
+          ],
+        ),
       ),
     );
   }

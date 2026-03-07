@@ -39,6 +39,25 @@ def _require_coordinates(
     return float(lat), float(lng)
 
 
+def _resolve_pickup_from_seller(
+    db: Session,
+    seller_id: int | None,
+) -> tuple[str, float | None, float | None]:
+    if seller_id is None:
+        return "Restaurant address pending", None, None
+
+    seller = db.query(User).filter(User.id == seller_id).first()
+
+    pickup_address = "Restaurant address pending"
+    if seller and seller.address and seller.address.strip():
+        pickup_address = seller.address.strip()
+
+    pickup_lat = seller.lat if seller else None
+    pickup_lng = seller.lng if seller else None
+
+    return pickup_address, pickup_lat, pickup_lng
+
+
 @router.get("/orders")
 def get_user_orders(
     db: Session = Depends(get_db),
@@ -271,19 +290,10 @@ def checkout_cart(
     delivery_lng = request.delivery_lng if request.delivery_lng is not None else buyer_profile.lng if buyer_profile else None
 
     seller_id = cart_items[0].dish.seller_id if cart_items else None
-    seller_profile = None
-    if seller_id is not None:
-        seller_profile = (
-            db.query(Profile)
-            .filter(Profile.user_id == seller_id)
-            .order_by(Profile.id.desc())
-            .first()
-        )
-    pickup_address = (
-        seller_profile.live if seller_profile and seller_profile.live else "Restaurant address pending"
+    pickup_address, pickup_lat, pickup_lng = _resolve_pickup_from_seller(
+        db,
+        seller_id,
     )
-    pickup_lat = seller_profile.lat if seller_profile else None
-    pickup_lng = seller_profile.lng if seller_profile else None
 
     pickup_lat, pickup_lng = _require_coordinates(
         pickup_lat,

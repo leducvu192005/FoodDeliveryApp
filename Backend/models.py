@@ -18,6 +18,8 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     sdt = Column(String(15))
     address = Column(String, nullable=True)
+    lat = Column(Float, nullable=True)
+    lng = Column(Float, nullable=True)
     password_hash = Column(String(255))
     role = Column(String)
     is_active = Column(Boolean, default=True)

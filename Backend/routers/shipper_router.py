@@ -575,8 +575,10 @@ def update_shipper_profile(
         profile.live = cleaned_address
     if payload.lat is not None:
         profile.lat = payload.lat
+        current_user.lat = payload.lat
     if payload.lng is not None:
         profile.lng = payload.lng
+        current_user.lng = payload.lng
 
     shipper.updated_at = datetime.now()
 
