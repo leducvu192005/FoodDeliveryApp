@@ -116,6 +116,7 @@ class Order(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     shipper_id = Column(Integer, ForeignKey("shippers.id"), nullable=True)
+    seller_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     total_price = Column(Float)
     delivery_fee = Column(Float, default=0)
     distance_km = Column(Float, default=0)

@@ -283,7 +283,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 .filter(models.Order.id == int(order_id)).first()
 
             if order:
-                order.status = "confirmed"
+                order.status = "shipper"
                 order_items = (
                     db.query(OrderItem)
                     .filter(OrderItem.order_id == order.id)
