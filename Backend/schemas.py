@@ -112,6 +112,16 @@ class CartItemResponse(BaseModel):
         from_attributes = True
 
 
+class FavoriteResponse(BaseModel):
+    id: int
+    user_id: int
+    dish_id: int
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 class CategoryCreate(BaseModel):
     name: str
 

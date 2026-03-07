@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../providers/favorite_provider.dart';
 import 'buyer_home.dart';
 import 'favorites.dart';
 import 'order.dart';
@@ -21,6 +23,15 @@ class _LayoutState extends State<Layout> {
     Favorites(),
     Profile(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<FavoriteProvider>().refresh();
+    });
+  }
 
   void _onTap(int index) {
     setState(() {

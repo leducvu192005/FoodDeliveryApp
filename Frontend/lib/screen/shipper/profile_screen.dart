@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/order_model.dart';
 import 'package:flutter_application_1/services/order_service.dart';
 import 'package:flutter_application_1/widgets/stat_card.dart';
+import '../../services/auth_services.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
@@ -30,6 +31,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _profileFuture = widget.orderService.getShipperProfile();
     });
     await _profileFuture;
+  }
+
+  Future<void> _logout() async {
+    await AuthService.logout();
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 
   Future<String?> _showEditFieldDialog({
@@ -63,7 +70,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text('Huy'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
             child: const Text('Luu'),
           ),
         ],
@@ -178,8 +186,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _SheetActionTile(
                   icon: Icons.person_outline_rounded,
                   title: 'Sua ten',
-                  subtitle:
-                      profile.fullName.trim().isEmpty ? 'Chua cap nhat ten' : profile.fullName,
+                  subtitle: profile.fullName.trim().isEmpty
+                      ? 'Chua cap nhat ten'
+                      : profile.fullName,
                   onTap: () {
                     Navigator.of(sheetContext).pop();
                     _editName(profile);
@@ -237,21 +246,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                'Khong tai duoc ho so.\n${snapshot.error}',
-                textAlign: TextAlign.center,
-              ),
-            );
+            if (snapshot.error.toString().contains("Vui long dang nhap lai")) {
+              Future.microtask(() {
+                Navigator.pushNamedAndRemoveUntil(
+                    context, '/login', (route) => false);
+              });
+            }
+
+            return const Center(child: Text("Session expired"));
           }
 
           final profile = snapshot.data!;
-          final displayName =
-              profile.fullName.trim().isEmpty ? 'Chua cap nhat ten' : profile.fullName;
-          final displayPhone =
-              profile.phone.trim().isEmpty ? 'Chua cap nhat so dien thoai' : profile.phone;
-          final displayAddress =
-              profile.address.trim().isEmpty ? 'Chua cap nhat dia chi' : profile.address;
+          final displayName = profile.fullName.trim().isEmpty
+              ? 'Chua cap nhat ten'
+              : profile.fullName;
+          final displayPhone = profile.phone.trim().isEmpty
+              ? 'Chua cap nhat so dien thoai'
+              : profile.phone;
+          final displayAddress = profile.address.trim().isEmpty
+              ? 'Chua cap nhat dia chi'
+              : profile.address;
 
           return RefreshIndicator(
             onRefresh: _reload,
@@ -302,7 +316,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: Icons.badge_outlined,
                   title: 'Thong tin ca nhan',
                   subtitle: 'Nhan vao de sua ten, so dien thoai, dia chi',
-                  onTap: _saving ? null : () => _showEditProfileBottomSheet(profile),
+                  onTap: _saving
+                      ? null
+                      : () => _showEditProfileBottomSheet(profile),
                 ),
                 const SizedBox(height: 10),
                 Card(
@@ -322,6 +338,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _InfoRow(label: 'So dien thoai', value: displayPhone),
                         _InfoRow(label: 'Dia chi', value: displayAddress),
                       ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                OutlinedButton.icon(
+                  onPressed: _saving ? null : _logout,
+                  icon: const Icon(Icons.logout_rounded),
+                  label: const Text('Dang xuat'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    side: const BorderSide(color: Colors.redAccent),
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),

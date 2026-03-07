@@ -30,9 +30,29 @@ class DishResponse(BaseModel):
     category_id: int
     description: Optional[str]
     group: Optional[str]
+    seller_address: Optional[str] = None
+    seller_lat: Optional[float] = None
+    seller_lng: Optional[float] = None
 
     class Config:
         from_attributes = True
+
+
+def _to_dish_response(dish: Dish) -> DishResponse:
+    seller = dish.seller
+    return DishResponse(
+        id=dish.id,
+        name=dish.name,
+        img=dish.img,
+        price=dish.price,
+        seller_id=dish.seller_id,
+        category_id=dish.category_id,
+        description=dish.description,
+        group=dish.group,
+        seller_address=seller.address if seller else None,
+        seller_lat=seller.lat if seller else None,
+        seller_lng=seller.lng if seller else None,
+    )
 
 
 # ===== Upload image =====
@@ -132,7 +152,8 @@ def get_dishes(
     if seller_id:
         query = query.filter(Dish.seller_id == seller_id)
 
-    return query.order_by(Dish.id).all()
+    dishes = query.order_by(Dish.id).all()
+    return [_to_dish_response(dish) for dish in dishes]
 
 
 # ===== Get single dish =====
@@ -148,7 +169,7 @@ def get_dish(
     ).first()
     if not dish:
         raise HTTPException(status_code=404, detail="Không tìm thấy món ăn")
-    return dish
+    return _to_dish_response(dish)
 
 
 # ===== Update dish =====

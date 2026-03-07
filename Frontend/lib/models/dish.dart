@@ -9,6 +9,9 @@ class Product {
   final int? sellerId;
   final int? categoryId;
   final String? description;
+  final String? sellerAddress;
+  final double? sellerLat;
+  final double? sellerLng;
 
   Product({
     required this.id,
@@ -18,6 +21,9 @@ class Product {
     this.sellerId,
     this.categoryId,
     this.description,
+    this.sellerAddress,
+    this.sellerLat,
+    this.sellerLng,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -29,6 +35,9 @@ class Product {
       sellerId: json['seller_id'] as int?,
       categoryId: json['category_id'] as int?,
       description: json['description'] as String?,
+      sellerAddress: json['seller_address'] as String?,
+      sellerLat: (json['seller_lat'] as num?)?.toDouble(),
+      sellerLng: (json['seller_lng'] as num?)?.toDouble(),
     );
   }
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../config/api_config.dart';
+import '../../models/order_model.dart';
 import '../../services/order_services.dart';
 
 class Order extends StatefulWidget {
@@ -62,7 +64,7 @@ class _OrderState extends State<Order> {
             indicatorColor: accent,
             labelColor: Colors.black87,
             tabs: [
-              Tab(text: 'Dang xu ly'),
+              Tab(text: 'Đơn hàng của bạn'),
               Tab(text: 'Lich su'),
             ],
           ),
@@ -130,6 +132,70 @@ class _OrderList extends StatelessWidget {
     required this.formatDate,
   });
 
+  String _statusLabel(String rawStatus) {
+    switch (parseOrderStatus(rawStatus.toLowerCase())) {
+      case OrderStatus.pending:
+      case OrderStatus.confirmed:
+        return 'Cho duoc xu ly';
+      case OrderStatus.accepted:
+        return 'Dang lay hang';
+      case OrderStatus.pickedUp:
+        return 'Dang tren duong giao';
+      case OrderStatus.delivered:
+        return 'Hoan thanh don';
+      case OrderStatus.cancelled:
+        return 'Da huy';
+    }
+  }
+
+  int _statusStep(String rawStatus) {
+    switch (parseOrderStatus(rawStatus.toLowerCase())) {
+      case OrderStatus.pending:
+      case OrderStatus.confirmed:
+        return 0;
+      case OrderStatus.accepted:
+        return 1;
+      case OrderStatus.pickedUp:
+        return 2;
+      case OrderStatus.delivered:
+        return 3;
+      case OrderStatus.cancelled:
+        return -1;
+    }
+  }
+
+  String _paymentStatusLabel(String rawStatus) {
+    switch (rawStatus.toLowerCase()) {
+      case 'paid':
+        return 'Da thanh toan';
+      case 'pending':
+        return 'Chua thanh toan';
+      case 'failed':
+        return 'Thanh toan that bai';
+      default:
+        return rawStatus;
+    }
+  }
+
+  String _formatMoney(num amount) {
+    final value = amount.toDouble();
+    final text =
+        value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2);
+    return '\$$text';
+  }
+
+  String _resolveImageUrl(String rawUrl) {
+    final value = rawUrl.trim();
+    if (value.isEmpty) return '';
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+    if (value.startsWith('/')) {
+      return '${ApiConfig.baseUrl}$value';
+    }
+    return '${ApiConfig.baseUrl}/$value';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (orders.isEmpty) {
@@ -155,6 +221,8 @@ class _OrderList extends StatelessWidget {
         final status = (order['status'] ?? 'pending').toString();
         final paymentStatus = (order['payment_status'] ?? 'pending').toString();
         final deliveryAddress = (order['delivery_address'] ?? '').toString();
+        final normalizedStatus = _statusLabel(status);
+        final currentStep = _statusStep(status);
 
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
@@ -185,7 +253,55 @@ class _OrderList extends StatelessWidget {
                 children: [
                   Text('$itemCount mon - ${formatDate(order['created_at'])}'),
                   const SizedBox(height: 4),
-                  Text('Trang thai: $status | Thanh toan: $paymentStatus'),
+                  Text(
+                    'Trang thai: $normalizedStatus | Thanh toan: ${_paymentStatusLabel(paymentStatus)}',
+                  ),
+                  const SizedBox(height: 10),
+                  _OrderStatusTracker(
+                    currentStep: currentStep,
+                    accent: accent,
+                  ),
+                  if (items.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Mon trong don',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...items.map((item) {
+                      final dishName =
+                          (item['dish_name'] ?? 'Mon an').toString();
+                      final dishImage = _resolveImageUrl(
+                        (item['dish_image'] ?? '').toString(),
+                      );
+                      final quantity =
+                          ((item['quantity'] as num?)?.toInt() ?? 0);
+                      final dishPrice =
+                          (item['dish_price'] as num?)?.toDouble() ?? 0;
+                      final itemTotal = dishPrice * quantity;
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _OrderItemTile(
+                          dishName: dishName,
+                          dishImage: dishImage,
+                          quantity: quantity,
+                          itemTotal: _formatMoney(itemTotal),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tong tien don: ${_formatMoney(total)}',
+                      style: TextStyle(
+                        color: accent,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                   if (deliveryAddress.trim().isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text('Dia chi giao: $deliveryAddress'),
@@ -203,6 +319,168 @@ class _OrderList extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _OrderStatusTracker extends StatelessWidget {
+  const _OrderStatusTracker({
+    required this.currentStep,
+    required this.accent,
+  });
+
+  final int currentStep;
+  final Color accent;
+
+  static const List<String> _steps = <String>[
+    'Cho duoc xu ly',
+    'Dang lay hang',
+    'Dang tren duong giao',
+    'Hoan thanh don',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    if (currentStep < 0) {
+      return const Text(
+        'Don hang da bi huy',
+        style: TextStyle(
+          color: Colors.redAccent,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: List.generate(_steps.length * 2 - 1, (index) {
+            if (index.isOdd) {
+              final connectorIndex = index ~/ 2;
+              final isActive = connectorIndex < currentStep;
+              return Expanded(
+                child: Container(
+                  height: 3,
+                  color: isActive ? accent : Colors.black12,
+                ),
+              );
+            }
+
+            final stepIndex = index ~/ 2;
+            final isDone = stepIndex <= currentStep;
+            return Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isDone ? accent : Colors.white,
+                border: Border.all(
+                  color: isDone ? accent : Colors.black26,
+                  width: 2,
+                ),
+              ),
+              child: isDone
+                  ? const Icon(
+                      Icons.check,
+                      size: 10,
+                      color: Colors.white,
+                    )
+                  : null,
+            );
+          }),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _steps[currentStep],
+          style: TextStyle(
+            color: accent,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OrderItemTile extends StatelessWidget {
+  const _OrderItemTile({
+    required this.dishName,
+    required this.dishImage,
+    required this.quantity,
+    required this.itemTotal,
+  });
+
+  final String dishName;
+  final String dishImage;
+  final int quantity;
+  final String itemTotal;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: dishImage.isNotEmpty
+              ? Image.network(
+                  dishImage,
+                  width: 52,
+                  height: 52,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _OrderItemImageFallback(),
+                )
+              : const _OrderItemImageFallback(),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                dishName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'So luong: $quantity',
+                style: const TextStyle(color: Colors.black54),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          itemTotal,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            color: Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OrderItemImageFallback extends StatelessWidget {
+  const _OrderItemImageFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 52,
+      height: 52,
+      color: const Color(0xFFF4F1EA),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.fastfood_rounded,
+        color: Color(0xFFE67E22),
+        size: 24,
+      ),
     );
   }
 }

@@ -1,6 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../models/category.dart';
 import '../../models/dish.dart';
@@ -8,8 +8,9 @@ import '../../services/cart_services.dart';
 import '../../services/category_services.dart';
 import '../../services/dish.dart';
 import 'cart.dart';
-import 'details_screen.dart';
 import 'category/category.dart';
+import 'details_screen.dart';
+import 'product_card.dart';
 
 class BuyerHome extends StatefulWidget {
   const BuyerHome({super.key});
@@ -19,15 +20,23 @@ class BuyerHome extends StatefulWidget {
 }
 
 class _BuyerHomeState extends State<BuyerHome> {
+  static const double _deliveryRadiusKm = 5;
+
   final TextEditingController _searchController = TextEditingController();
   final CartServices _cartServices = CartServices();
   late Future<Map<String, dynamic>> _homeDataFuture;
+
+  Position? _currentPosition;
+  String? _currentLocationText;
+  String? _locationError;
+  bool _isLocating = false;
 
   @override
   void initState() {
     super.initState();
     _homeDataFuture = _loadData();
     _searchController.addListener(() => setState(() {}));
+    _loadCurrentLocation();
   }
 
   @override
@@ -41,6 +50,7 @@ class _BuyerHomeState extends State<BuyerHome> {
       CategoryService.fetchCategories(),
       DishService.fetchDishes(),
     ]);
+
     return {
       'categories': results[0] as List<Category>,
       'dishes': results[1] as List<Product>,
@@ -51,7 +61,107 @@ class _BuyerHomeState extends State<BuyerHome> {
     setState(() {
       _homeDataFuture = _loadData();
     });
+
     await _homeDataFuture;
+  }
+
+  Future<void> _loadCurrentLocation() async {
+    if (mounted) {
+      setState(() {
+        _isLocating = true;
+        _locationError = null;
+      });
+    }
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('Hay bat dich vu vi tri de xem mon an gan ban');
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied) {
+        throw Exception('Ban chua cap quyen vi tri');
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('Quyen vi tri da bi tu choi vinh vien');
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+      final address = await _reverseGeocodeAddress(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _currentPosition = position;
+        _currentLocationText = address;
+        _locationError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _currentPosition = null;
+        _currentLocationText = null;
+        _locationError = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isLocating = false;
+      });
+    }
+  }
+
+  Future<String> _reverseGeocodeAddress(double latitude, double longitude) async {
+    try {
+      final placemarks = await placemarkFromCoordinates(latitude, longitude);
+      if (placemarks.isNotEmpty) {
+        final placemark = placemarks.first;
+        final parts = <String>[
+          if ((placemark.street ?? '').trim().isNotEmpty)
+            placemark.street!.trim(),
+          if ((placemark.subAdministrativeArea ?? '').trim().isNotEmpty)
+            placemark.subAdministrativeArea!.trim(),
+          if ((placemark.administrativeArea ?? '').trim().isNotEmpty)
+            placemark.administrativeArea!.trim(),
+        ];
+        if (parts.isNotEmpty) {
+          return parts.join(', ');
+        }
+      }
+    } catch (_) {}
+
+    return 'Lat ${latitude.toStringAsFixed(5)}, Lng ${longitude.toStringAsFixed(5)}';
+  }
+
+  bool _isWithinRadius(Product product) {
+    final position = _currentPosition;
+    final sellerLat = product.sellerLat;
+    final sellerLng = product.sellerLng;
+
+    if (position == null || sellerLat == null || sellerLng == null) {
+      return false;
+    }
+
+    final distanceMeters = Geolocator.distanceBetween(
+      position.latitude,
+      position.longitude,
+      sellerLat,
+      sellerLng,
+    );
+
+    return distanceMeters <= _deliveryRadiusKm * 1000;
   }
 
   Future<void> _addToCart(Product product) async {
@@ -60,9 +170,9 @@ class _BuyerHomeState extends State<BuyerHome> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(ok
-              ? 'Da them ${product.name}'
-              : 'Khong them duoc ${product.name}'),
+          content: Text(
+            ok ? 'Da them ${product.name}' : 'Khong them duoc ${product.name}',
+          ),
         ),
       );
     } catch (e) {
@@ -71,21 +181,6 @@ class _BuyerHomeState extends State<BuyerHome> {
         SnackBar(content: Text('Loi them gio: $e')),
       );
     }
-  }
-
-  Widget _buildDishImage(Product product) {
-    final img = product.img;
-    if (img == null || img.isEmpty) {
-      return Container(
-        color: const Color(0xFFFFF1DD),
-        child: const Icon(Icons.fastfood_rounded, color: Color(0xFFE67E22)),
-      );
-    }
-    if (img.startsWith('data:image')) {
-      final bytes = base64Decode(img.split(',').last);
-      return Image.memory(bytes, fit: BoxFit.cover);
-    }
-    return Image.network(img, fit: BoxFit.cover);
   }
 
   @override
@@ -115,7 +210,8 @@ class _BuyerHomeState extends State<BuyerHome> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
-                child: CircularProgressIndicator(color: accent));
+              child: CircularProgressIndicator(color: accent),
+            );
           }
 
           if (snapshot.hasError) {
@@ -134,10 +230,11 @@ class _BuyerHomeState extends State<BuyerHome> {
           final categories =
               (snapshot.data?['categories'] as List<Category>? ?? []);
           final allDishes = (snapshot.data?['dishes'] as List<Product>? ?? []);
+          final nearbyDishes = allDishes.where(_isWithinRadius).toList();
           final keyword = _searchController.text.trim().toLowerCase();
           final dishes = keyword.isEmpty
-              ? allDishes
-              : allDishes
+              ? nearbyDishes
+              : nearbyDishes
                   .where((d) => d.name.toLowerCase().contains(keyword))
                   .toList();
 
@@ -173,16 +270,84 @@ class _BuyerHomeState extends State<BuyerHome> {
                   padding: const EdgeInsets.all(14),
                   child: Row(
                     children: [
-                      const Icon(Icons.local_fire_department_rounded,
-                          color: Colors.white),
+                      const Icon(
+                        Icons.local_fire_department_rounded,
+                        color: Colors.white,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${allDishes.length} mon dang san sang - ${categories.length} danh muc',
+                          '${nearbyDishes.length} mon trong ban kinh ${_deliveryRadiusKm.toStringAsFixed(0)}km - ${categories.length} danh muc',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
                           ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFFFE2BE)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 2),
+                            child: Icon(Icons.my_location_rounded, color: accent),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              'Vi tri hien tai',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: _isLocating ? null : _loadCurrentLocation,
+                            icon: _isLocating
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: accent,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.refresh_rounded,
+                                    size: 18,
+                                    color: accent,
+                                  ),
+                            label: const Text(
+                              'Cap nhat lai',
+                              style: TextStyle(color: accent),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _isLocating
+                            ? 'Dang xac dinh vi tri...'
+                            : _currentLocationText ??
+                                _locationError ??
+                                'Khong lay duoc vi tri hien tai',
+                        style: TextStyle(
+                          color:
+                              _locationError == null ? Colors.black54 : Colors.red,
                         ),
                       ),
                     ],
@@ -223,14 +388,33 @@ class _BuyerHomeState extends State<BuyerHome> {
                 ),
                 const SizedBox(height: 18),
                 const Text(
-                  'Món ăn nổi bật',
+                  'Mon an gan ban',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 10),
-                if (dishes.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: Text('Khong tim thay mon an phu hop')),
+                if (_currentPosition == null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Text(
+                        _isLocating
+                            ? 'Dang tai vi tri de loc mon an...'
+                            : _locationError ??
+                                'Can vi tri hien tai de hien thi mon trong 5km',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                else if (dishes.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Text(
+                        keyword.isEmpty
+                            ? 'Khong co mon an nao trong ban kinh 5km'
+                            : 'Khong tim thay mon an phu hop trong 5km',
+                      ),
+                    ),
                   )
                 else
                   GridView.builder(
@@ -246,8 +430,8 @@ class _BuyerHomeState extends State<BuyerHome> {
                     ),
                     itemBuilder: (_, i) {
                       final product = dishes[i];
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(16),
+                      return ProductCard(
+                        product: product,
                         onTap: () {
                           Navigator.push(
                             context,
@@ -256,70 +440,7 @@ class _BuyerHomeState extends State<BuyerHome> {
                             ),
                           );
                         },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: cardBg,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x14000000),
-                                blurRadius: 8,
-                                offset: Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(16),
-                                  ),
-                                  child: SizedBox(
-                                      width: double.infinity,
-                                      child: _buildDishImage(product)),
-                                ),
-                              ),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(10, 8, 10, 6),
-                                child: Text(
-                                  product.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(10, 0, 10, 10),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      '\$${product.price.toStringAsFixed(2)}',
-                                      style: const TextStyle(
-                                        color: accent,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    InkWell(
-                                      onTap: () => _addToCart(product),
-                                      child: const CircleAvatar(
-                                        radius: 14,
-                                        backgroundColor: accent,
-                                        child: Icon(Icons.add,
-                                            size: 16, color: Colors.white),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        onAdd: () => _addToCart(product),
                       );
                     },
                   ),

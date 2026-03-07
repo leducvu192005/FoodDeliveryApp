@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/dish.dart';
+import '../../providers/favorite_provider.dart';
 import '../../services/dish.dart';
 import 'details_screen.dart';
 
@@ -15,7 +17,6 @@ class Favorites extends StatefulWidget {
 
 class _FavoritesState extends State<Favorites> {
   late Future<List<Product>> _dishesFuture;
-  final Set<int> _favoriteIds = <int>{};
 
   @override
   void initState() {
@@ -49,117 +50,124 @@ class _FavoritesState extends State<Favorites> {
         title: const Text('Yeu thich'),
         backgroundColor: pageBg,
       ),
-      body: FutureBuilder<List<Product>>(
-        future: _dishesFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: accent));
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Khong tai duoc danh sach mon: ${snapshot.error}'));
-          }
+      body: Consumer<FavoriteProvider>(
+        builder: (context, favoriteProvider, _) => FutureBuilder<List<Product>>(
+          future: _dishesFuture,
+          builder: (context, snapshot) {
+            if (!favoriteProvider.isLoaded ||
+                snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: accent));
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Khong tai duoc danh sach mon: ${snapshot.error}'));
+            }
 
-          final dishes = snapshot.data ?? [];
-          if (dishes.isEmpty) {
-            return const Center(child: Text('Chua co mon an nao'));
-          }
+            final dishes = snapshot.data ?? [];
+            final favoriteDishes = dishes
+                .where((product) => favoriteProvider.isFavorite(product.id))
+                .toList();
 
-          return GridView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: dishes.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 0.75,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
-            itemBuilder: (_, index) {
-              final product = dishes[index];
-              final isFavorite = _favoriteIds.contains(product.id);
+            if (favoriteDishes.isEmpty) {
+              return const Center(child: Text('Chua co mon nao trong yeu thich'));
+            }
 
-              return InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => DetailsScreen(product: product)),
-                  );
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x14000000),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                              child: SizedBox(width: double.infinity, child: _buildImage(product)),
-                            ),
-                            Positioned(
-                              right: 8,
-                              top: 8,
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    if (isFavorite) {
-                                      _favoriteIds.remove(product.id);
-                                    } else {
-                                      _favoriteIds.add(product.id);
+            return GridView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: favoriteDishes.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.75,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemBuilder: (_, index) {
+                final product = favoriteDishes[index];
+
+                return InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => DetailsScreen(product: product)),
+                    );
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x14000000),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                                child: SizedBox(width: double.infinity, child: _buildImage(product)),
+                              ),
+                              Positioned(
+                                right: 8,
+                                top: 8,
+                                child: InkWell(
+                                  onTap: () async {
+                                    try {
+                                      await favoriteProvider.toggleFavorite(product.id);
+                                    } catch (e) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Khong cap nhat duoc yeu thich: $e')),
+                                      );
                                     }
-                                  });
-                                },
-                                child: CircleAvatar(
-                                  radius: 14,
-                                  backgroundColor: Colors.white,
-                                  child: Icon(
-                                    isFavorite ? Icons.favorite : Icons.favorite_border,
-                                    size: 16,
-                                    color: accent,
+                                  },
+                                  child: const CircleAvatar(
+                                    radius: 14,
+                                    backgroundColor: Colors.white,
+                                    child: Icon(
+                                      Icons.favorite,
+                                      size: 16,
+                                      color: accent,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
-                        child: Text(
-                          product.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-                        child: Text(
-                          '\$${product.price.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            color: accent,
-                            fontWeight: FontWeight.w800,
+                            ],
                           ),
                         ),
-                      ),
-                    ],
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+                          child: Text(
+                            product.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                          child: Text(
+                            '\$${product.price.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: accent,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
-          );
-        },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

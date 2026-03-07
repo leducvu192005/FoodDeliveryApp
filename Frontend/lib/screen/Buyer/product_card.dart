@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/dish.dart';
+import '../../providers/favorite_provider.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -33,6 +35,45 @@ class ProductCard extends StatelessWidget {
                   height: 140,
                   width: double.infinity,
                   child: _buildImage(),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Consumer<FavoriteProvider>(
+                    builder: (context, favoriteProvider, _) {
+                      final isFavorite = favoriteProvider.isFavorite(product.id);
+                      return GestureDetector(
+                        onTap: () async {
+                          try {
+                            await favoriteProvider.toggleFavorite(product.id);
+                          } catch (e) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Khong cap nhat duoc yeu thich: $e')),
+                            );
+                          }
+                        },
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(color: Colors.black26, blurRadius: 4),
+                            ],
+                          ),
+                          child: Icon(
+                            isFavorite
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            color: const Color(0xFFE67E22),
+                            size: 18,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 Positioned(
                   bottom: 8,

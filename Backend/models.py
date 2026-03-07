@@ -1,10 +1,8 @@
 # models.py
-from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, JSON, Text
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, JSON, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from sqlalchemy import Column, Integer, String, Boolean, Numeric, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.types import DateTime as Datetime
 
 Base = declarative_base()
@@ -115,6 +113,21 @@ class CartItem(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     dish_id = Column(Integer, ForeignKey("dish.id"))
     quantity = Column(Integer, default=1)
+    dish = relationship("Dish")
+
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+    __table_args__ = (
+        UniqueConstraint("user_id", "dish_id", name="uq_favorites_user_dish"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    dish_id = Column(Integer, ForeignKey("dish.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(Datetime, server_default=func.now(), nullable=False)
+
+    user = relationship("User")
     dish = relationship("Dish")
 
 

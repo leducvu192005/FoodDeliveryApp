@@ -11,6 +11,7 @@ from routers.dish import router as dish_router
 from routers.topping import router as topping_router
 from routers.profile import router as profile_router
 from routers.cartItems_router import router as cart_router
+from routers.favorites_router import router as favorites_router
 from routers.payment_router import router as payment_router
 from routers.sepay_router import router as sepay_router
 from routers.shipper_router import (
@@ -19,9 +20,11 @@ from routers.shipper_router import (
     ws_router as shipper_ws_router,
 )
 from setup_shipper_tables import setup_shipper_tables
+from setup_favorites_table import setup_favorites_table
 from setup_user_columns import setup_user_columns
 Base.metadata.create_all(bind=engine)
 setup_shipper_tables()
+setup_favorites_table()
 setup_user_columns()
 
 app = FastAPI(title="Food Delivery App")
@@ -34,6 +37,7 @@ app.include_router(dish_router)
 app.include_router(topping_router)
 app.include_router(profile_router)
 app.include_router(cart_router)
+app.include_router(favorites_router)
 app.include_router(shipper_router)
 app.include_router(shipper_legacy_router)
 app.include_router(shipper_ws_router)
