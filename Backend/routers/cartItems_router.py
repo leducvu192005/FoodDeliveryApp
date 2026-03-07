@@ -90,6 +90,7 @@ def get_user_orders(
             "payment_method": order.payment_method,
             "total_price": order.total_price,
             "delivery_address": order.delivery_address,
+            "estimated_delivery_minutes": order.estimated_delivery_minutes,
             "created_at": order.created_at,
             "payment_status": payment.status if payment else "pending",
             "items": [

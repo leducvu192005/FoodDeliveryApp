@@ -29,7 +29,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _historyFuture = widget.orderService.getCompletedOrders();
+    _historyFuture = _fetchCompletedOrders();
   }
 
   @override
@@ -38,13 +38,31 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     super.dispose();
   }
 
+  Future<List<OrderModel>> _fetchCompletedOrders({String search = ''}) async {
+    try {
+      return await widget.orderService.getCompletedOrders(search: search);
+    } catch (error) {
+      final message = error.toString();
+      if (message.contains('Vui long dang nhap lai')) {
+        if (mounted) {
+          Future.microtask(() {
+            if (!mounted) return;
+            Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+          });
+        }
+        return const <OrderModel>[];
+      }
+      rethrow;
+    }
+  }
+
   Future<void> _loadHistory() async {
     setState(() {
-      _historyFuture = widget.orderService.getCompletedOrders(
-        search: _searchController.text,
-      );
+      _historyFuture = _fetchCompletedOrders(search: _searchController.text);
     });
-    await _historyFuture;
+    try {
+      await _historyFuture;
+    } catch (_) {}
   }
 
   @override
