@@ -3,13 +3,13 @@ import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from jose import JWTError, jwt
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from auth import ALGORITHM, SECRET_KEY
 import models
 from database import SessionLocal, get_db
 from dependencies import require_role
+from services.distance_service import calculate_distance_km
 from schemas import (
     ShipperCurrentOrderResponse,
     ShipperDashboardResponse,
@@ -193,16 +193,49 @@ def _get_active_order(db: Session, shipper: models.Shipper) -> models.Order | No
 
 
 def _available_orders_query(db: Session, shipper: models.Shipper):
-    accept_radius = float(shipper.accept_radius or 5)
     return (
         db.query(models.Order)
         .filter(
             models.Order.shipper_id.is_(None),
             models.Order.status.in_(AVAILABLE_ORDER_STATUSES),
-            or_(models.Order.distance_km.is_(None), models.Order.distance_km <= accept_radius),
         )
         .order_by(models.Order.created_at.desc())
     )
+
+
+def _shipper_to_pickup_distance_km(
+    shipper: models.Shipper,
+    order: models.Order,
+) -> float | None:
+    if (
+        shipper.lat is None
+        or shipper.lng is None
+        or order.pickup_lat is None
+        or order.pickup_lng is None
+    ):
+        return None
+
+    return calculate_distance_km(
+        float(shipper.lat),
+        float(shipper.lng),
+        float(order.pickup_lat),
+        float(order.pickup_lng),
+    )
+
+
+def _filter_orders_for_shipper(
+    shipper: models.Shipper,
+    orders: list[models.Order],
+) -> list[models.Order]:
+    accept_radius = float(shipper.accept_radius or 5)
+    allowed_orders: list[models.Order] = []
+    for order in orders:
+        distance_to_pickup = _shipper_to_pickup_distance_km(shipper, order)
+        if distance_to_pickup is None:
+            continue
+        if distance_to_pickup <= accept_radius:
+            allowed_orders.append(order)
+    return allowed_orders
 
 
 def _find_shipper_profile(db: Session, user_id: int) -> models.Profile | None:
@@ -235,11 +268,13 @@ def _to_order_payload(order: models.Order, db: Session) -> dict:
         "distance_km": float(order.distance_km or 0),
         "pickup_address": order.pickup_address or "Pending pickup address",
         "delivery_address": order.delivery_address or "Pending delivery address",
+        "pickup_lat": float(order.pickup_lat) if order.pickup_lat is not None else None,
+        "pickup_lng": float(order.pickup_lng) if order.pickup_lng is not None else None,
+        "delivery_lat": float(order.delivery_lat) if order.delivery_lat is not None else None,
+        "delivery_lng": float(order.delivery_lng) if order.delivery_lng is not None else None,
         "estimated_delivery_minutes": order.estimated_delivery_minutes,
         "status": order.status,
         "created_at": order.created_at,
-        "pickup_lat": float(order.pickup_lat) if order.pickup_lat is not None else None,
-        "pickup_lng": float(order.pickup_lng) if order.pickup_lng is not None else None,
     }
 
 
@@ -262,6 +297,8 @@ def _to_legacy_order_payload(order: models.Order, db: Session) -> dict:
         "estimated_delivery_minutes": order.estimated_delivery_minutes,
         "pickup_lat": float(order.pickup_lat) if order.pickup_lat is not None else None,
         "pickup_lng": float(order.pickup_lng) if order.pickup_lng is not None else None,
+        "delivery_lat": float(order.delivery_lat) if order.delivery_lat is not None else None,
+        "delivery_lng": float(order.delivery_lng) if order.delivery_lng is not None else None,
     }
 
 
@@ -294,6 +331,7 @@ def _to_shipper_home_payload(shipper: models.Shipper) -> dict:
         "is_online": bool(shipper.is_online),
         "lat": float(shipper.lat) if shipper.lat is not None else None,
         "lng": float(shipper.lng) if shipper.lng is not None else None,
+        "last_location_update": shipper.last_location_update,
         "accept_radius": int(shipper.accept_radius or 5),
     }
 
@@ -335,6 +373,7 @@ def _to_shipper_profile_payload(
         "is_online": bool(shipper.is_online),
         "current_lat": float(shipper.lat) if shipper.lat is not None else None,
         "current_lng": float(shipper.lng) if shipper.lng is not None else None,
+        "last_location_update": shipper.last_location_update,
         "accept_radius": int(shipper.accept_radius or 5),
         "completed_orders": completed_orders,
         "completion_rate": completion_rate,
@@ -381,17 +420,15 @@ def _accept_order_for_shipper(
     if order.status not in AVAILABLE_ORDER_STATUSES:
         raise HTTPException(status_code=400, detail="Don khong o trang thai co the nhan")
 
-    if order.distance_km and float(order.distance_km) > float(shipper.accept_radius or 5):
+    distance_to_pickup = _shipper_to_pickup_distance_km(shipper, order)
+    if distance_to_pickup is None:
+        raise HTTPException(status_code=400, detail="Khong xac dinh duoc vi tri shipper hoac diem lay hang")
+    if distance_to_pickup > float(shipper.accept_radius or 5):
         raise HTTPException(status_code=400, detail="Don nam ngoai ban kinh nhan don")
 
     order.shipper_id = shipper.id
     order.status = "accepted"
     order.assigned_at = datetime.now()
-
-    if not order.delivery_fee or order.delivery_fee <= 0:
-        order.delivery_fee = max(float(order.total_price or 0) * 0.1, 12000.0)
-    if not order.distance_km or order.distance_km <= 0:
-        order.distance_km = 2.5
 
     db.commit()
     db.refresh(order)
@@ -536,6 +573,10 @@ def update_shipper_profile(
         cleaned_address = payload.address.strip()
         current_user.address = cleaned_address
         profile.live = cleaned_address
+    if payload.lat is not None:
+        profile.lat = payload.lat
+    if payload.lng is not None:
+        profile.lng = payload.lng
 
     shipper.updated_at = datetime.now()
 
@@ -577,10 +618,16 @@ def update_shipper_location(
 
     shipper.lat = payload.lat
     shipper.lng = payload.lng
+    shipper.last_location_update = datetime.now()
     shipper.updated_at = datetime.now()
     db.commit()
 
-    return {"message": "Location updated", "lat": shipper.lat, "lng": shipper.lng}
+    return {
+        "message": "Location updated",
+        "lat": shipper.lat,
+        "lng": shipper.lng,
+        "last_location_update": shipper.last_location_update,
+    }
 
 
 @router.post("/location-update", response_model=ShipperLocationResponse)
@@ -590,12 +637,19 @@ def update_shipper_location_legacy(
     current_user: models.User = Depends(require_role("shipper")),
 ):
     shipper = _ensure_shipper(db, current_user)
+    _validate_requested_shipper(shipper, payload.shipper_id)
     shipper.lat = payload.lat
     shipper.lng = payload.lng
+    shipper.last_location_update = datetime.now()
     shipper.updated_at = datetime.now()
     db.commit()
 
-    return {"message": "Location updated", "lat": shipper.lat, "lng": shipper.lng}
+    return {
+        "message": "Location updated",
+        "lat": shipper.lat,
+        "lng": shipper.lng,
+        "last_location_update": shipper.last_location_update,
+    }
 
 
 @router.post("/online", response_model=ShipperStatusResponse)
@@ -682,7 +736,8 @@ def get_dashboard(
     active_order = _get_active_order(db, shipper)
     available_orders = []
     if not active_order:
-        available_orders = _available_orders_query(db, shipper).limit(12).all()
+        candidate_orders = _available_orders_query(db, shipper).limit(30).all()
+        available_orders = _filter_orders_for_shipper(shipper, candidate_orders)[:12]
 
     return {
         "shipper_name": shipper.full_name,
@@ -820,7 +875,8 @@ def get_available_orders(
     shipper = _ensure_shipper(db, current_user)
     if _get_active_order(db, shipper):
         return []
-    orders = _available_orders_query(db, shipper).limit(20).all()
+    candidate_orders = _available_orders_query(db, shipper).limit(50).all()
+    orders = _filter_orders_for_shipper(shipper, candidate_orders)[:20]
     return [_to_legacy_order_payload(order, db) for order in orders]
 
 
@@ -954,21 +1010,8 @@ async def ws_orders(websocket: WebSocket):
                 await asyncio.sleep(5)
                 continue
 
-            accept_radius = float(shipper.accept_radius or 5)
-            available_orders = (
-                db.query(models.Order)
-                .filter(
-                    models.Order.shipper_id.is_(None),
-                    models.Order.status.in_(AVAILABLE_ORDER_STATUSES),
-                    or_(
-                        models.Order.distance_km.is_(None),
-                        models.Order.distance_km <= accept_radius,
-                    ),
-                )
-                .order_by(models.Order.created_at.desc())
-                .limit(20)
-                .all()
-            )
+            candidate_orders = _available_orders_query(db, shipper).limit(50).all()
+            available_orders = _filter_orders_for_shipper(shipper, candidate_orders)[:20]
 
             payload = {
                 "type": "orders",
@@ -989,96 +1032,3 @@ async def ws_orders(websocket: WebSocket):
         pass
     finally:
         db.close()
-from dependencies import get_current_user, require_role
-
-router = APIRouter(prefix="/shipper", tags=["Shipper"])
-
-
-@router.patch("/toggle-online")
-def toggle_online(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(require_role("shipper"))
-):
-    shipper = db.query(models.User).filter(models.User.id == current_user.id).first()
-    if not shipper:
-        raise HTTPException(status_code=404, detail="Shipper không tồn tại")
-    shipper.is_online = not shipper.is_online
-    db.commit()
-    db.refresh(shipper)
-    return {
-        "is_online": shipper.is_online
-    }
-
-
-@router.get("/orders")
-def get_available_orders(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(require_role("shipper"))
-):
-    """Lấy danh sách đơn hàng đang chờ shipper nhận (status='shipper')"""
-    orders = (
-        db.query(models.Order)
-        .filter(models.Order.status == "shipper")
-        .order_by(models.Order.id.desc())
-        .all()
-    )
-
-    result = []
-    for order in orders:
-        order_items = (
-            db.query(models.OrderItem)
-            .filter(models.OrderItem.order_id == order.id)
-            .all()
-        )
-        result.append({
-            "id": order.id,
-            "user_id": order.user_id,
-            "total_price": order.total_price,
-            "status": order.status,
-            "created_at": order.created_at,
-            "items": [
-                {
-                    "dish_name": item.dish_name,
-                    "dish_price": item.dish_price,
-                    "quantity": item.quantity,
-                }
-                for item in order_items
-            ],
-        })
-    return result
-
-
-@router.patch("/accept/{order_id}")
-def accept_order(
-    order_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(require_role("shipper"))
-):
-    """Shipper nhận đơn → status chuyển sang 'seller' (đang lấy hàng)"""
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng")
-    if order.status != "shipper":
-        raise HTTPException(status_code=400, detail=f"Đơn hàng không ở trạng thái chờ shipper (hiện tại: {order.status})")
-
-    order.status = "seller"
-    db.commit()
-    return {"message": "Đã nhận đơn hàng", "order_id": order.id, "status": order.status}
-
-
-@router.patch("/complete/{order_id}")
-def complete_order(
-    order_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(require_role("shipper"))
-):
-    """Shipper giao hàng xong → status chuyển sang 'done'"""
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng")
-    if order.status != "seller":
-        raise HTTPException(status_code=400, detail=f"Đơn hàng chưa ở trạng thái đang giao (hiện tại: {order.status})")
-
-    order.status = "done"
-    db.commit()
-    return {"message": "Đã hoàn thành đơn hàng", "order_id": order.id, "status": order.status}

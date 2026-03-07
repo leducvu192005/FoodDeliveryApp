@@ -138,19 +138,19 @@ class _StatusChip extends StatelessWidget {
     final theme = Theme.of(context);
     final (background, foreground) = switch (status) {
       OrderStatus.pending => (const Color(0xFFFFF3E0), const Color(0xFFEF6C00)),
-      OrderStatus.preparing => (
+      OrderStatus.confirmed => (
           const Color(0xFFE3F2FD),
           const Color(0xFF1565C0)
         ),
-      OrderStatus.pickedUp => (
+      OrderStatus.accepted => (
           const Color(0xFFE8F5E9),
           const Color(0xFF2E7D32)
         ),
-      OrderStatus.delivering => (
+      OrderStatus.pickedUp => (
           const Color(0xFFE0F7FA),
           const Color(0xFF00838F)
         ),
-      OrderStatus.completed => (
+      OrderStatus.delivered => (
           const Color(0xFFE8F5E9),
           const Color(0xFF1B5E20)
         ),

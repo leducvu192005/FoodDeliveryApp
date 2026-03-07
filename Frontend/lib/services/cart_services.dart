@@ -86,6 +86,8 @@ class CartServices {
 
   Future<Map<String, dynamic>> checkout({
     String? deliveryAddress,
+    double? deliveryLat,
+    double? deliveryLng,
     String method = 'stripe',
   }) async {
     final url = Uri.parse('$baseUrl/checkout');
@@ -96,6 +98,8 @@ class CartServices {
       body: jsonEncode({
         "method": method,
         "delivery_address": deliveryAddress?.trim(),
+        "delivery_lat": deliveryLat,
+        "delivery_lng": deliveryLng,
       }),
     );
     if (response.statusCode != 200) {

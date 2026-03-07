@@ -17,6 +17,8 @@ class ProfileCreate(BaseModel):
     name: str
     sdt: Optional[str] = None
     live: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
     img: Optional[str] = None
     user_id: Optional[int] = None
 
@@ -25,6 +27,8 @@ class ProfileUpdate(BaseModel):
     name: Optional[str] = None
     sdt: Optional[str] = None
     live: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
     img: Optional[str] = None
 
 
@@ -48,6 +52,8 @@ def _to_profile_payload(profile: Profile, user: User) -> dict:
         "name": (profile.name or user.full_name or "").strip(),
         "sdt": (profile.sdt or user.sdt or "").strip(),
         "live": (user.address or profile.live or "").strip(),
+        "lat": profile.lat,
+        "lng": profile.lng,
         "img": profile.img,
         "user_id": user.id,
         "email": (user.email or "").strip(),
@@ -117,6 +123,10 @@ def upsert_my_profile(
         cleaned_address = profile.live.strip()
         db_profile.live = cleaned_address
         current_user.address = cleaned_address
+    if profile.lat is not None:
+        db_profile.lat = profile.lat
+    if profile.lng is not None:
+        db_profile.lng = profile.lng
     if profile.img is not None:
         db_profile.img = profile.img
 
@@ -180,6 +190,8 @@ def create_profile(profile: ProfileCreate, db: Session = Depends(get_db)):
         name=profile.name,
         sdt=profile.sdt,
         live=profile.live,
+        lat=profile.lat,
+        lng=profile.lng,
         img=profile.img,
         user_id=profile.user_id,
     )
@@ -201,6 +213,10 @@ def update_profile(profile_id: int, profile: ProfileUpdate, db: Session = Depend
         db_profile.sdt = profile.sdt
     if profile.live is not None:
         db_profile.live = profile.live
+    if profile.lat is not None:
+        db_profile.lat = profile.lat
+    if profile.lng is not None:
+        db_profile.lng = profile.lng
     if profile.img is not None:
         db_profile.img = profile.img
 

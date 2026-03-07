@@ -14,7 +14,7 @@ class OrderService {
 
   Stream<List<OrderModel>> streamNewOrders() async* {
     while (true) {
-      yield await getAllOrders();
+      yield await getAvailableOrders();
       await Future<void>.delayed(const Duration(seconds: 8));
     }
   }
@@ -98,6 +98,22 @@ class OrderService {
     );
   }
 
+  Future<void> updateShipperLocation({
+    String? shipperId,
+    required double lat,
+    required double lng,
+  }) async {
+    await _apiClient.post(
+      '/shipper/location-update',
+      token: await _requireToken(),
+      body: <String, dynamic>{
+        'shipper_id': shipperId,
+        'lat': lat,
+        'lng': lng,
+      },
+    );
+  }
+
   Future<ShipperDashboardStats> getDashboardStats() async {
     final data = await _apiClient.get(
       '/shipper/dashboard',
@@ -142,6 +158,7 @@ class OrderService {
       phone: (payload['phone'] ?? '').toString(),
       address: (payload['address'] ?? '').toString(),
       rating: _toDouble(payload['rating']),
+      isOnline: payload['is_online'] == true,
       completedOrders: _toInt(payload['completed_orders']),
       completionRate: _toDouble(payload['completion_rate']),
     );
@@ -169,6 +186,7 @@ class OrderService {
       phone: (payload['phone'] ?? '').toString(),
       address: (payload['address'] ?? '').toString(),
       rating: _toDouble(payload['rating']),
+      isOnline: payload['is_online'] == true,
       completedOrders: _toInt(payload['completed_orders']),
       completionRate: _toDouble(payload['completion_rate']),
     );
@@ -184,7 +202,7 @@ class OrderService {
     final payload = data as Map<String, dynamic>;
     final rows = (payload['orders'] as List<dynamic>? ?? const <dynamic>[])
         .map((item) => _orderFromLegacyJson(Map<String, dynamic>.from(item as Map)))
-        .where((order) => order.status == OrderStatus.completed)
+        .where((order) => order.status == OrderStatus.delivered)
         .toList();
 
     final keyword = search.trim().toLowerCase();
@@ -260,9 +278,13 @@ class OrderService {
         'delivery_address': deliveryAddress,
         'customer_phone': customerPhone,
         'distance_km': _toDouble(json['distance_km']),
+        'pickup_lat': json['pickup_lat'],
+        'pickup_lng': json['pickup_lng'],
         'shipping_fee': shippingFee,
         'subtotal': totalPrice,
         'total_amount': totalPrice + shippingFee,
+        'delivery_lat': json['delivery_lat'],
+        'delivery_lng': json['delivery_lng'],
         'estimated_minutes': _toInt(json['estimated_delivery_minutes']),
         'ordered_at': json['created_at'],
         'picked_up_at': null,
@@ -293,15 +315,20 @@ class OrderService {
 
   String _normalizeStatusForUi(String status) {
     switch (status) {
+      case 'shipper':
       case 'confirmed':
       case 'ready_for_pickup':
-        return OrderStatus.preparing.dbValue;
+        return OrderStatus.confirmed.dbValue;
+      case 'seller':
       case 'accepted':
-        return OrderStatus.pickedUp.dbValue;
+        return OrderStatus.accepted.dbValue;
       case 'picked_up':
-        return OrderStatus.delivering.dbValue;
+      case 'delivering':
+        return OrderStatus.pickedUp.dbValue;
       case 'delivered':
-        return OrderStatus.completed.dbValue;
+      case 'completed':
+      case 'done':
+        return OrderStatus.delivered.dbValue;
       default:
         return status;
     }

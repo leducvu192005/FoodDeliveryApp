@@ -260,7 +260,7 @@ async def sepay_webhook(
         # Update order
         order = db.query(Order).filter(Order.id == payment.order_id).first()
         if order:
-            order.status = "shipper"
+            order.status = "confirmed"
             
             # Clear cart
             order_items = db.query(OrderItem).filter(

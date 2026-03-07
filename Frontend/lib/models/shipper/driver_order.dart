@@ -7,6 +7,10 @@ class DriverOrder {
   final String deliveryAddress;
   final double totalPrice;
   final double shippingFee;
+  final double? pickupLat;
+  final double? pickupLng;
+  final double? deliveryLat;
+  final double? deliveryLng;
   final String status;
   final DateTime createdAt;
 
@@ -19,6 +23,10 @@ class DriverOrder {
     required this.deliveryAddress,
     required this.totalPrice,
     required this.shippingFee,
+    required this.pickupLat,
+    required this.pickupLng,
+    required this.deliveryLat,
+    required this.deliveryLng,
     required this.status,
     required this.createdAt,
   });
@@ -33,6 +41,10 @@ class DriverOrder {
       deliveryAddress: json['delivery_address']?.toString() ?? '',
       totalPrice: (json['total_price'] ?? 0).toDouble(),
       shippingFee: (json['shipping_fee'] ?? 0).toDouble(),
+      pickupLat: (json['pickup_lat'] as num?)?.toDouble(),
+      pickupLng: (json['pickup_lng'] as num?)?.toDouble(),
+      deliveryLat: (json['delivery_lat'] as num?)?.toDouble(),
+      deliveryLng: (json['delivery_lng'] as num?)?.toDouble(),
       status: json['status']?.toString() ?? 'pending',
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),

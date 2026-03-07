@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/order_model.dart';
 import 'package:flutter_application_1/screen/shipper/order_detail_screen.dart';
 import 'package:flutter_application_1/services/order_service.dart';
 import 'package:flutter_application_1/widgets/order_card.dart';
 import 'package:flutter_application_1/widgets/stat_card.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 
 class ShipperHomeScreen extends StatefulWidget {
@@ -23,6 +26,10 @@ class _ShipperHomeScreenState extends State<ShipperHomeScreen> {
   late Future<List<OrderModel>> _activeOrdersFuture;
 
   bool _busy = false;
+  StreamSubscription<Position>? _positionSubscription;
+  Timer? _locationTimer;
+  DateTime? _lastLocationSentAt;
+  String? _shipperId;
 
   final NumberFormat _currency = NumberFormat.currency(
     locale: 'vi_VN',
@@ -34,11 +41,28 @@ class _ShipperHomeScreenState extends State<ShipperHomeScreen> {
   void initState() {
     super.initState();
     _prepareOverview();
+    unawaited(_syncTrackingWithServer());
+  }
+
+  @override
+  void dispose() {
+    unawaited(_stopLocationTracking());
+    super.dispose();
   }
 
   void _prepareOverview() {
     _statsFuture = widget.orderService.getDashboardStats();
     _activeOrdersFuture = widget.orderService.getActiveOrders();
+  }
+
+  Future<void> _syncTrackingWithServer() async {
+    try {
+      final profile = await widget.orderService.getShipperProfile();
+      _shipperId = profile.id;
+      if (profile.id.isNotEmpty && profile.isOnline && mounted) {
+        await _startLocationTracking();
+      }
+    } catch (_) {}
   }
 
   Future<void> _refreshAll() async {
@@ -56,9 +80,19 @@ class _ShipperHomeScreenState extends State<ShipperHomeScreen> {
     setState(() => _busy = true);
 
     try {
+      if (value) {
+        await _ensureLocationReady();
+      }
+
       await widget.orderService.setShipperOnline(
         isOnline: value,
       );
+
+      if (value) {
+        await _startLocationTracking();
+      } else {
+        await _stopLocationTracking();
+      }
 
       await _refreshAll();
     } catch (error) {
@@ -116,7 +150,7 @@ class _ShipperHomeScreenState extends State<ShipperHomeScreen> {
 
   bool _canAcceptOrder(OrderModel order) {
     return order.status == OrderStatus.pending ||
-        order.status == OrderStatus.preparing;
+        order.status == OrderStatus.confirmed;
   }
 
   String _formatDuration(Duration duration) {
@@ -128,6 +162,90 @@ class _ShipperHomeScreenState extends State<ShipperHomeScreen> {
     if (hours == 0) return '$minutes phut';
 
     return '$hours gio $minutes phut';
+  }
+
+  Future<void> _ensureLocationReady() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw Exception('Hay bat dich vu vi tri tren thiet bi.');
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      throw Exception('Ung dung can quyen vi tri de nhan don.');
+    }
+
+    if (_shipperId == null || _shipperId!.isEmpty) {
+      final profile = await widget.orderService.getShipperProfile();
+      _shipperId = profile.id;
+    }
+  }
+
+  Future<void> _startLocationTracking() async {
+    await _ensureLocationReady();
+    await _stopLocationTracking();
+
+    final currentPosition = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+      ),
+    );
+    await _pushLocation(currentPosition);
+
+    _positionSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 30,
+      ),
+    ).listen((position) {
+      unawaited(_maybePushLocation(position));
+    });
+
+    _locationTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
+      try {
+        final position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+          ),
+        );
+        await _maybePushLocation(position, force: true);
+      } catch (_) {}
+    });
+  }
+
+  Future<void> _stopLocationTracking() async {
+    await _positionSubscription?.cancel();
+    _positionSubscription = null;
+    _locationTimer?.cancel();
+    _locationTimer = null;
+    _lastLocationSentAt = null;
+  }
+
+  Future<void> _maybePushLocation(
+    Position position, {
+    bool force = false,
+  }) async {
+    if (!force &&
+        _lastLocationSentAt != null &&
+        DateTime.now().difference(_lastLocationSentAt!) <
+            const Duration(seconds: 15)) {
+      return;
+    }
+    await _pushLocation(position);
+  }
+
+  Future<void> _pushLocation(Position position) async {
+    await widget.orderService.updateShipperLocation(
+      shipperId: _shipperId,
+      lat: position.latitude,
+      lng: position.longitude,
+    );
+    _lastLocationSentAt = DateTime.now();
   }
 
   void _showSnack(String message) {

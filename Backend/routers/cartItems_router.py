@@ -6,8 +6,12 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from database import get_db
-from models import CartItem, Order, OrderItem, Payment, PendingStripeCheckout, Profile, User
-from models import CartItem, Dish, Order, OrderItem, Payment, User
+from models import CartItem, Dish, Order, OrderItem, Payment, PendingStripeCheckout, Profile, User
+from services.distance_service import (
+    calculate_delivery_fee,
+    calculate_distance_km,
+    estimate_delivery_time,
+)
 from schemas import (
     CartCheckoutRequest,
     CartCheckoutResponse,
@@ -20,6 +24,19 @@ from dependencies import get_current_user, require_role
 router = APIRouter(prefix="/cart", tags=["Cart"])
 
 stripe.api_key = os.getenv("STRIPE_API_KEY", "test")
+
+
+def _require_coordinates(
+    lat: float | None,
+    lng: float | None,
+    label: str,
+) -> tuple[float, float]:
+    if lat is None or lng is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Thieu toa do cho {label}. Vui long cap nhat vi tri truoc khi dat don.",
+        )
+    return float(lat), float(lng)
 
 
 @router.get("/orders")
@@ -82,7 +99,15 @@ def get_seller_orders(
         db.query(Order)
         .filter(
             Order.seller_id == user.id,
-            Order.status.in_(["seller", "done"]),
+            Order.status.in_([
+                "pending",
+                "confirmed",
+                "ready_for_pickup",
+                "accepted",
+                "picked_up",
+                "delivered",
+                "cancelled",
+            ]),
         )
         .order_by(Order.id.desc())
         .all()
@@ -99,6 +124,9 @@ def get_seller_orders(
             "id": order.id,
             "user_id": order.user_id,
             "status": order.status,
+            "payment_method": order.payment_method,
+            "delivery_address": order.delivery_address,
+            "pickup_address": order.pickup_address,
             "total_price": order.total_price,
             "created_at": order.created_at,
             "items": [
@@ -239,6 +267,8 @@ def checkout_cart(
     request_address = (request.delivery_address or "").strip()
     profile_address = buyer_profile.live.strip() if buyer_profile and buyer_profile.live else ""
     delivery_address = request_address or profile_address or "Customer address pending"
+    delivery_lat = request.delivery_lat if request.delivery_lat is not None else buyer_profile.lat if buyer_profile else None
+    delivery_lng = request.delivery_lng if request.delivery_lng is not None else buyer_profile.lng if buyer_profile else None
 
     seller_id = cart_items[0].dish.seller_id if cart_items else None
     seller_profile = None
@@ -252,8 +282,28 @@ def checkout_cart(
     pickup_address = (
         seller_profile.live if seller_profile and seller_profile.live else "Restaurant address pending"
     )
-    delivery_fee = max(float(total_amount) * 0.1, 12000.0)
-    estimated_delivery_minutes = 25
+    pickup_lat = seller_profile.lat if seller_profile else None
+    pickup_lng = seller_profile.lng if seller_profile else None
+
+    pickup_lat, pickup_lng = _require_coordinates(
+        pickup_lat,
+        pickup_lng,
+        "dia chi lay hang",
+    )
+    delivery_lat, delivery_lng = _require_coordinates(
+        delivery_lat,
+        delivery_lng,
+        "dia chi giao hang",
+    )
+
+    distance_km = calculate_distance_km(
+        pickup_lat,
+        pickup_lng,
+        delivery_lat,
+        delivery_lng,
+    )
+    estimated_delivery_minutes = estimate_delivery_time(distance_km)
+    delivery_fee = calculate_delivery_fee(distance_km)
 
     if payment_method == "stripe":
         cart_snapshot = [
@@ -272,9 +322,13 @@ def checkout_cart(
                 user_id=user.id,
                 total_price=total_amount,
                 delivery_fee=delivery_fee,
-                distance_km=2.5,
+                distance_km=distance_km,
                 pickup_address=pickup_address,
+                pickup_lat=pickup_lat,
+                pickup_lng=pickup_lng,
                 delivery_address=delivery_address,
+                delivery_lat=delivery_lat,
+                delivery_lng=delivery_lng,
                 estimated_delivery_minutes=estimated_delivery_minutes,
                 status="pending",
                 cart_snapshot=cart_snapshot,
@@ -324,13 +378,16 @@ def checkout_cart(
         seller_id=seller_id,
         total_price=total_amount,
         delivery_fee=delivery_fee,
-        distance_km=2.5,
+        distance_km=distance_km,
         pickup_address=pickup_address,
+        pickup_lat=pickup_lat,
+        pickup_lng=pickup_lng,
         delivery_address=delivery_address,
+        delivery_lat=delivery_lat,
+        delivery_lng=delivery_lng,
         estimated_delivery_minutes=estimated_delivery_minutes,
         status="pending",
-        payment_method="cod",
-        payment_method="sepay_bank_transfer",
+        payment_method=payment_method,
     )
     db.add(order)
     db.flush()
@@ -367,7 +424,7 @@ def checkout_cart(
         "total_price": total_amount,
         "delivery_address": delivery_address,
         "total_amount": total_amount,
-        "payment_method": "sepay_bank_transfer",
+        "payment_method": payment_method,
         "payment_status": "pending",
         "message": "Order created successfully",
     }

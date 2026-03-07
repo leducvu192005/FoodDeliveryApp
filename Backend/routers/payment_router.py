@@ -85,7 +85,11 @@ def _finalize_pending_checkout(
         delivery_fee=pending_checkout.delivery_fee,
         distance_km=pending_checkout.distance_km,
         pickup_address=pending_checkout.pickup_address,
+        pickup_lat=pending_checkout.pickup_lat,
+        pickup_lng=pending_checkout.pickup_lng,
         delivery_address=pending_checkout.delivery_address,
+        delivery_lat=pending_checkout.delivery_lat,
+        delivery_lng=pending_checkout.delivery_lng,
         estimated_delivery_minutes=pending_checkout.estimated_delivery_minutes,
         status="confirmed",
         payment_method="stripe",
@@ -283,7 +287,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 .filter(models.Order.id == int(order_id)).first()
 
             if order:
-                order.status = "shipper"
+                order.status = "confirmed"
                 order_items = (
                     db.query(OrderItem)
                     .filter(OrderItem.order_id == order.id)

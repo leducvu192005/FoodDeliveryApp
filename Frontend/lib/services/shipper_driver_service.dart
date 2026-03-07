@@ -21,11 +21,16 @@ class ShipperDriverService {
     await _apiClient.post('/shipper/go-offline', token: token);
   }
 
-  Future<void> updateLocation(String token, double lat, double lng) async {
+  Future<void> updateLocation(
+    String token,
+    double lat,
+    double lng, {
+    String? shipperId,
+  }) async {
     await _apiClient.post(
       '/shipper/location-update',
       token: token,
-      body: {'lat': lat, 'lng': lng},
+      body: {'shipper_id': shipperId, 'lat': lat, 'lng': lng},
     );
   }
 

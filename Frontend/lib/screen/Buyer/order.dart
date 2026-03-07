@@ -27,7 +27,7 @@ class _OrderState extends State<Order> {
 
   bool _isHistoryOrder(Map<String, dynamic> order) {
     final status = (order['status'] ?? '').toString().toLowerCase();
-    return status == 'done';
+    return status == 'delivered' || status == 'cancelled' || status == 'done';
   }
 
   String _formatDate(dynamic rawDate) {

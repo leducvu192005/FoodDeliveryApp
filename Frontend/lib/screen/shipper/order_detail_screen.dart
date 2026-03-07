@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/order_model.dart';
 import 'package:flutter_application_1/services/order_service.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   const OrderDetailScreen({
@@ -23,7 +24,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   final NumberFormat _currency = NumberFormat.currency(
     locale: 'vi_VN',
-    symbol: 'đ',
+    symbol: 'd',
     decimalDigits: 0,
   );
 
@@ -64,12 +65,32 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       );
       await _reload();
       if (mounted) {
-        _showSnack('Đơn hàng đã hoàn thành.');
+        _showSnack('Don hang da hoan thanh.');
       }
     } catch (error) {
       _showSnack(error.toString());
     } finally {
       if (mounted) setState(() => _processing = false);
+    }
+  }
+
+  Future<void> _openNavigation(OrderModel order) async {
+    final lat = order.deliveryLat;
+    final lng = order.deliveryLng;
+    if (lat == null || lng == null) {
+      _showSnack('Don hang chua co toa do giao.');
+      return;
+    }
+
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+    );
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched) {
+      _showSnack('Khong mo duoc Google Maps.');
     }
   }
 
@@ -85,7 +106,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chi tiết đơn'),
+        title: const Text('Chi tiet don'),
       ),
       body: FutureBuilder<OrderModel>(
         future: _orderFuture,
@@ -101,13 +122,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Không tải được chi tiết đơn.\n${snapshot.error}',
+                      'Khong tai duoc chi tiet don.\n${snapshot.error}',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
                     FilledButton(
                       onPressed: _reload,
-                      child: const Text('Thử lại'),
+                      child: const Text('Thu lai'),
                     ),
                   ],
                 ),
@@ -116,8 +137,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           }
 
           final order = snapshot.data!;
-          final canMarkPicked = order.status == OrderStatus.pickedUp;
-          final canMarkCompleted = order.status == OrderStatus.delivering;
+          final canMarkPicked = order.status == OrderStatus.accepted;
+          final canMarkCompleted = order.status == OrderStatus.pickedUp;
 
           return RefreshIndicator(
             onRefresh: _reload,
@@ -131,7 +152,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Thu nhập đơn: ${_currency.format(order.earning)}',
+                          'Thu nhap don: ${_currency.format(order.earning)}',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
@@ -142,8 +163,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           runSpacing: 10,
                           children: [
                             Text(
-                                'Khoảng cách: ${order.distanceKm.toStringAsFixed(1)} km'),
-                            Text('Dự kiến: ${order.estimatedMinutes} phút'),
+                              'Khoang cach: ${order.distanceKm.toStringAsFixed(1)} km',
+                            ),
+                            Text('Du kien: ${order.estimatedMinutes} phut'),
                           ],
                         ),
                       ],
@@ -158,14 +180,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Thông tin nhà hàng',
+                          'Thong tin nha hang',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Text(order.restaurant?.name ?? 'Nhà hàng'),
-                        Text(order.restaurant?.address ?? 'Chưa có địa chỉ'),
+                        Text(order.restaurant?.name ?? 'Nha hang'),
+                        Text(order.restaurant?.address ?? 'Chua co dia chi'),
                       ],
                     ),
                   ),
@@ -178,13 +200,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Thông tin khách hàng',
+                          'Thong tin khach hang',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Text(order.customer?.fullName ?? 'Khách hàng'),
+                        Text(order.customer?.fullName ?? 'Khach hang'),
                         Text(
                           'Dia chi giao: ${order.deliveryAddressDisplay}',
                         ),
@@ -201,14 +223,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Danh sách món',
+                          'Danh sach mon',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 8),
                         if (order.items.isEmpty)
-                          const Text('Chưa có dữ liệu món ăn.')
+                          const Text('Chua co du lieu mon an.')
                         else
                           ...order.items.map((item) {
                             return Padding(
@@ -216,8 +238,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                               child: Row(
                                 children: [
                                   Expanded(
-                                    child: Text(
-                                        '${item.quantity} x ${item.itemName}'),
+                                    child: Text('${item.quantity} x ${item.itemName}'),
                                   ),
                                   Text(_currency.format(item.totalPrice)),
                                 ],
@@ -233,18 +254,19 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => _showSnack('Mở bản đồ chỉ đường.'),
+                        onPressed: () => _openNavigation(order),
                         icon: const Icon(Icons.map_outlined),
-                        label: const Text('Chỉ đường'),
+                        label: const Text('Navigate'),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () => _showSnack(
-                            'Gọi ${order.customer?.phone ?? order.customerPhone}'),
+                          'Goi ${order.customer?.phone ?? order.customerPhone}',
+                        ),
                         icon: const Icon(Icons.call_outlined),
-                        label: const Text('Gọi khách'),
+                        label: const Text('Goi khach'),
                       ),
                     ),
                   ],
@@ -253,18 +275,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 FilledButton(
                   onPressed:
                       canMarkPicked && !_processing ? _markDelivering : null,
-                  child: const Text('Đã lấy hàng'),
+                  child: const Text('Da lay hang'),
                 ),
                 const SizedBox(height: 10),
                 FilledButton.tonal(
                   onPressed:
                       canMarkCompleted && !_processing ? _markCompleted : null,
-                  child: const Text('Đã giao hàng'),
+                  child: const Text('Da giao hang'),
                 ),
-                if (order.status == OrderStatus.completed) ...[
+                if (order.status == OrderStatus.delivered) ...[
                   const SizedBox(height: 10),
                   Text(
-                    'Đơn đã hoàn thành lúc: ${DateFormat('dd/MM/yyyy HH:mm').format(order.completedAt?.toLocal() ?? DateTime.now())}',
+                    'Don da hoan thanh luc: ${DateFormat('dd/MM/yyyy HH:mm').format(order.completedAt?.toLocal() ?? DateTime.now())}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.primary,
                     ),

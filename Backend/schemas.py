@@ -126,6 +126,8 @@ class CategoryResponse(BaseModel):
 class CartCheckoutRequest(BaseModel):
     method: str
     delivery_address: Optional[str] = None
+    delivery_lat: Optional[float] = None
+    delivery_lng: Optional[float] = None
 
 
 class CartCheckoutResponse(BaseModel):
@@ -157,6 +159,10 @@ class ShipperOrderResponse(BaseModel):
     distance_km: float
     pickup_address: str
     delivery_address: str
+    pickup_lat: Optional[float] = None
+    pickup_lng: Optional[float] = None
+    delivery_lat: Optional[float] = None
+    delivery_lng: Optional[float] = None
     estimated_delivery_minutes: Optional[int] = None
     status: str
     created_at: Optional[datetime] = None
@@ -199,6 +205,7 @@ class ShipperHomeResponse(BaseModel):
     is_online: bool
     lat: Optional[float] = None
     lng: Optional[float] = None
+    last_location_update: Optional[datetime] = None
     accept_radius: int
 
 
@@ -208,6 +215,7 @@ class ShipperStatusResponse(BaseModel):
 
 
 class ShipperLocationUpdateRequest(BaseModel):
+    shipper_id: Optional[str] = None
     lat: float
     lng: float
 
@@ -216,6 +224,7 @@ class ShipperLocationResponse(BaseModel):
     message: str
     lat: float
     lng: float
+    last_location_update: Optional[datetime] = None
 
 
 class ShipperRadiusResponse(BaseModel):
@@ -241,6 +250,7 @@ class ShipperProfileResponse(BaseModel):
     is_online: bool
     current_lat: Optional[float] = None
     current_lng: Optional[float] = None
+    last_location_update: Optional[datetime] = None
     accept_radius: int
     completed_orders: int = 0
     completion_rate: float = 0
@@ -251,6 +261,8 @@ class ShipperProfileUpdateRequest(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 
 class ShipperEarningsResponse(BaseModel):
@@ -283,6 +295,8 @@ class ShipperLegacyOrderResponse(BaseModel):
     estimated_delivery_minutes: Optional[int] = None
     pickup_lat: Optional[float] = None
     pickup_lng: Optional[float] = None
+    delivery_lat: Optional[float] = None
+    delivery_lng: Optional[float] = None
 
 
 class ShipperCurrentOrderResponse(BaseModel):

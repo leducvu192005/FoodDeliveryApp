@@ -54,8 +54,8 @@ class _OrderScreenState extends State<OrderScreen> {
             unselectedLabelColor: Colors.grey,
             indicatorColor: Colors.green[700],
             tabs: const [
-              Tab(text: 'Đang chuẩn bị'),
-              Tab(text: 'Hoàn thành'),
+              Tab(text: 'Dang xu ly'),
+              Tab(text: 'Hoan thanh'),
             ],
           ),
         ),
@@ -73,23 +73,27 @@ class _OrderScreenState extends State<OrderScreen> {
             }
 
             final allOrders = snapshot.data ?? [];
-            final preparing =
-                allOrders.where((o) => o['status'] == 'seller').toList();
-            final done =
-                allOrders.where((o) => o['status'] == 'done').toList();
+            final preparing = allOrders.where((o) {
+              final status = (o['status'] ?? '').toString().toLowerCase();
+              return status != 'delivered' && status != 'cancelled' && status != 'done';
+            }).toList();
+            final done = allOrders.where((o) {
+              final status = (o['status'] ?? '').toString().toLowerCase();
+              return status == 'delivered' || status == 'cancelled' || status == 'done';
+            }).toList();
 
             return TabBarView(
               children: [
                 _OrderList(
                   orders: preparing,
                   emptyIcon: Icons.receipt_long_outlined,
-                  emptyText: 'Chưa có đơn hàng cần chuẩn bị',
+                  emptyText: 'Chua co don hang dang xu ly',
                   formatDate: _formatDate,
                 ),
                 _OrderList(
                   orders: done,
                   emptyIcon: Icons.check_circle_outline,
-                  emptyText: 'Chưa có đơn hàng hoàn thành',
+                  emptyText: 'Chua co don hang hoan thanh',
                   formatDate: _formatDate,
                 ),
               ],
@@ -207,15 +211,38 @@ class _StatusChip extends StatelessWidget {
     final String label;
 
     switch (status) {
+      case 'pending':
+        bgColor = Colors.orange.shade50;
+        textColor = Colors.orange.shade700;
+        label = 'Cho xu ly';
+        break;
+      case 'confirmed':
+      case 'ready_for_pickup':
+        bgColor = Colors.blue.shade50;
+        textColor = Colors.blue.shade700;
+        label = 'Cho shipper nhan';
+        break;
+      case 'accepted':
+        bgColor = Colors.cyan.shade50;
+        textColor = Colors.cyan.shade700;
+        label = 'Shipper da nhan';
+        break;
+      case 'picked_up':
       case 'seller':
         bgColor = Colors.orange.shade50;
         textColor = Colors.orange.shade700;
-        label = 'Đang chuẩn bị';
+        label = 'Dang giao';
         break;
+      case 'delivered':
       case 'done':
         bgColor = Colors.green.shade50;
         textColor = Colors.green.shade700;
-        label = 'Hoàn thành';
+        label = 'Hoan thanh';
+        break;
+      case 'cancelled':
+        bgColor = Colors.red.shade50;
+        textColor = Colors.red.shade700;
+        label = 'Da huy';
         break;
       default:
         bgColor = Colors.grey.shade100;

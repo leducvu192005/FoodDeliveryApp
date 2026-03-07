@@ -2,10 +2,10 @@ import 'package:flutter_application_1/models/restaurant_model.dart';
 
 enum OrderStatus {
   pending,
-  preparing,
+  confirmed,
+  accepted,
   pickedUp,
-  delivering,
-  completed,
+  delivered,
   cancelled,
 }
 
@@ -14,14 +14,14 @@ extension OrderStatusX on OrderStatus {
     switch (this) {
       case OrderStatus.pending:
         return 'pending';
-      case OrderStatus.preparing:
-        return 'preparing';
+      case OrderStatus.confirmed:
+        return 'confirmed';
+      case OrderStatus.accepted:
+        return 'accepted';
       case OrderStatus.pickedUp:
         return 'picked_up';
-      case OrderStatus.delivering:
-        return 'delivering';
-      case OrderStatus.completed:
-        return 'completed';
+      case OrderStatus.delivered:
+        return 'delivered';
       case OrderStatus.cancelled:
         return 'cancelled';
     }
@@ -30,31 +30,37 @@ extension OrderStatusX on OrderStatus {
   String get labelVi {
     switch (this) {
       case OrderStatus.pending:
-        return 'Chờ xác nhận';
-      case OrderStatus.preparing:
-        return 'Đang chuẩn bị';
+        return 'Cho xu ly';
+      case OrderStatus.confirmed:
+        return 'Cho shipper nhan';
+      case OrderStatus.accepted:
+        return 'Shipper da nhan';
       case OrderStatus.pickedUp:
-        return 'Đã nhận đơn';
-      case OrderStatus.delivering:
-        return 'Đang giao';
-      case OrderStatus.completed:
-        return 'Hoàn thành';
+        return 'Dang giao';
+      case OrderStatus.delivered:
+        return 'Da giao';
       case OrderStatus.cancelled:
-        return 'Đã hủy';
+        return 'Da huy';
     }
   }
 }
 
 OrderStatus parseOrderStatus(String value) {
   switch (value) {
-    case 'preparing':
-      return OrderStatus.preparing;
+    case 'shipper':
+    case 'confirmed':
+    case 'ready_for_pickup':
+      return OrderStatus.confirmed;
+    case 'seller':
+    case 'accepted':
+      return OrderStatus.accepted;
     case 'picked_up':
-      return OrderStatus.pickedUp;
     case 'delivering':
-      return OrderStatus.delivering;
+      return OrderStatus.pickedUp;
+    case 'delivered':
     case 'completed':
-      return OrderStatus.completed;
+    case 'done':
+      return OrderStatus.delivered;
     case 'cancelled':
       return OrderStatus.cancelled;
     case 'pending':
@@ -147,6 +153,10 @@ class OrderModel {
   final String deliveryAddress;
   final String customerPhone;
   final double distanceKm;
+  final double? pickupLat;
+  final double? pickupLng;
+  final double? deliveryLat;
+  final double? deliveryLng;
   final double shippingFee;
   final double subtotal;
   final double totalAmount;
@@ -168,6 +178,10 @@ class OrderModel {
     required this.deliveryAddress,
     required this.customerPhone,
     required this.distanceKm,
+    required this.pickupLat,
+    required this.pickupLng,
+    required this.deliveryLat,
+    required this.deliveryLng,
     required this.shippingFee,
     required this.subtotal,
     required this.totalAmount,
@@ -205,6 +219,10 @@ class OrderModel {
       deliveryAddress: (map['delivery_address'] ?? '').toString(),
       customerPhone: (map['customer_phone'] ?? '').toString(),
       distanceKm: _toDouble(map['distance_km']),
+      pickupLat: map['pickup_lat'] == null ? null : _toDouble(map['pickup_lat']),
+      pickupLng: map['pickup_lng'] == null ? null : _toDouble(map['pickup_lng']),
+      deliveryLat: map['delivery_lat'] == null ? null : _toDouble(map['delivery_lat']),
+      deliveryLng: map['delivery_lng'] == null ? null : _toDouble(map['delivery_lng']),
       shippingFee: _toDouble(map['shipping_fee']),
       subtotal: _toDouble(map['subtotal']),
       totalAmount: _toDouble(map['total_amount']),
@@ -259,6 +277,7 @@ class ShipperProfileModel {
   final String phone;
   final String address;
   final double rating;
+  final bool isOnline;
   final int completedOrders;
   final double completionRate;
 
@@ -269,6 +288,7 @@ class ShipperProfileModel {
     required this.phone,
     required this.address,
     required this.rating,
+    required this.isOnline,
     required this.completedOrders,
     required this.completionRate,
   });

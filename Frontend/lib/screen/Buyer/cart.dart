@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/cart_services.dart';
 import 'package:flutter_application_1/services/payment_services.dart';
+import 'package:geolocator/geolocator.dart';
 
 enum _CheckoutPaymentMethod { cod, stripe }
 
@@ -140,9 +141,12 @@ class _CartState extends State<Cart> {
     });
 
     try {
+      final deliveryPosition = await _getDeliveryPosition();
       final paymentService = PaymentServices();
       final checkoutResult = await _cartServices.checkout(
         deliveryAddress: _deliveryAddressController.text.trim(),
+        deliveryLat: deliveryPosition.latitude,
+        deliveryLng: deliveryPosition.longitude,
         method: _selectedPaymentMethod.apiValue,
       );
 
@@ -213,6 +217,29 @@ class _CartState extends State<Cart> {
         });
       }
     }
+  }
+
+  Future<Position> _getDeliveryPosition() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw Exception('Hay bat dich vu vi tri de dat don.');
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      throw Exception('Ung dung can quyen vi tri de tinh phi giao hang.');
+    }
+
+    return Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+      ),
+    );
   }
 
   @override
