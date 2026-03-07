@@ -8,29 +8,50 @@ class AuthService {
   static String get baseUrl => ApiConfig.path('/auth');
 
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
-  static Future<bool> register(
+  static Future<String?> register(
     String fullName,
     String email,
     String sdt,
     String password,
-    String role,
-  ) async {
+    String role, {
+    String? cccd,
+    String? vehicleRegistration,
+    String? license,
+    String? nameShop,
+    String? addressShop,
+  }) async {
+    final body = {
+      "full_name": fullName,
+      "email": email,
+      "sdt": sdt,
+      "password": password,
+      "role": role,
+    };
+    if (cccd != null && cccd.isNotEmpty) body["cccd"] = cccd;
+    if (vehicleRegistration != null && vehicleRegistration.isNotEmpty)
+      body["vehicle_registration"] = vehicleRegistration;
+    if (license != null && license.isNotEmpty) body["license"] = license;
+    if (nameShop != null && nameShop.isNotEmpty) body["name_shop"] = nameShop;
+    if (addressShop != null && addressShop.isNotEmpty)
+      body["address_shop"] = addressShop;
+
     final res = await http.post(
       Uri.parse("$baseUrl/register"),
       headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "full_name": fullName,
-        "email": email,
-        "sdt": sdt,
-        "password": password,
-        "role": role,
-      }),
+      body: jsonEncode(body),
     );
 
-    return res.statusCode == 200;
+    if (res.statusCode == 200) return null;
+    try {
+      final data = jsonDecode(res.body);
+      return data['detail'] ?? 'Dang ky that bai';
+    } catch (_) {
+      return 'Dang ky that bai';
+    }
   }
 
-  static Future<String?> login(String email, String sdt, String password) async {
+  static Future<String?> login(
+      String email, String sdt, String password) async {
     final res = await http.post(
       Uri.parse("$baseUrl/login"),
       headers: {"Content-Type": "application/json"},
@@ -63,5 +84,40 @@ class AuthService {
 
   static Future<void> logout() async {
     await _storage.delete(key: "access_token");
+  }
+
+  static Future<String?> forgotPassword(String email) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/forgot-password"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"email": email}),
+    );
+    if (res.statusCode == 200) return null;
+    try {
+      final data = jsonDecode(res.body);
+      return data['detail'] ?? 'Gui OTP that bai';
+    } catch (_) {
+      return 'Gui OTP that bai';
+    }
+  }
+
+  static Future<String?> resetPassword(
+      String email, String otp, String newPassword) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/reset-password"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "email": email,
+        "otp": otp,
+        "new_password": newPassword,
+      }),
+    );
+    if (res.statusCode == 200) return null;
+    try {
+      final data = jsonDecode(res.body);
+      return data['detail'] ?? 'Dat lai mat khau that bai';
+    } catch (_) {
+      return 'Dat lai mat khau that bai';
+    }
   }
 }

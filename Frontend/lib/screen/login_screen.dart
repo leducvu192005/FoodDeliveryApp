@@ -34,16 +34,19 @@ class _LoginScreenState extends State<LoginScreen> {
             Navigator.pushReplacementNamed(context, '/buyer/layout');
             break;
           case 'seller':
-            Navigator.pushReplacementNamed(context, '/seller');
+            Navigator.pushReplacementNamed(context, '/buyer/layout');
             break;
           case 'shipper':
             Navigator.pushReplacementNamed(context, '/shipper/layout');
             break;
           case 'admin':
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Tai khoan admin chua co giao dien mobile')),
-            );
+            Navigator.pushReplacementNamed(context, '/admin');
+            break;
+          case 'pending':
+            _showPendingDialog();
+            break;
+          case 'fail':
+            _showFailDialog();
             break;
           default:
             ScaffoldMessenger.of(context).showSnackBar(
@@ -70,6 +73,51 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => loading = false);
       }
     }
+  }
+
+  void _showPendingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: const Icon(Icons.hourglass_top_rounded,
+            size: 48, color: Colors.orange),
+        title: const Text('Dang cho phe duyet'),
+        content: const Text(
+          'Tai khoan cua ban dang duoc phe duyet.\nVui long cho admin xac nhan.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Dong'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFailDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: const Icon(Icons.cancel_rounded, size: 48, color: Colors.red),
+        title: const Text('Tai khoan khong duoc phe duyet'),
+        content: const Text(
+          'Tai khoan cua ban da bi tu choi.\nVui long lien he admin de biet them chi tiet.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Dong'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -156,6 +204,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             onPressed: () =>
                                 Navigator.pushNamed(context, '/register'),
                             child: const Text('Dang ky'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pushNamed(
+                                context, '/forgot-password'),
+                            child: const Text('Quen mat khau?'),
                           ),
                           const SizedBox(height: 8),
                         ],

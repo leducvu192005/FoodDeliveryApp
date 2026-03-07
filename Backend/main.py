@@ -19,6 +19,8 @@ from routers.shipper_router import (
     router as shipper_router,
     ws_router as shipper_ws_router,
 )
+from routers.form_seller_router import router as form_seller_router
+from routers.admin_router import router as admin_router
 from setup_shipper_tables import setup_shipper_tables
 from setup_favorites_table import setup_favorites_table
 from setup_user_columns import setup_user_columns
@@ -44,6 +46,8 @@ app.include_router(shipper_ws_router)
 # 🔥 Payment thêm prefix cho đúng
 app.include_router(payment_router, prefix="/api/payment", tags=["Payment"])
 app.include_router(sepay_router, prefix="/api/sepay", tags=["Sepay Payment"])
+app.include_router(form_seller_router)
+app.include_router(admin_router)
 
 @app.get("/")
 def read_root():

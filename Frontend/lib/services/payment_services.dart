@@ -52,7 +52,10 @@ class PaymentServices {
       final accountNumber = paymentData["account_number"]?.toString() ?? "";
       final accountName = paymentData["account_name"]?.toString() ?? "";
 
-      if (qrUrl == null || qrUrl.isEmpty || transactionId == null || transactionId.isEmpty) {
+      if (qrUrl == null ||
+          qrUrl.isEmpty ||
+          transactionId == null ||
+          transactionId.isEmpty) {
         throw Exception("Khong nhan duoc thong tin thanh toan");
       }
 
@@ -112,58 +115,22 @@ class PaymentServices {
   }
 
   Future<Map<String, dynamic>> createPayment(int orderId) async {
-    final url = Uri.parse("$baseUrl/api/payment/create");
-
-    final response = await http.post(
-      url,
-      headers: await _authHeaders(),
-      body: jsonEncode({"order_id": orderId}),
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body) as Map<String, dynamic>;
-    }
-    throw Exception("Tao payment that bai: ${response.body}");
+    return createSepayPayment(orderId);
   }
 
   Future<void> processPaymentSheet(String clientSecret) async {
-    try {
-      final pubKey = Stripe.publishableKey;
-      if (pubKey.trim().isEmpty) {
-        throw Exception("Stripe publishableKey is not set in main.dart");
-      }
-
-      await Stripe.instance.applySettings();
-
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
-          merchantDisplayName: "Food Delivery App",
-          style: ThemeMode.light,
-        ),
-      );
-
-      await Stripe.instance.presentPaymentSheet();
-    } on StripeException catch (e, st) {
-      final message = e.error.message;
-      final errorCode = e.error.code.toString().toLowerCase();
-      debugPrint("StripeException: $errorCode - $message");
-      debugPrintStack(stackTrace: st);
-
-      final fullMsg = "$errorCode $message".toLowerCase();
-      if (fullMsg.contains("canceled") || fullMsg.contains("cancelled")) {
-        throw Exception("Payment canceled by user");
-      }
-      throw Exception("Stripe payment failed: ${message ?? e.toString()}");
-    } catch (e, st) {
-      debugPrint("Unhandled payment error: ${e.runtimeType} - $e");
-      debugPrintStack(stackTrace: st);
-      throw Exception("Payment error: ${e.runtimeType}: $e");
-    }
+    await Stripe.instance.initPaymentSheet(
+      paymentSheetParameters: SetupPaymentSheetParameters(
+        paymentIntentClientSecret: clientSecret,
+        merchantDisplayName: 'Food Delivery',
+      ),
+    );
+    await Stripe.instance.presentPaymentSheet();
   }
 
   Future<Map<String, dynamic>> confirmCheckout(int checkoutId) async {
-    final url = Uri.parse("$baseUrl/api/payment/confirm-checkout/$checkoutId");
+    final url = Uri.parse(
+        "${ApiConfig.baseUrl}/api/payment/confirm-checkout/$checkoutId");
 
     final response = await http.post(
       url,
@@ -173,7 +140,7 @@ class PaymentServices {
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
-    throw Exception("Khong xac nhan duoc thanh toan: ${response.body}");
+    throw Exception("Xac nhan checkout that bai: ${response.body}");
   }
 }
 
@@ -227,7 +194,8 @@ class _SepayPaymentDialogState extends State<_SepayPaymentDialog> {
       for (int i = 0; i < 20; i++) {
         if (!mounted) return;
 
-        final status = await paymentService.checkSepayPaymentStatus(widget.orderId);
+        final status =
+            await paymentService.checkSepayPaymentStatus(widget.orderId);
         if (status == 'paid') {
           if (!mounted) return;
           Navigator.of(context).pop(true);
@@ -254,7 +222,8 @@ class _SepayPaymentDialogState extends State<_SepayPaymentDialog> {
 
     try {
       final paymentService = PaymentServices();
-      final status = await paymentService.checkSepayPaymentStatus(widget.orderId);
+      final status =
+          await paymentService.checkSepayPaymentStatus(widget.orderId);
 
       if (status == 'paid') {
         if (!mounted) return;
@@ -265,7 +234,8 @@ class _SepayPaymentDialogState extends State<_SepayPaymentDialog> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Chua nhan duoc xac nhan thanh toan. Vui long doi them hoac thu lai.'),
+          content: Text(
+              'Chua nhan duoc xac nhan thanh toan. Vui long doi them hoac thu lai.'),
         ),
       );
     } catch (e) {

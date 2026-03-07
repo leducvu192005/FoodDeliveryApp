@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/api_config.dart';
 import '../../services/auth_services.dart';
+import 'form_seller.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -458,6 +459,22 @@ class _ProfileState extends State<Profile> {
                         },
                 ),
                 const SizedBox(height: 20),
+                _ActionCard(
+                  icon: Icons.store_rounded,
+                  title: 'Tro thanh Seller',
+                  subtitle: 'Dang ky ban hang tren ung dung',
+                  onTap: _saving
+                      ? () {}
+                      : () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const FormSeller(),
+                            ),
+                          );
+                        },
+                ),
+                const SizedBox(height: 10),
                 OutlinedButton.icon(
                   onPressed: _saving ? null : _logout,
                   icon: const Icon(Icons.logout_rounded),

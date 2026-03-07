@@ -8,11 +8,24 @@ class RegisterRequest(BaseModel):
     sdt : str
     password: str
     role: str
+    cccd: Optional[str] = None
+    vehicle_registration: Optional[str] = None
+    license: Optional[str] = None
+    name_shop: Optional[str] = None
+    address_shop: Optional[str] = None
 
 class LoginRequest(BaseModel):
     email: EmailStr
     sdt : str
     password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str
 
 class UserResponse(BaseModel):
     id: int

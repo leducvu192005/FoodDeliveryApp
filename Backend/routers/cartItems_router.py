@@ -1,7 +1,6 @@
 import os
 
 from fastapi import APIRouter, Depends, HTTPException
-import stripe
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -22,8 +21,6 @@ from schemas import (
 from dependencies import get_current_user, require_role
 
 router = APIRouter(prefix="/cart", tags=["Cart"])
-
-stripe.api_key = os.getenv("STRIPE_API_KEY", "test")
 
 
 def _require_coordinates(
@@ -261,7 +258,7 @@ def checkout_cart(
     user: User = Depends(get_current_user),
 ):
     payment_method = (request.method or "").strip().lower()
-    if payment_method not in {"cod", "stripe"}:
+    if payment_method not in {"cod", "sepay", "stripe"}:
         raise HTTPException(status_code=400, detail="Phuong thuc thanh toan khong hop le")
 
     cart_items = (
@@ -316,7 +313,15 @@ def checkout_cart(
     estimated_delivery_minutes = estimate_delivery_time(distance_km)
     delivery_fee = calculate_delivery_fee(distance_km)
 
+    # Lấy seller_id từ món đầu tiên trong giỏ hàng
+    first_dish = db.query(Dish).filter(Dish.id == cart_items[0].dish_id).first()
+    seller_id = first_dish.seller_id if first_dish else None
+
+    # --- Stripe: tạo PendingStripeCheckout thay vì Order ngay ---
     if payment_method == "stripe":
+        import stripe as stripe_lib
+        stripe_lib.api_key = os.getenv("STRIPE_API_KEY", "test")
+
         cart_snapshot = [
             {
                 "dish_id": item.dish_id,
@@ -328,60 +333,42 @@ def checkout_cart(
             for item in cart_items
         ]
 
-        try:
-            pending_checkout = PendingStripeCheckout(
-                user_id=user.id,
-                total_price=total_amount,
-                delivery_fee=delivery_fee,
-                distance_km=distance_km,
-                pickup_address=pickup_address,
-                pickup_lat=pickup_lat,
-                pickup_lng=pickup_lng,
-                delivery_address=delivery_address,
-                delivery_lat=delivery_lat,
-                delivery_lng=delivery_lng,
-                estimated_delivery_minutes=estimated_delivery_minutes,
-                status="pending",
-                cart_snapshot=cart_snapshot,
-            )
-            db.add(pending_checkout)
-            db.flush()
+        pending = PendingStripeCheckout(
+            user_id=user.id,
+            total_price=total_amount,
+            delivery_fee=delivery_fee,
+            distance_km=distance_km,
+            pickup_address=pickup_address,
+            pickup_lat=pickup_lat,
+            pickup_lng=pickup_lng,
+            delivery_address=delivery_address,
+            delivery_lat=delivery_lat,
+            delivery_lng=delivery_lng,
+            estimated_delivery_minutes=estimated_delivery_minutes,
+            seller_id=seller_id,
+            cart_snapshot=cart_snapshot,
+            status="pending",
+        )
+        db.add(pending)
+        db.flush()
 
-            intent = stripe.PaymentIntent.create(
-                amount=int(total_amount * 100),
-                currency="usd",
-                metadata={
-                    "pending_checkout_id": str(pending_checkout.id),
-                    "user_id": str(user.id),
-                },
-            )
+        intent = stripe_lib.PaymentIntent.create(
+            amount=int(total_amount * 100),
+            currency="usd",
+            metadata={
+                "pending_checkout_id": str(pending.id),
+            },
+        )
+        pending.payment_intent_id = intent["id"]
+        pending.client_secret = intent["client_secret"]
+        db.commit()
 
-            pending_checkout.payment_intent_id = intent["id"]
-            db.commit()
-
-            return {
-                "checkout_id": pending_checkout.id,
-                "client_secret": intent["client_secret"],
-                "total_price": total_amount,
-                "delivery_address": delivery_address,
-                "payment_method": payment_method,
-                "payment_status": "pending",
-            }
-        except stripe.error.StripeError as exc:
-            db.rollback()
-            raise HTTPException(
-                status_code=400,
-                detail=f"Khong tao duoc giao dich Stripe: {str(exc)}",
-            ) from exc
-        except Exception as exc:
-            db.rollback()
-            raise HTTPException(
-                status_code=500,
-                detail="Khong tao duoc giao dich Stripe",
-            ) from exc
-    # Lấy seller_id từ món đầu tiên trong giỏ hàng
-    first_dish = db.query(Dish).filter(Dish.id == cart_items[0].dish_id).first()
-    seller_id = first_dish.seller_id if first_dish else None
+        return {
+            "checkout_id": pending.id,
+            "client_secret": intent["client_secret"],
+            "total_amount": total_amount,
+            "payment_method": "stripe",
+        }
 
     # 1️⃣ Tạo Order
     order = Order(
@@ -419,7 +406,7 @@ def checkout_cart(
         Payment(
             order_id=order.id,
             amount=total_amount,
-            method="cod",
+            method=payment_method,
             status="pending",
         )
     )

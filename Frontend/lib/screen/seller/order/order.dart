@@ -75,11 +75,15 @@ class _OrderScreenState extends State<OrderScreen> {
             final allOrders = snapshot.data ?? [];
             final preparing = allOrders.where((o) {
               final status = (o['status'] ?? '').toString().toLowerCase();
-              return status != 'delivered' && status != 'cancelled' && status != 'done';
+              return status != 'delivered' &&
+                  status != 'cancelled' &&
+                  status != 'done';
             }).toList();
             final done = allOrders.where((o) {
               final status = (o['status'] ?? '').toString().toLowerCase();
-              return status == 'delivered' || status == 'cancelled' || status == 'done';
+              return status == 'delivered' ||
+                  status == 'cancelled' ||
+                  status == 'done';
             }).toList();
 
             return TabBarView(

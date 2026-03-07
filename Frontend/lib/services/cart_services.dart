@@ -88,7 +88,7 @@ class CartServices {
     String? deliveryAddress,
     double? deliveryLat,
     double? deliveryLng,
-    String method = 'stripe',
+    String method = 'cod',
   }) async {
     final url = Uri.parse('$baseUrl/checkout');
 

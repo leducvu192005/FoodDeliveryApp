@@ -21,6 +21,22 @@ class User(Base):
     password_hash = Column(String(255))
     role = Column(String)
     is_active = Column(Boolean, default=True)
+    cccd = Column(Numeric, nullable=True)
+    vehicle_registration = Column(Numeric, nullable=True)
+    license = Column(Numeric, nullable=True)
+    name_shop = Column(String, nullable=True)
+    address_shop = Column(String, nullable=True)
+    status = Column(String, nullable=True)
+
+
+class PasswordReset(Base):
+    __tablename__ = "password_resets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, nullable=False)
+    otp = Column(String(6), nullable=False)
+    expires_at = Column(Datetime, nullable=False)
+    used = Column(Boolean, default=False)
 
 
 class Category(Base):
@@ -183,29 +199,6 @@ class Payment(Base):
     order = relationship("Order")
 
 
-class PendingStripeCheckout(Base):
-    __tablename__ = "pending_stripe_checkouts"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    total_price = Column(Float, nullable=False)
-    delivery_fee = Column(Float, default=0)
-    distance_km = Column(Float, default=0)
-    pickup_address = Column(String, nullable=True)
-    pickup_lat = Column(Float, nullable=True)
-    pickup_lng = Column(Float, nullable=True)
-    delivery_address = Column(String, nullable=True)
-    delivery_lat = Column(Float, nullable=True)
-    delivery_lng = Column(Float, nullable=True)
-    estimated_delivery_minutes = Column(Integer, nullable=True)
-    status = Column(String, default="pending")
-    payment_intent_id = Column(String, nullable=True, index=True)
-    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
-    cart_snapshot = Column(JSON, nullable=False)
-    completed_at = Column(Datetime, nullable=True)
-    created_at = Column(Datetime, server_default=func.now())
-
-
 class Shipper(Base):
     __tablename__ = "shippers"
 
@@ -228,6 +221,31 @@ class Shipper(Base):
     user = relationship("User")
 
 
+class PendingStripeCheckout(Base):
+    __tablename__ = "pending_stripe_checkouts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    payment_intent_id = Column(String, nullable=True)
+    client_secret = Column(String, nullable=True)
+    total_price = Column(Float, nullable=False)
+    delivery_fee = Column(Float, default=0)
+    distance_km = Column(Float, default=0)
+    pickup_address = Column(String, nullable=True)
+    pickup_lat = Column(Float, nullable=True)
+    pickup_lng = Column(Float, nullable=True)
+    delivery_address = Column(String, nullable=True)
+    delivery_lat = Column(Float, nullable=True)
+    delivery_lng = Column(Float, nullable=True)
+    estimated_delivery_minutes = Column(Integer, nullable=True)
+    seller_id = Column(Integer, nullable=True)
+    cart_snapshot = Column(JSON, nullable=True)
+    status = Column(String, default="pending")
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
+    completed_at = Column(Datetime, nullable=True)
+    created_at = Column(Datetime, server_default=func.now())
+
+
 class ShipperSession(Base):
     __tablename__ = "shipper_sessions"
 
@@ -235,3 +253,18 @@ class ShipperSession(Base):
     shipper_id = Column(Integer, ForeignKey("shippers.id", ondelete="CASCADE"), nullable=False)
     start_time = Column(Datetime, server_default=func.now(), nullable=False)
     end_time = Column(Datetime, nullable=True)
+
+
+class FormSeller(Base):
+    __tablename__ = "form_seller"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    phone = Column(String(20), nullable=False)
+    email = Column(String(255), nullable=True)
+    cccd = Column(String(20), nullable=False)
+    name_shop = Column(String(255), nullable=False)
+    address = Column(Text, nullable=False)
+    status = Column(String(20), default="pending")
+    created_at = Column(Datetime, server_default=func.now())
