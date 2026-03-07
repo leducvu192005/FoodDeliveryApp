@@ -166,6 +166,7 @@ class ShipperOrderResponse(BaseModel):
     customer_phone: str
     total_price: float
     delivery_fee: float
+    item_count: int = 0
     distance_km: float
     pickup_address: str
     delivery_address: str
@@ -298,6 +299,7 @@ class ShipperLegacyOrderResponse(BaseModel):
     delivery_address: str
     total_price: float
     shipping_fee: float
+    item_count: int = 0
     status: str
     created_at: Optional[datetime] = None
     delivered_at: Optional[datetime] = None

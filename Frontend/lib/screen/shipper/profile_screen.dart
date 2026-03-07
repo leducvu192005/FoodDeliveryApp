@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/order_model.dart';
 import 'package:flutter_application_1/services/order_service.dart';
@@ -34,9 +36,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _logout() async {
-    await AuthService.logout();
-    if (!mounted) return;
-    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+    if (_saving) return;
+
+    setState(() {
+      _saving = true;
+    });
+
+    final navigator = Navigator.of(context);
+    navigator.pushNamedAndRemoveUntil('/login', (route) => false);
+    unawaited(AuthService.logout());
   }
 
   Future<String?> _showEditFieldDialog({

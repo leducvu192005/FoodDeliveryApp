@@ -88,11 +88,7 @@ class _ProfileState extends State<Profile> {
       if (!mounted) return false;
 
       if (response.statusCode == 200) {
-        final data =
-            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-        setState(() {
-          _profile = (data['profile'] as Map<String, dynamic>?) ?? data;
-        });
+        await _loadProfile(); // reload profile
         return true;
       }
 

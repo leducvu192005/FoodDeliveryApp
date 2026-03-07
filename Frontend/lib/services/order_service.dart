@@ -13,10 +13,22 @@ class OrderService {
   final ShipperApiClient _apiClient;
 
   Stream<List<OrderModel>> streamNewOrders() async* {
-    while (true) {
-      yield await getAvailableOrders();
+    while (await hasValidToken()) {
+      try {
+        yield await getAvailableOrders();
+      } catch (error) {
+        if (_isReloginRequired(error)) {
+          break;
+        }
+        rethrow;
+      }
       await Future<void>.delayed(const Duration(seconds: 8));
     }
+  }
+
+  Future<bool> hasValidToken() async {
+    final token = await AuthService.getToken();
+    return token != null && token.isNotEmpty;
   }
 
   Future<List<OrderModel>> getAllOrders() async {
@@ -230,6 +242,10 @@ class OrderService {
     return token;
   }
 
+  bool _isReloginRequired(Object error) {
+    return error.toString().contains('Vui long dang nhap lai.');
+  }
+
   OrderModel _orderFromDetailJson(Map<String, dynamic> json) {
     final items = (json['items'] as List<dynamic>? ?? const <dynamic>[])
         .map((item) => Map<String, dynamic>.from(item as Map))
@@ -263,9 +279,14 @@ class OrderService {
     final totalPrice = _toDouble(json['total_price']);
     final normalizedStatus =
         _normalizeStatusForUi((json['status'] ?? OrderStatus.pending.dbValue).toString());
-    final itemCount = items.fold<int>(
-      0,
-      (sum, item) => sum + item.quantity,
+    final itemCount = _toInt(
+      json['item_count'] ??
+          json['total_items'] ??
+          json['total_quantity'] ??
+          items.fold<int>(
+            0,
+            (sum, item) => sum + item.quantity,
+          ),
     );
 
     return OrderModel.fromMap(

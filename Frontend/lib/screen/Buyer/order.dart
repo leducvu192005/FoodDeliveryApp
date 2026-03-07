@@ -184,6 +184,34 @@ class _OrderList extends StatelessWidget {
     return '\$$text';
   }
 
+  int? _estimatedDeliveryMinutes(Map<String, dynamic> order) {
+    final raw = order['estimated_delivery_minutes'] ?? order['estimated_minutes'];
+    if (raw is int) return raw > 0 ? raw : null;
+    if (raw is num) return raw.toInt() > 0 ? raw.toInt() : null;
+    if (raw is String) {
+      final parsed = int.tryParse(raw);
+      if (parsed != null && parsed > 0) return parsed;
+    }
+    return null;
+  }
+
+  String? _estimatedDeliveryText(Map<String, dynamic> order) {
+    final minutes = _estimatedDeliveryMinutes(order);
+    if (minutes == null) return null;
+
+    final createdAt = DateTime.tryParse((order['created_at'] ?? '').toString());
+    if (createdAt == null) {
+      return '$minutes phut';
+    }
+
+    final eta = createdAt.toLocal().add(Duration(minutes: minutes));
+    final time =
+        '${eta.hour.toString().padLeft(2, '0')}:${eta.minute.toString().padLeft(2, '0')}';
+    final date =
+        '${eta.day.toString().padLeft(2, '0')}/${eta.month.toString().padLeft(2, '0')}/${eta.year}';
+    return '$time $date';
+  }
+
   String _resolveImageUrl(String rawUrl) {
     final value = rawUrl.trim();
     if (value.isEmpty) return '';
@@ -223,6 +251,7 @@ class _OrderList extends StatelessWidget {
         final deliveryAddress = (order['delivery_address'] ?? '').toString();
         final normalizedStatus = _statusLabel(status);
         final currentStep = _statusStep(status);
+        final estimatedDeliveryText = _estimatedDeliveryText(order);
 
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
@@ -293,12 +322,22 @@ class _OrderList extends StatelessWidget {
                         ),
                       );
                     }),
+                  ],
+                  const SizedBox(height: 4),
+                  Text(
+                    'Tong tien don: ${_formatMoney(total)}',
+                    style: TextStyle(
+                      color: accent,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (estimatedDeliveryText != null) ...[
                     const SizedBox(height: 4),
                     Text(
-                      'Tong tien don: ${_formatMoney(total)}',
-                      style: TextStyle(
-                        color: accent,
-                        fontWeight: FontWeight.w800,
+                      'Du kien giao den: $estimatedDeliveryText',
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],

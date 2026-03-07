@@ -4,6 +4,7 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from auth import ALGORITHM, SECRET_KEY
 import models
@@ -259,12 +260,18 @@ def _string_or_default(value: str | None, default: str = "") -> str:
 
 def _to_order_payload(order: models.Order, db: Session) -> dict:
     customer = db.query(models.User).filter(models.User.id == order.user_id).first()
+    item_count = (
+        db.query(func.coalesce(func.sum(models.OrderItem.quantity), 0))
+        .filter(models.OrderItem.order_id == order.id)
+        .scalar()
+    )
     return {
         "id": order.id,
         "customer_name": _string_or_default(customer.full_name if customer else None, "Unknown"),
         "customer_phone": _string_or_default(customer.sdt if customer else None),
         "total_price": float(order.total_price or 0),
         "delivery_fee": float(order.delivery_fee or 0),
+        "item_count": int(item_count or 0),
         "distance_km": float(order.distance_km or 0),
         "pickup_address": order.pickup_address or "Pending pickup address",
         "delivery_address": order.delivery_address or "Pending delivery address",
@@ -281,6 +288,11 @@ def _to_order_payload(order: models.Order, db: Session) -> dict:
 def _to_legacy_order_payload(order: models.Order, db: Session) -> dict:
     customer = db.query(models.User).filter(models.User.id == order.user_id).first()
     pickup_address = order.pickup_address or "Pending pickup address"
+    item_count = (
+        db.query(func.coalesce(func.sum(models.OrderItem.quantity), 0))
+        .filter(models.OrderItem.order_id == order.id)
+        .scalar()
+    )
     return {
         "id": order.id,
         "customer_name": _string_or_default(customer.full_name if customer else None, "Unknown"),
@@ -290,6 +302,7 @@ def _to_legacy_order_payload(order: models.Order, db: Session) -> dict:
         "delivery_address": order.delivery_address or "Pending delivery address",
         "total_price": float(order.total_price or 0),
         "shipping_fee": float(order.delivery_fee or 0),
+        "item_count": int(item_count or 0),
         "status": _legacy_status(order.status),
         "created_at": order.created_at,
         "delivered_at": order.delivered_at,
