@@ -7,7 +7,7 @@ import '../../../services/auth_services.dart';
 class ToppingScreen extends StatefulWidget {
   final Map<String, dynamic>? topping; // null = thêm mới, có giá trị = sửa
 
-  ToppingScreen({this.topping});
+  const ToppingScreen({super.key, this.topping});
 
   @override
   _ToppingScreenState createState() => _ToppingScreenState();
@@ -243,7 +243,7 @@ class _ToppingScreenState extends State<ToppingScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Chọn món áp dụng'),
-        content: Container(
+        content: SizedBox(
           width: double.maxFinite,
           child: _allDishes.isEmpty
               ? Center(child: Text('Chưa có món nào'))
@@ -548,7 +548,7 @@ class _ToppingScreenState extends State<ToppingScreen> {
                   ),
                 ),
               );
-            }).toList(),
+            }),
 
             SizedBox(height: 24),
 
@@ -595,7 +595,7 @@ class _ToppingScreenState extends State<ToppingScreen> {
                   ),
                 ),
               );
-            }).toList(),
+            }),
 
             SizedBox(height: 32),
 

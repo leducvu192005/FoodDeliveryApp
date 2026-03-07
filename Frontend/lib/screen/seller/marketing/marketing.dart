@@ -3,6 +3,7 @@ import 'discount_codes.dart';
 
 class MarketingScreen extends StatefulWidget {
   const MarketingScreen({super.key});
+  @override
   _MarketingScreenState createState() => _MarketingScreenState();
 }
 

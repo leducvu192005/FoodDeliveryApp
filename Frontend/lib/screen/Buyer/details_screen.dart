@@ -19,6 +19,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
   final CartServices _cartServices = CartServices();
   bool _adding = false;
   late Future<List<Product>> _suggestedFuture;
+  int _quantity = 1;
 
   @override
   void initState() {
@@ -48,11 +49,18 @@ class _DetailsScreenState extends State<DetailsScreen> {
       _adding = true;
     });
     try {
-      final ok = await _cartServices.addToCart(dishId: widget.product.id, quantity: 1);
+      final ok = await _cartServices.addToCart(
+        dishId: widget.product.id,
+        quantity: _quantity,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(ok ? 'Da them ${widget.product.name} vao gio' : 'Khong the them vao gio'),
+          content: Text(
+            ok
+                ? 'Da them $_quantity ${widget.product.name} vao gio'
+                : 'Khong the them vao gio',
+          ),
         ),
       );
     } catch (e) {
@@ -74,7 +82,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
     if (img == null || img.isEmpty) {
       return Container(
         color: const Color(0xFFFFF1DD),
-        child: const Icon(Icons.fastfood_rounded, size: 80, color: Color(0xFFE67E22)),
+        child: const Icon(Icons.fastfood_rounded,
+            size: 80, color: Color(0xFFE67E22)),
       );
     }
 
@@ -113,7 +122,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(14)),
               child: SizedBox(
                 height: 100,
                 width: double.infinity,
@@ -158,7 +168,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(20),
-            child: SizedBox(height: 260, child: _buildProductImage(widget.product)),
+            child: SizedBox(
+                height: 260, child: _buildProductImage(widget.product)),
           ),
           const SizedBox(height: 16),
           Text(
@@ -186,19 +197,104 @@ class _DetailsScreenState extends State<DetailsScreen> {
             style: const TextStyle(color: Colors.black54),
           ),
           const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x12000000),
+                  blurRadius: 12,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'So luong',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Chon so mon muon them vao gio',
+                        style: TextStyle(color: Colors.black54),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF1DD),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: _adding || _quantity <= 1
+                            ? null
+                            : () {
+                                setState(() {
+                                  _quantity--;
+                                });
+                              },
+                        icon: const Icon(Icons.remove_rounded),
+                        color: const Color(0xFFE67E22),
+                      ),
+                      SizedBox(
+                        width: 34,
+                        child: Text(
+                          '$_quantity',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _adding
+                            ? null
+                            : () {
+                                setState(() {
+                                  _quantity++;
+                                });
+                              },
+                        icon: const Icon(Icons.add_rounded),
+                        color: const Color(0xFFE67E22),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
           ElevatedButton.icon(
             onPressed: _adding ? null : _addToCart,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFE67E22),
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 52),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
             ),
             icon: _adding
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
                   )
                 : const Icon(Icons.add_shopping_cart_rounded),
             label: Text(_adding ? 'Dang them...' : 'Them vao gio'),

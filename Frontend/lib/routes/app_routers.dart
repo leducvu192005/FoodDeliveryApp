@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/screen/shipper/shipper_home_screen.dart';
 import '../screen/login_screen.dart';
 import '../screen/register_screen.dart';
 import '../screen/Buyer/buyer_home.dart';
@@ -9,8 +10,6 @@ import '../screen/Buyer/order.dart';
 import '../screen/Buyer/favorites.dart';
 // import '../screen/seller/home/home.dart';
 import '../screen/nav.dart';
-import '../screen/Shipper/shipper_home.dart';
-import '../screen/Shipper/order_shipper.dart';
 import '../screen/shipper/layout_shipper.dart';
 
 class AppRoutes {
@@ -25,8 +24,6 @@ class AppRoutes {
     "/buyer/order": (_) => const Order(),
     "/buyer/favorites": (_) => const Favorites(),
     "/seller": (_) => const SellerNavScreen(),
-    "/shipper": (_) => const ShipperHome(),
-    "/shipper/order": (_) => const OrderShipper(),
-    "/shipper/layout": (_) => const LayoutShipper(),
+    "/shipper/layout": (_) => const ShipperLayout(),
   };
 }

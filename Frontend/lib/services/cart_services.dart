@@ -84,14 +84,18 @@ class CartServices {
     return response.statusCode == 200;
   }
 
-  Future<Map<String, dynamic>> checkout() async {
+  Future<Map<String, dynamic>> checkout({
+    String? deliveryAddress,
+    String method = 'stripe',
+  }) async {
     final url = Uri.parse('$baseUrl/checkout');
 
     final response = await http.post(
       url,
       headers: await _authHeaders(),
       body: jsonEncode({
-        "method": "stripe",
+        "method": method,
+        "delivery_address": deliveryAddress?.trim(),
       }),
     );
     if (response.statusCode != 200) {

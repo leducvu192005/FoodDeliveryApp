@@ -125,6 +125,7 @@ class CategoryResponse(BaseModel):
 
 class CartCheckoutRequest(BaseModel):
     method: str
+    delivery_address: Optional[str] = None
 
 
 class CartCheckoutResponse(BaseModel):
@@ -145,3 +146,159 @@ class PaymentResponse(BaseModel):
 
 class PaymentStatusResponse(BaseModel):
     status: str
+
+
+class ShipperOrderResponse(BaseModel):
+    id: int
+    customer_name: str
+    customer_phone: str
+    total_price: float
+    delivery_fee: float
+    distance_km: float
+    pickup_address: str
+    delivery_address: str
+    estimated_delivery_minutes: Optional[int] = None
+    status: str
+    created_at: Optional[datetime] = None
+
+
+class ShipperDashboardResponse(BaseModel):
+    shipper_name: str
+    rating: float
+    is_online: bool
+    online_minutes_today: int
+    today_earnings: float
+    completed_orders_today: int
+    total_orders: int = 0
+    total_distance_today: float
+    active_order: Optional[ShipperOrderResponse] = None
+    available_orders: list[ShipperOrderResponse]
+
+
+class ShipperLocationRequest(BaseModel):
+    shipper_id: Optional[str] = None
+    lat: float
+    lng: float
+
+
+class ShipperOnlineRequest(BaseModel):
+    shipper_id: Optional[str] = None
+    is_online: bool
+
+
+class ShipperRadiusRequest(BaseModel):
+    shipper_id: Optional[str] = None
+    radius_km: int
+
+
+class ShipperHomeResponse(BaseModel):
+    id: int
+    name: str
+    phone: Optional[str] = None
+    avatar: Optional[str] = None
+    is_online: bool
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    accept_radius: int
+
+
+class ShipperStatusResponse(BaseModel):
+    message: str
+    is_online: bool
+
+
+class ShipperLocationUpdateRequest(BaseModel):
+    lat: float
+    lng: float
+
+
+class ShipperLocationResponse(BaseModel):
+    message: str
+    lat: float
+    lng: float
+
+
+class ShipperRadiusResponse(BaseModel):
+    message: str
+    accept_radius: int
+
+
+class ShipperMessageResponse(BaseModel):
+    message: str
+
+
+class ShipperProfileResponse(BaseModel):
+    shipper_id: int
+    user_id: int
+    name: str
+    email: str
+    phone: str
+    address: str = ""
+    avatar: Optional[str] = None
+    vehicle_type: str
+    license_plate: str = ""
+    rating: float
+    is_online: bool
+    current_lat: Optional[float] = None
+    current_lng: Optional[float] = None
+    accept_radius: int
+    completed_orders: int = 0
+    completion_rate: float = 0
+    online_since: Optional[datetime] = None
+
+
+class ShipperProfileUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+
+
+class ShipperEarningsResponse(BaseModel):
+    total_earnings: float
+    completed_orders: int
+
+
+class ShipperEarningsSummaryResponse(BaseModel):
+    today: float
+    week: float
+    month: float
+    total_earnings: float
+    total_orders: int
+    average_per_order: float
+
+
+class ShipperLegacyOrderResponse(BaseModel):
+    id: int
+    customer_name: str
+    customer_phone: str
+    restaurant_name: str
+    pickup_address: str
+    delivery_address: str
+    total_price: float
+    shipping_fee: float
+    status: str
+    created_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+    distance_km: float = 0
+    estimated_delivery_minutes: Optional[int] = None
+    pickup_lat: Optional[float] = None
+    pickup_lng: Optional[float] = None
+
+
+class ShipperCurrentOrderResponse(BaseModel):
+    order: Optional[ShipperLegacyOrderResponse] = None
+
+
+class ShipperOrderItemResponse(BaseModel):
+    id: int
+    dish_name: str
+    quantity: int
+    unit_price: float
+
+
+class ShipperOrderDetailResponse(ShipperLegacyOrderResponse):
+    items: list[ShipperOrderItemResponse] = []
+
+
+class ShipperOrderHistoryResponse(BaseModel):
+    orders: list[ShipperLegacyOrderResponse]

@@ -7,7 +7,7 @@ import '../../../services/auth_services.dart';
 
 // ==================== SCREEN CHÍNH: QUẢN LÝ DANH MỤC ====================
 class CategoryManagementScreen extends StatefulWidget {
-  const CategoryManagementScreen({Key? key}) : super(key: key);
+  const CategoryManagementScreen({super.key});
 
   @override
   State<CategoryManagementScreen> createState() =>
@@ -375,8 +375,8 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
           ? FloatingActionButton(
               onPressed: _addCategory,
               backgroundColor: Colors.teal[900],
-              child: Icon(Icons.add),
               tooltip: 'Thêm danh mục',
+              child: Icon(Icons.add),
             )
           : null,
     );
@@ -453,7 +453,7 @@ class _CategoryDialogState extends State<_CategoryDialog> {
 
 //  widget nhỏ gọn hơn trong menu
 class AddCategory extends StatelessWidget {
-  const AddCategory({Key? key}) : super(key: key);
+  const AddCategory({super.key});
 
   @override
   Widget build(BuildContext context) {

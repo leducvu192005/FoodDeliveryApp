@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Ung dung can vi tri de cap nhat shipper theo thoi gian thuc.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Ung dung can vi tri de cap nhat shipper theo thoi gian thuc.</string>
+	<key>MAPS_API_KEY</key>
+	<string>$(MAPS_API_KEY)</string>
 </dict>
 </plist>

@@ -17,9 +17,10 @@ class _MenuScreenState extends State<MenuScreen>
     with SingleTickerProviderStateMixin {
   // ========== KHAI BÁO BIẾN ==========
   List<Map<String, dynamic>> _categories = []; // Danh sách danh mục
-  Map<int, List<Map<String, dynamic>>> _dishesByCategory =
+  final Map<int, List<Map<String, dynamic>>> _dishesByCategory =
       {}; // Món ăn theo danh mục
-  Map<int, bool> _expandedCategories = {}; // Trạng thái mở/đóng của danh mục
+  final Map<int, bool> _expandedCategories =
+      {}; // Trạng thái mở/đóng của danh mục
   List<Map<String, dynamic>> _toppings = []; // Danh sách nhóm topping
   bool _isLoading = true; // Trạng thái đang tải dữ liệu
 
@@ -411,8 +412,8 @@ class _MenuScreenState extends State<MenuScreen>
             heroTag: 'edit_categories',
             onPressed: _navigateToEditCategories,
             backgroundColor: Colors.blue,
-            child: Icon(Icons.edit, color: Colors.white),
             mini: true,
+            child: Icon(Icons.edit, color: Colors.white),
           ),
         if (isOnDishTab) SizedBox(height: 12),
 
@@ -422,8 +423,8 @@ class _MenuScreenState extends State<MenuScreen>
             heroTag: 'sort',
             onPressed: _showSortDialog,
             backgroundColor: Colors.orange,
-            child: Icon(Icons.sort, color: Colors.white),
             mini: true,
+            child: Icon(Icons.sort, color: Colors.white),
           ),
         if (isOnDishTab) SizedBox(height: 12),
 
@@ -541,9 +542,7 @@ class _MenuScreenState extends State<MenuScreen>
                               ),
                               // Hiển thị danh sách món nếu được mở rộng
                               if (isExpanded)
-                                ...dishes
-                                    .map((dish) => _buildDishItem(dish))
-                                    .toList(),
+                                ...dishes.map((dish) => _buildDishItem(dish)),
                               Divider(height: 1),
                             ],
                           );

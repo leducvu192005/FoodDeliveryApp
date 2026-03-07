@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../../config/api_config.dart';
 
-
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
   @override
@@ -32,7 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (response.statusCode == 200) {
         final List<dynamic> profiles = json.decode(response.body);
-        
+
         if (profiles.isNotEmpty) {
           // Lấy profile đầu tiên (hoặc theo user_id nếu có auth)
           setState(() {
@@ -55,7 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // ========== MỞ MÀN HÌNH CHỈNH SỬA PROFILE ==========
   void _openEditProfile() {
     if (_profileData == null) return; // Không cho phép tạo mới
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -93,14 +92,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (confirm == true) {
       // Xóa token hoặc session ở đây nếu có
       // await TokenStorage.deleteToken();
-      
+
       // Quay về màn hình login
       Navigator.pushNamedAndRemoveUntil(
         context,
         '/login',
         (route) => false,
       );
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Đăng xuất thành công'),
@@ -304,7 +303,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> profile; // Profile cần chỉnh sửa (bắt buộc)
 
-  EditProfileScreen({required this.profile});
+  const EditProfileScreen({super.key, required this.profile});
 
   @override
   _EditProfileScreenState createState() => _EditProfileScreenState();
@@ -426,7 +425,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         : null,
                   ),
                   child: _imageBase64 == null || _imageBase64!.isEmpty
-                      ? Icon(Icons.add_a_photo, size: 40, color: Colors.grey[600])
+                      ? Icon(Icons.add_a_photo,
+                          size: 40, color: Colors.grey[600])
                       : null,
                 ),
               ),
@@ -493,7 +493,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ? CircularProgressIndicator(color: Colors.white)
                   : Text(
                       'Lưu thay đổi',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
             ),
           ],

@@ -1,6 +1,5 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+
 import '../config/api_config.dart';
 import '../services/auth_services.dart';
 
@@ -14,7 +13,6 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final emailCtrl = TextEditingController();
   final passCtrl = TextEditingController();
-  final sdtCtrl = TextEditingController();
   bool loading = false;
 
   Future<void> login() async {
@@ -24,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final role = await AuthService.login(
         emailCtrl.text.trim(),
-        sdtCtrl.text.trim(),
+        '',
         passCtrl.text.trim(),
       );
 
@@ -42,7 +40,10 @@ class _LoginScreenState extends State<LoginScreen> {
             Navigator.pushReplacementNamed(context, '/shipper/layout');
             break;
           case 'admin':
-            Navigator.pushReplacementNamed(context, '/admin');
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Tai khoan admin chua co giao dien mobile')),
+            );
             break;
           default:
             ScaffoldMessenger.of(context).showSnackBar(
@@ -59,9 +60,9 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Dang nhap loi: $e\nAPI: ${ApiConfig.baseUrl}',
+            'Dang nhap loi: $e\nAPI hien tai: ${ApiConfig.baseUrl}\nNeu la Android that, bam nut "API URL" de doi sang IP LAN may backend.',
           ),
-          duration: const Duration(seconds: 4),
+          duration: const Duration(seconds: 6),
         ),
       );
     } finally {
@@ -80,66 +81,91 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: Colors.deepOrange,
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Container(
-            width: double.infinity,
-            height: 500,
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Welcome to Food Delivery',
-                  style: TextStyle(fontSize: 22),
-                ),
-                const Icon(
-                  Icons.food_bank,
-                  size: 100,
-                  color: Colors.deepOrange,
-                ),
-                TextField(
-                  controller: emailCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Email or số diện thoại',
-                    border: OutlineInputBorder(),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + keyboardInset),
+              child: ConstrainedBox(
+                constraints:
+                    BoxConstraints(minHeight: constraints.maxHeight - 48),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 24, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Welcome to Food Delivery',
+                                  style: TextStyle(fontSize: 22),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Icon(
+                            Icons.food_bank,
+                            size: 100,
+                            color: Colors.deepOrange,
+                          ),
+                          TextField(
+                            controller: emailCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Email hoac so dien thoai',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: passCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Password',
+                              border: OutlineInputBorder(),
+                            ),
+                            obscureText: true,
+                          ),
+                          const SizedBox(height: 20),
+                          ElevatedButton(
+                            onPressed: loading ? null : login,
+                            child: loading
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : const Text('Login'),
+                          ),
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.pushNamed(context, '/register'),
+                            child: const Text('Dang ky'),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: passCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                  ),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: loading ? null : login,
-                  child: loading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Login'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pushNamed(context, '/register'),
-                  child: const Text('Dang ky'),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );

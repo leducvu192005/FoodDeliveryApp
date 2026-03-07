@@ -1,46 +1,74 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/screen/Buyer/profile.dart';
-import 'package:flutter_application_1/screen/shipper/order_shipper.dart';
-import 'package:flutter_application_1/screen/shipper/shipperment.dart';
-import 'shipper_home.dart';
+import 'package:flutter_application_1/screen/shipper/shipper_home_screen.dart';
+import 'package:flutter_application_1/screen/shipper/order_history_screen.dart';
+import 'package:flutter_application_1/screen/shipper/earnings_screen.dart';
+import 'package:flutter_application_1/screen/shipper/profile_screen.dart';
+import 'package:flutter_application_1/services/order_service.dart';
 
-class LayoutShipper extends StatefulWidget {
-  const LayoutShipper({super.key});
+class ShipperLayout extends StatefulWidget {
+  const ShipperLayout({super.key});
 
   @override
-  State<LayoutShipper> createState() => _LayoutShipperState();
+  State<ShipperLayout> createState() => _ShipperLayoutState();
 }
 
-class _LayoutShipperState extends State<LayoutShipper> {
-  int _selectedIndex = 0;
-  final List<Widget> _pages = [
-    const ShipperHome(),
-    const OrderShipper(),
-    const Shipperment(),
-    const Profile(),
-  ];
+class _ShipperLayoutState extends State<ShipperLayout> {
+  int _currentIndex = 0;
+  late final OrderService _orderService;
+
+  late final List<Widget> _tabs;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _orderService = OrderService();
+
+    _tabs = [
+      ShipperHomeScreen(
+        orderService: _orderService,
+      ),
+      OrderHistoryScreen(orderService: _orderService),
+      EarningsScreen(orderService: _orderService),
+      ProfileScreen(orderService: _orderService),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _tabs,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) {
           setState(() {
-            _selectedIndex = index;
+            _currentIndex = index;
           });
         },
-        selectedItemColor: Colors.deepOrange,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long),
-            label: "Order",
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Trang chủ',
           ),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.delivery_dining), label: "Shipperment"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history),
+            label: 'Lịch sử',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.attach_money_outlined),
+            selectedIcon: Icon(Icons.attach_money),
+            label: 'Thu nhập',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Cá nhân',
+          ),
         ],
       ),
     );

@@ -153,6 +153,7 @@ class _OrderList extends StatelessWidget {
         final total = (order['total_price'] as num?)?.toDouble() ?? 0;
         final status = (order['status'] ?? 'pending').toString();
         final paymentStatus = (order['payment_status'] ?? 'pending').toString();
+        final deliveryAddress = (order['delivery_address'] ?? '').toString();
 
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
@@ -184,6 +185,10 @@ class _OrderList extends StatelessWidget {
                   Text('$itemCount mon - ${formatDate(order['created_at'])}'),
                   const SizedBox(height: 4),
                   Text('Trang thai: $status | Thanh toan: $paymentStatus'),
+                  if (deliveryAddress.trim().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text('Dia chi giao: $deliveryAddress'),
+                  ],
                 ],
               ),
             ),

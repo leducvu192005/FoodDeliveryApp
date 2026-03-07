@@ -15,6 +15,7 @@ class User(Base):
     full_name = Column(String)
     email = Column(String, unique=True, index=True)
     sdt = Column(String(15))
+    address = Column(String, nullable=True)
     password_hash = Column(String(255))
     role = Column(String)
     is_active = Column(Boolean, default=True)
@@ -114,9 +115,20 @@ class Order(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
+    shipper_id = Column(Integer, ForeignKey("shippers.id"), nullable=True)
     total_price = Column(Float)
+    delivery_fee = Column(Float, default=0)
+    distance_km = Column(Float, default=0)
+    pickup_address = Column(String, nullable=True)
+    pickup_lat = Column(Float, nullable=True)
+    pickup_lng = Column(Float, nullable=True)
+    delivery_address = Column(String, nullable=True)
+    estimated_delivery_minutes = Column(Integer, nullable=True)
     status = Column(String, default = "pending")
     payment_method = Column(String)
+    assigned_at = Column(Datetime, nullable=True)
+    picked_up_at = Column(Datetime, nullable=True)
+    delivered_at = Column(Datetime, nullable=True)
     created_at = Column(Datetime, server_default=func.now())
 class OrderItem(Base):
     __tablename__ = 'order_items'
@@ -142,6 +154,27 @@ class Payment(Base):
     created_at = Column(Datetime, server_default=func.now())
 
     order = relationship("Order")
+
+
+class PendingStripeCheckout(Base):
+    __tablename__ = "pending_stripe_checkouts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    total_price = Column(Float, nullable=False)
+    delivery_fee = Column(Float, default=0)
+    distance_km = Column(Float, default=0)
+    pickup_address = Column(String, nullable=True)
+    delivery_address = Column(String, nullable=True)
+    estimated_delivery_minutes = Column(Integer, nullable=True)
+    status = Column(String, default="pending")
+    payment_intent_id = Column(String, nullable=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
+    cart_snapshot = Column(JSON, nullable=False)
+    completed_at = Column(Datetime, nullable=True)
+    created_at = Column(Datetime, server_default=func.now())
+
+
 class Shipper(Base):
     __tablename__ = "shippers"
     
@@ -149,9 +182,24 @@ class Shipper(Base):
     user_id =Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     full_name = Column(String, nullable=False)
     phone = Column(String, nullable=False)
+    avatar = Column(String, nullable=True)
     verhice_type = Column(String, nullable=False)
+    license_plate = Column(String, nullable=True)
     is_online = Column(Boolean, default=False)
+    lat = Column(Float, nullable=True)
+    lng = Column(Float, nullable=True)
+    accept_radius = Column(Integer, default=5)
     rating = Column(Numeric(2,1), default=0.0)
     total_completed_orders = Column(Integer, default=0)
+    updated_at = Column(Datetime, server_default=func.now(), onupdate=func.now())
     created_at = Column(Datetime, server_default=func.now())
     user = relationship("User")
+
+
+class ShipperSession(Base):
+    __tablename__ = "shipper_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    shipper_id = Column(Integer, ForeignKey("shippers.id", ondelete="CASCADE"), nullable=False)
+    start_time = Column(Datetime, server_default=func.now(), nullable=False)
+    end_time = Column(Datetime, nullable=True)

@@ -5,6 +5,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/cart_services.dart';
 import 'package:flutter_application_1/services/payment_services.dart';
 
+enum _CheckoutPaymentMethod { cod, stripe }
+
+extension on _CheckoutPaymentMethod {
+  String get apiValue {
+    switch (this) {
+      case _CheckoutPaymentMethod.cod:
+        return 'cod';
+      case _CheckoutPaymentMethod.stripe:
+        return 'stripe';
+    }
+  }
+
+  String get title {
+    switch (this) {
+      case _CheckoutPaymentMethod.cod:
+        return 'Thanh toan khi nhan hang';
+      case _CheckoutPaymentMethod.stripe:
+        return 'Chuyen khoan qua Stripe';
+    }
+  }
+
+  String get subtitle {
+    switch (this) {
+      case _CheckoutPaymentMethod.cod:
+        return 'Tao don ngay, thanh toan khi shipper giao den.';
+      case _CheckoutPaymentMethod.stripe:
+        return 'Mo Stripe de thanh toan online. Don chi duoc tao sau khi thanh toan thanh cong.';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case _CheckoutPaymentMethod.cod:
+        return Icons.payments_outlined;
+      case _CheckoutPaymentMethod.stripe:
+        return Icons.account_balance_outlined;
+    }
+  }
+}
+
 class Cart extends StatefulWidget {
   const Cart({super.key});
 
@@ -16,8 +56,11 @@ class _CartState extends State<Cart> {
   final CartServices _cartServices = CartServices();
   final Map<int, TextEditingController> _noteControllers = {};
   final TextEditingController _promoController = TextEditingController();
+  final TextEditingController _deliveryAddressController =
+      TextEditingController();
   late Future<List<Map<String, dynamic>>> _cartFuture;
   bool _isPaying = false;
+  _CheckoutPaymentMethod _selectedPaymentMethod = _CheckoutPaymentMethod.cod;
 
   static const double _deliveryFee = 1.5;
 
@@ -33,6 +76,7 @@ class _CartState extends State<Cart> {
       c.dispose();
     }
     _promoController.dispose();
+    _deliveryAddressController.dispose();
     super.dispose();
   }
 
@@ -71,18 +115,25 @@ class _CartState extends State<Cart> {
     return (total + _deliveryFee - discount).clamp(0, 999999);
   }
 
-  Future<bool> _waitForPaymentConfirmed(PaymentServices paymentService, int orderId) async {
+  Future<Map<String, dynamic>> _waitForStripeOrderCreated(
+      PaymentServices paymentService, int checkoutId) async {
+    Map<String, dynamic> lastResult = const {'status': 'pending'};
     for (int i = 0; i < 5; i++) {
-      final status = await paymentService.checkPaymentStatus(orderId);
-      if (status == 'paid') return true;
+      lastResult = await paymentService.confirmCheckout(checkoutId);
+      final status = (lastResult['status'] ?? '').toString().toLowerCase();
+      if (status == 'paid' && lastResult['order_id'] != null) {
+        return lastResult;
+      }
       await Future.delayed(const Duration(seconds: 1));
     }
-    return false;
+    return lastResult;
   }
 
   Future<void> _placeOrder() async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+    final isStripePayment =
+        _selectedPaymentMethod == _CheckoutPaymentMethod.stripe;
 
     setState(() {
       _isPaying = true;
@@ -90,34 +141,70 @@ class _CartState extends State<Cart> {
 
     try {
       final paymentService = PaymentServices();
-      final checkoutResult = await _cartServices.checkout();
-      final orderId = checkoutResult['order_id'];
+      final checkoutResult = await _cartServices.checkout(
+        deliveryAddress: _deliveryAddressController.text.trim(),
+        method: _selectedPaymentMethod.apiValue,
+      );
 
-      if (orderId == null) {
-        throw Exception('Khong nhan duoc order_id tu server');
+      if (!isStripePayment) {
+        final orderId = checkoutResult['order_id'];
+        if (orderId == null) {
+          throw Exception('Khong nhan duoc order_id tu server');
+        }
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(
+            content:
+                Text('Tao don thanh cong. Ban se thanh toan khi nhan hang.'),
+          ),
+        );
+        _refreshCart();
+        navigator.pushNamed('/buyer/order');
+        return;
       }
 
-      await paymentService.processPayment(orderId);
-      final isPaid = await _waitForPaymentConfirmed(paymentService, orderId);
+      final rawCheckoutId = checkoutResult['checkout_id'];
+      final checkoutId = rawCheckoutId is int
+          ? rawCheckoutId
+          : int.tryParse(rawCheckoutId?.toString() ?? '');
+      final clientSecret = checkoutResult['client_secret']?.toString();
+
+      if (checkoutId == null || clientSecret == null || clientSecret.isEmpty) {
+        throw Exception('Khong nhan duoc thong tin thanh toan Stripe tu server');
+      }
+
+      await paymentService.processPaymentSheet(clientSecret);
+      final paymentResult =
+          await _waitForStripeOrderCreated(paymentService, checkoutId);
+      final isPaid = (paymentResult['status'] ?? '').toString().toLowerCase() ==
+              'paid' &&
+          paymentResult['order_id'] != null;
 
       if (!mounted) return;
 
       if (isPaid) {
-        messenger.showSnackBar(const SnackBar(content: Text('Thanh toan thanh cong')));
+        messenger.showSnackBar(
+            const SnackBar(content: Text('Thanh toan thanh cong')));
         _refreshCart();
         navigator.pushNamed('/buyer/order');
       } else {
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('Da tao giao dich nhung chua xac nhan thanh toan.'),
+            content: Text('Thanh toan chua hoan tat. Don hang chua duoc tao.'),
           ),
         );
       }
     } catch (e) {
       final msg = e.toString().toLowerCase();
-      final isCanceled = msg.contains('canceled') || msg.contains('cancelled') || msg.contains('huy');
+      final isCanceled = isStripePayment &&
+          (msg.contains('canceled') ||
+              msg.contains('cancelled') ||
+              msg.contains('huy'));
       messenger.showSnackBar(
-        SnackBar(content: Text(isCanceled ? 'Ban da huy thanh toan' : 'Thanh toan that bai: $e')),
+        SnackBar(
+            content: Text(isCanceled
+                ? 'Ban da huy thanh toan'
+                : '${isStripePayment ? 'Thanh toan that bai' : 'Dat don that bai'}: $e')),
       );
     } finally {
       if (mounted) {
@@ -144,7 +231,8 @@ class _CartState extends State<Cart> {
         future: _cartFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: accent));
+            return const Center(
+                child: CircularProgressIndicator(color: accent));
           }
           if (snapshot.hasError) {
             return const Center(child: Text('Loi tai gio hang'));
@@ -170,7 +258,8 @@ class _CartState extends State<Cart> {
                 final name = dish['name'] ?? 'Mon khong ten';
                 final price = (dish['price'] as num?)?.toDouble() ?? 0.0;
 
-                final noteController = _noteControllers.putIfAbsent(dishId, () => TextEditingController());
+                final noteController = _noteControllers.putIfAbsent(
+                    dishId, () => TextEditingController());
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
@@ -202,14 +291,16 @@ class _CartState extends State<Cart> {
                                       width: 82,
                                       height: 82,
                                       color: const Color(0xFFFFF1DD),
-                                      child: const Icon(Icons.fastfood, color: Colors.black45),
+                                      child: const Icon(Icons.fastfood,
+                                          color: Colors.black45),
                                     ),
                                   )
                                 : Container(
                                     width: 82,
                                     height: 82,
                                     color: const Color(0xFFFFF1DD),
-                                    child: const Icon(Icons.fastfood, color: Colors.black45),
+                                    child: const Icon(Icons.fastfood,
+                                        color: Colors.black45),
                                   ),
                           ),
                           const SizedBox(width: 10),
@@ -219,12 +310,16 @@ class _CartState extends State<Cart> {
                               children: [
                                 Text(
                                   name,
-                                  style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.black87),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.black87),
                                 ),
                                 const SizedBox(height: 5),
                                 Text(
                                   '\$${price.toStringAsFixed(2)}',
-                                  style: const TextStyle(color: accent, fontWeight: FontWeight.w700),
+                                  style: const TextStyle(
+                                      color: accent,
+                                      fontWeight: FontWeight.w700),
                                 ),
                               ],
                             ),
@@ -234,22 +329,28 @@ class _CartState extends State<Cart> {
                               IconButton(
                                 onPressed: () async {
                                   if (quantity > 1) {
-                                    await _cartServices.updateQuantity(dishId, quantity - 1);
+                                    await _cartServices.updateQuantity(
+                                        dishId, quantity - 1);
                                     _refreshCart();
                                   }
                                 },
-                                icon: const Icon(Icons.remove_circle_outline, color: Colors.black54),
+                                icon: const Icon(Icons.remove_circle_outline,
+                                    color: Colors.black54),
                               ),
                               Text(
                                 '$quantity',
-                                style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.w700),
                               ),
                               IconButton(
                                 onPressed: () async {
-                                  await _cartServices.updateQuantity(dishId, quantity + 1);
+                                  await _cartServices.updateQuantity(
+                                      dishId, quantity + 1);
                                   _refreshCart();
                                 },
-                                icon: const Icon(Icons.add_circle_outline, color: accent),
+                                icon: const Icon(Icons.add_circle_outline,
+                                    color: accent),
                               ),
                             ],
                           ),
@@ -266,13 +367,15 @@ class _CartState extends State<Cart> {
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
                           ),
-                          prefixIcon: const Icon(Icons.edit_note_rounded, color: Colors.black45),
+                          prefixIcon: const Icon(Icons.edit_note_rounded,
+                              color: Colors.black45),
                           suffixIcon: IconButton(
                             onPressed: () async {
                               await _cartServices.removeFromCart(dishId);
                               _refreshCart();
                             },
-                            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                            icon: const Icon(Icons.delete_outline_rounded,
+                                color: Colors.redAccent),
                           ),
                         ),
                       ),
@@ -281,6 +384,51 @@ class _CartState extends State<Cart> {
                 );
               }),
               const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.location_on_outlined, color: accent),
+                        SizedBox(width: 8),
+                        Text(
+                          'Dia chi giao hang',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _deliveryAddressController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Nhap dia chi giao hang. De trong se dung dia chi trong ho so neu co.',
+                        alignLabelWithHint: true,
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.only(bottom: 48),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFFFF6EA),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -312,8 +460,12 @@ class _CartState extends State<Cart> {
                 padding: const EdgeInsets.all(14),
                 child: Column(
                   children: [
-                    _PriceRow(label: 'Items total', value: '\$${itemsTotal.toStringAsFixed(2)}'),
-                    _PriceRow(label: 'Delivery fee', value: '\$${_deliveryFee.toStringAsFixed(2)}'),
+                    _PriceRow(
+                        label: 'Items total',
+                        value: '\$${itemsTotal.toStringAsFixed(2)}'),
+                    _PriceRow(
+                        label: 'Delivery fee',
+                        value: '\$${_deliveryFee.toStringAsFixed(2)}'),
                     _PriceRow(
                       label: 'Discount',
                       value: '- \$${discount.toStringAsFixed(2)}',
@@ -334,6 +486,42 @@ class _CartState extends State<Cart> {
                         fontSize: 18,
                       ),
                     ),
+                    const SizedBox(height: 14),
+                    const Divider(color: Color(0x1A000000), height: 1),
+                    const SizedBox(height: 14),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Phuong thuc thanh toan',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _PaymentMethodTile(
+                      method: _CheckoutPaymentMethod.cod,
+                      selectedMethod: _selectedPaymentMethod,
+                      accent: accent,
+                      onTap: () {
+                        setState(() {
+                          _selectedPaymentMethod = _CheckoutPaymentMethod.cod;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    _PaymentMethodTile(
+                      method: _CheckoutPaymentMethod.stripe,
+                      selectedMethod: _selectedPaymentMethod,
+                      accent: accent,
+                      onTap: () {
+                        setState(() {
+                          _selectedPaymentMethod =
+                              _CheckoutPaymentMethod.stripe;
+                        });
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -344,16 +532,104 @@ class _CartState extends State<Cart> {
                   backgroundColor: accent,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 52),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                 ),
                 child: Text(
-                  _isPaying ? 'Dang xu ly thanh toan...' : 'Dat don',
+                  _isPaying
+                      ? _selectedPaymentMethod == _CheckoutPaymentMethod.stripe
+                          ? 'Dang xu ly thanh toan...'
+                          : 'Dang tao don...'
+                      : _selectedPaymentMethod == _CheckoutPaymentMethod.stripe
+                          ? 'Dat don va thanh toan'
+                          : 'Dat don',
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _PaymentMethodTile extends StatelessWidget {
+  const _PaymentMethodTile({
+    required this.method,
+    required this.selectedMethod,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final _CheckoutPaymentMethod method;
+  final _CheckoutPaymentMethod selectedMethod;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = method == selectedMethod;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFFF3E4) : const Color(0xFFFFFBF6),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? accent : const Color(0x1F000000),
+            width: isSelected ? 1.4 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: isSelected ? accent.withOpacity(0.12) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                method.icon,
+                color: isSelected ? accent : Colors.black54,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    method.title,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    method.subtitle,
+                    style: const TextStyle(
+                      color: Colors.black54,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Radio<_CheckoutPaymentMethod>(
+              value: method,
+              groupValue: selectedMethod,
+              activeColor: accent,
+              onChanged: (_) => onTap(),
+            ),
+          ],
+        ),
       ),
     );
   }

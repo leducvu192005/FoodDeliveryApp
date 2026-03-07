@@ -12,7 +12,7 @@ import '../../../services/auth_services.dart';
 class DishScreen extends StatefulWidget {
   final Map<String, dynamic>? dish; // null = thêm mới, có giá trị = sửa
 
-  DishScreen({this.dish});
+  const DishScreen({super.key, this.dish});
 
   @override
   _DishScreenState createState() => _DishScreenState();

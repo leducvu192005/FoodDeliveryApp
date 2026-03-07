@@ -1,14 +1,18 @@
-# routers/profile.py
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from database import get_db
-from models import Profile
-from pydantic import BaseModel
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from auth import hash_password, verify_password
+from database import get_db
+from dependencies import get_current_user
+from models import Profile, User
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
-# ========== SCHEMA ==========
+
 class ProfileCreate(BaseModel):
     name: str
     sdt: Optional[str] = None
@@ -16,53 +20,181 @@ class ProfileCreate(BaseModel):
     img: Optional[str] = None
     user_id: Optional[int] = None
 
+
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
     sdt: Optional[str] = None
     live: Optional[str] = None
     img: Optional[str] = None
 
-# ========== LẤY TẤT CẢ PROFILE (READ ALL) ==========
+
+class PasswordUpdate(BaseModel):
+    current_password: str
+    new_password: str
+
+
+def _find_latest_profile(db: Session, user_id: int) -> Optional[Profile]:
+    return (
+        db.query(Profile)
+        .filter(Profile.user_id == user_id)
+        .order_by(Profile.id.desc())
+        .first()
+    )
+
+
+def _to_profile_payload(profile: Profile, user: User) -> dict:
+    return {
+        "id": profile.id,
+        "name": (profile.name or user.full_name or "").strip(),
+        "sdt": (profile.sdt or user.sdt or "").strip(),
+        "live": (user.address or profile.live or "").strip(),
+        "img": profile.img,
+        "user_id": user.id,
+        "email": (user.email or "").strip(),
+    }
+
+
+@router.get("/me")
+def get_my_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    profile = _find_latest_profile(db, current_user.id)
+    if profile is None:
+        profile = Profile(
+            name=current_user.full_name or "",
+            sdt=current_user.sdt,
+            live=current_user.address or "",
+            img=None,
+            user_id=current_user.id,
+        )
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
+    else:
+        changed = False
+        if not current_user.address and profile.live:
+            current_user.address = profile.live.strip()
+            changed = True
+        if current_user.address and not (profile.live or "").strip():
+            profile.live = current_user.address.strip()
+            changed = True
+        if changed:
+            db.commit()
+            db.refresh(current_user)
+            db.refresh(profile)
+
+    return _to_profile_payload(profile, current_user)
+
+
+@router.put("/me")
+def upsert_my_profile(
+    profile: ProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db_profile = _find_latest_profile(db, current_user.id)
+    if db_profile is None:
+        db_profile = Profile(
+            name=current_user.full_name or "",
+            sdt=current_user.sdt,
+            live=current_user.address or "",
+            img=None,
+            user_id=current_user.id,
+        )
+        db.add(db_profile)
+        db.flush()
+
+    if profile.name is not None:
+        cleaned_name = profile.name.strip()
+        db_profile.name = cleaned_name
+        current_user.full_name = cleaned_name
+    if profile.sdt is not None:
+        cleaned_phone = profile.sdt.strip()
+        db_profile.sdt = cleaned_phone
+        current_user.sdt = cleaned_phone
+    if profile.live is not None:
+        cleaned_address = profile.live.strip()
+        db_profile.live = cleaned_address
+        current_user.address = cleaned_address
+    if profile.img is not None:
+        db_profile.img = profile.img
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="So dien thoai da ton tai hoac du lieu khong hop le")
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Khong the cap nhat profile")
+
+    db.refresh(db_profile)
+    db.refresh(current_user)
+
+    return {
+        "message": "Cap nhat profile thanh cong",
+        "profile": _to_profile_payload(db_profile, current_user),
+    }
+
+
+@router.put("/me/password")
+def update_my_password(
+    payload: PasswordUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    current_password = payload.current_password.strip()
+    new_password = payload.new_password.strip()
+
+    if not verify_password(current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Mat khau hien tai khong dung")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Mat khau moi phai co it nhat 6 ky tu")
+
+    current_user.password_hash = hash_password(new_password)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Khong the cap nhat mat khau")
+    return {"message": "Cap nhat mat khau thanh cong"}
+
+
 @router.get("/")
 def get_all_profiles(db: Session = Depends(get_db)):
-    """Lấy danh sách tất cả profile"""
-    profiles = db.query(Profile).all()
-    return profiles
+    return db.query(Profile).all()
 
-# ========== LẤY 1 PROFILE THEO ID (READ ONE) ==========
+
 @router.get("/{profile_id}")
 def get_profile(profile_id: int, db: Session = Depends(get_db)):
-    """Lấy thông tin 1 profile theo ID"""
     profile = db.query(Profile).filter(Profile.id == profile_id).first()
     if not profile:
-        raise HTTPException(status_code=404, detail="Không tìm thấy profile")
+        raise HTTPException(status_code=404, detail="Khong tim thay profile")
     return profile
 
-# ========== THÊM PROFILE MỚI (CREATE) ==========
+
 @router.post("/")
 def create_profile(profile: ProfileCreate, db: Session = Depends(get_db)):
-    """Tạo profile mới"""
     new_profile = Profile(
         name=profile.name,
         sdt=profile.sdt,
         live=profile.live,
         img=profile.img,
-        user_id=profile.user_id
+        user_id=profile.user_id,
     )
     db.add(new_profile)
     db.commit()
     db.refresh(new_profile)
-    return {"message": "Tạo profile thành công", "profile": new_profile}
+    return {"message": "Tao profile thanh cong", "profile": new_profile}
 
-# ========== SỬA PROFILE (UPDATE) ==========
+
 @router.put("/{profile_id}")
 def update_profile(profile_id: int, profile: ProfileUpdate, db: Session = Depends(get_db)):
-    """Cập nhật thông tin profile"""
     db_profile = db.query(Profile).filter(Profile.id == profile_id).first()
     if not db_profile:
-        raise HTTPException(status_code=404, detail="Không tìm thấy profile")
-    
-    # Cập nhật các trường nếu có giá trị mới
+        raise HTTPException(status_code=404, detail="Khong tim thay profile")
+
     if profile.name is not None:
         db_profile.name = profile.name
     if profile.sdt is not None:
@@ -71,19 +203,18 @@ def update_profile(profile_id: int, profile: ProfileUpdate, db: Session = Depend
         db_profile.live = profile.live
     if profile.img is not None:
         db_profile.img = profile.img
-    
+
     db.commit()
     db.refresh(db_profile)
-    return {"message": "Cập nhật profile thành công", "profile": db_profile}
+    return {"message": "Cap nhat profile thanh cong", "profile": db_profile}
 
-# ========== XÓA PROFILE (DELETE) ==========
+
 @router.delete("/{profile_id}")
 def delete_profile(profile_id: int, db: Session = Depends(get_db)):
-    """Xóa profile"""
     db_profile = db.query(Profile).filter(Profile.id == profile_id).first()
     if not db_profile:
-        raise HTTPException(status_code=404, detail="Không tìm thấy profile")
-    
+        raise HTTPException(status_code=404, detail="Khong tim thay profile")
+
     db.delete(db_profile)
     db.commit()
-    return {"message": "Xóa profile thành công"}
+    return {"message": "Xoa profile thanh cong"}

@@ -39,7 +39,7 @@ class PaymentServices {
     throw Exception("Tao payment that bai: ${response.body}");
   }
 
-  Future<void> processPayment(int orderId) async {
+  Future<void> processPaymentSheet(String clientSecret) async {
     try {
       final pubKey = Stripe.publishableKey;
       if (pubKey.trim().isEmpty) {
@@ -49,13 +49,6 @@ class PaymentServices {
       }
 
       await Stripe.instance.applySettings();
-
-      final paymentData = await createPayment(orderId);
-      final clientSecret = paymentData["client_secret"];
-
-      if (clientSecret == null) {
-        throw Exception("Khong nhan duoc client_secret");
-      }
 
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
@@ -82,6 +75,20 @@ class PaymentServices {
       debugPrintStack(stackTrace: st);
       throw Exception("Payment error: ${e.runtimeType}: $e");
     }
+  }
+
+  Future<Map<String, dynamic>> confirmCheckout(int checkoutId) async {
+    final url = Uri.parse("$baseUrl/api/payment/confirm-checkout/$checkoutId");
+
+    final response = await http.post(
+      url,
+      headers: await _authHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception("Khong xac nhan duoc thanh toan: ${response.body}");
   }
 
   Future<String> checkPaymentStatus(int orderId) async {
