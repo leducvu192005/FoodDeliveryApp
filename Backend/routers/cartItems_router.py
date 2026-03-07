@@ -1,19 +1,21 @@
 import os
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 import stripe
 from sqlalchemy.orm import Session
+from typing import List
 
 from database import get_db
-from dependencies import get_current_user, require_role
 from models import CartItem, Order, OrderItem, Payment, PendingStripeCheckout, Profile, User
+from models import CartItem, Dish, Order, OrderItem, Payment, User
 from schemas import (
     CartCheckoutRequest,
+    CartCheckoutResponse,
     CartItemCreate,
     CartItemResponse,
     CartItemUpdate,
 )
+from dependencies import get_current_user, require_role
 
 router = APIRouter(prefix="/cart", tags=["Cart"])
 
@@ -75,6 +77,7 @@ def get_seller_orders(
     db: Session = Depends(get_db),
     user: User = Depends(require_role("seller")),
 ):
+    """Lấy đơn hàng thuộc về seller hiện tại (status = 'seller' trở đi)"""
     orders = (
         db.query(Order)
         .filter(
@@ -115,14 +118,13 @@ def get_seller_orders(
 @router.get("/items", response_model=List[CartItemResponse])
 def get_cart_items(
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user)
 ):
     return (
         db.query(CartItem)
         .filter(CartItem.user_id == user.id)
         .all()
     )
-
 
 @router.post("/add", response_model=list[CartItemResponse])
 def add_to_cart(
@@ -132,7 +134,7 @@ def add_to_cart(
 ):
     cart_item = db.query(CartItem).filter(
         CartItem.user_id == user.id,
-        CartItem.dish_id == item.dish_id,
+        CartItem.dish_id == item.dish_id
     ).first()
 
     if cart_item:
@@ -141,7 +143,7 @@ def add_to_cart(
         cart_item = CartItem(
             user_id=user.id,
             dish_id=item.dish_id,
-            quantity=item.quantity,
+            quantity=item.quantity
         )
         db.add(cart_item)
 
@@ -154,20 +156,19 @@ def add_to_cart(
         .all()
     )
 
-
 @router.put("/update", response_model=List[CartItemResponse])
 def update_cart_quantity(
     item: CartItemUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user)
 ):
     cart_item = db.query(CartItem).filter(
         CartItem.user_id == user.id,
-        CartItem.dish_id == item.dish_id,
+        CartItem.dish_id == item.dish_id
     ).first()
 
     if not cart_item:
-        raise HTTPException(status_code=404, detail="Mon an khong co trong gio")
+        raise HTTPException(status_code=404, detail="Món ăn không có trong giỏ")
 
     if item.quantity <= 0:
         db.delete(cart_item)
@@ -176,26 +177,25 @@ def update_cart_quantity(
 
     db.commit()
 
+    # ✅ TRẢ VỀ CartItem ORM
     return (
         db.query(CartItem)
         .filter(CartItem.user_id == user.id)
         .all()
     )
-
-
 @router.delete("/remove", response_model=List[CartItemResponse])
 def remove_from_cart(
     dish_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user)
 ):
     cart_item = db.query(CartItem).filter(
         CartItem.user_id == user.id,
-        CartItem.dish_id == dish_id,
+        CartItem.dish_id == dish_id
     ).first()
 
     if not cart_item:
-        raise HTTPException(status_code=404, detail="Khong tim thay mon can xoa")
+        raise HTTPException(status_code=404, detail="Không tìm thấy món cần xóa")
 
     db.delete(cart_item)
     db.commit()
@@ -205,7 +205,6 @@ def remove_from_cart(
         .filter(CartItem.user_id == user.id)
         .all()
     )
-
 
 @router.post("/checkout")
 def checkout_cart(
@@ -226,7 +225,10 @@ def checkout_cart(
     if not cart_items:
         raise HTTPException(status_code=400, detail="Gio hang trong")
 
-    total_amount = sum((item.dish.price or 0) * item.quantity for item in cart_items)
+    total_amount = sum(
+        (item.dish.price or 0) * item.quantity
+        for item in cart_items
+    )
 
     buyer_profile = (
         db.query(Profile)
@@ -312,7 +314,11 @@ def checkout_cart(
                 status_code=500,
                 detail="Khong tao duoc giao dich Stripe",
             ) from exc
+    # Lấy seller_id từ món đầu tiên trong giỏ hàng
+    first_dish = db.query(Dish).filter(Dish.id == cart_items[0].dish_id).first()
+    seller_id = first_dish.seller_id if first_dish else None
 
+    # 1️⃣ Tạo Order
     order = Order(
         user_id=user.id,
         seller_id=seller_id,
@@ -324,10 +330,12 @@ def checkout_cart(
         estimated_delivery_minutes=estimated_delivery_minutes,
         status="pending",
         payment_method="cod",
+        payment_method="sepay_bank_transfer",
     )
     db.add(order)
     db.flush()
 
+    # 2️⃣ Tạo OrderItem
     for item in cart_items:
         order_item = OrderItem(
             order_id=order.id,
@@ -352,12 +360,14 @@ def checkout_cart(
 
     db.commit()
 
+    # Trả về order để frontend thực hiện thanh toán.
+    # Giỏ hàng chỉ được cập nhật sau khi payment thành công (webhook).
     return {
         "order_id": order.id,
-        "total_amount": total_amount,
         "total_price": total_amount,
         "delivery_address": delivery_address,
-        "payment_method": "cod",
+        "total_amount": total_amount,
+        "payment_method": "sepay_bank_transfer",
         "payment_status": "pending",
         "message": "Order created successfully",
     }
