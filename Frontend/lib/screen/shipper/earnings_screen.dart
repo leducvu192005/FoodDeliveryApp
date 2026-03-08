@@ -8,9 +8,11 @@ class EarningsScreen extends StatefulWidget {
   const EarningsScreen({
     super.key,
     required this.orderService,
+    this.refreshTick = 0,
   });
 
   final OrderService orderService;
+  final int? refreshTick;
 
   @override
   State<EarningsScreen> createState() => _EarningsScreenState();
@@ -31,11 +33,21 @@ class _EarningsScreenState extends State<EarningsScreen> {
     _earningsFuture = widget.orderService.getEarningsSummary();
   }
 
+  @override
+  void didUpdateWidget(covariant EarningsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if ((widget.refreshTick ?? 0) != (oldWidget.refreshTick ?? 0)) {
+      _reload();
+    }
+  }
+
   Future<void> _reload() async {
     setState(() {
       _earningsFuture = widget.orderService.getEarningsSummary();
     });
-    await _earningsFuture;
+    try {
+      await _earningsFuture;
+    } catch (_) {}
   }
 
   @override

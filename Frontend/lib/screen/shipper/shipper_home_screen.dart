@@ -26,6 +26,7 @@ class _ShipperHomeScreenState extends State<ShipperHomeScreen> {
   late Future<List<OrderModel>> _activeOrdersFuture;
 
   bool _busy = false;
+  bool _isOnline = false;
   StreamSubscription<Position>? _positionSubscription;
   Timer? _locationTimer;
   DateTime? _lastLocationSentAt;
@@ -51,14 +52,29 @@ class _ShipperHomeScreenState extends State<ShipperHomeScreen> {
   }
 
   void _prepareOverview() {
-    _statsFuture = widget.orderService.getDashboardStats();
+    _statsFuture = _loadDashboardStats();
     _activeOrdersFuture = widget.orderService.getActiveOrders();
+  }
+
+  Future<ShipperDashboardStats> _loadDashboardStats() async {
+    final stats = await widget.orderService.getDashboardStats();
+    if (mounted && _isOnline != stats.isOnline) {
+      setState(() => _isOnline = stats.isOnline);
+    } else {
+      _isOnline = stats.isOnline;
+    }
+    return stats;
   }
 
   Future<void> _syncTrackingWithServer() async {
     try {
       final profile = await widget.orderService.getShipperProfile();
       _shipperId = profile.id;
+      if (mounted) {
+        setState(() => _isOnline = profile.isOnline);
+      } else {
+        _isOnline = profile.isOnline;
+      }
       if (profile.id.isNotEmpty && profile.isOnline && mounted) {
         await _startLocationTracking();
       }
@@ -87,6 +103,11 @@ class _ShipperHomeScreenState extends State<ShipperHomeScreen> {
       await widget.orderService.setShipperOnline(
         isOnline: value,
       );
+      if (mounted) {
+        setState(() => _isOnline = value);
+      } else {
+        _isOnline = value;
+      }
 
       if (value) {
         await _startLocationTracking();
@@ -424,51 +445,61 @@ class _ShipperHomeScreenState extends State<ShipperHomeScreen> {
                   ),
             ),
             const SizedBox(height: 8),
-            StreamBuilder<List<OrderModel>>(
-              stream: widget.orderService.streamNewOrders(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
-                }
+            if (!_isOnline)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(14),
+                  child: Text(
+                    'Hay bat online de hien thi don moi.',
+                  ),
+                ),
+              )
+            else
+              StreamBuilder<List<OrderModel>>(
+                stream: widget.orderService.streamNewOrders(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  }
 
-                if (snapshot.hasError) {
-                  return Text(
-                    'Khong tai duoc danh sach don hang: ${snapshot.error}',
-                  );
-                }
+                  if (snapshot.hasError) {
+                    return Text(
+                      'Khong tai duoc danh sach don hang: ${snapshot.error}',
+                    );
+                  }
 
-                final orders = snapshot.data ?? [];
+                  final orders = snapshot.data ?? [];
 
-                if (orders.isEmpty) {
-                  return const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(14),
-                      child: Text(
-                        'Hien chua co don hang.',
-                      ),
-                    ),
-                  );
-                }
-
-                return Column(
-                  children: orders.map((order) {
-                    final canAccept = _canAcceptOrder(order);
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: OrderCard(
-                        order: order,
-                        showAcceptButton: canAccept,
-                        onAccept: _busy || !canAccept
-                            ? null
-                            : () => _acceptOrder(order),
+                  if (orders.isEmpty) {
+                    return const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(14),
+                        child: Text(
+                          'Hien chua co don hang.',
+                        ),
                       ),
                     );
-                  }).toList(),
-                );
-              },
-            ),
+                  }
+
+                  return Column(
+                    children: orders.map((order) {
+                      final canAccept = _canAcceptOrder(order);
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: OrderCard(
+                          order: order,
+                          showAcceptButton: canAccept,
+                          onAccept: _busy || !canAccept
+                              ? null
+                              : () => _acceptOrder(order),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
           ],
         ),
       ),

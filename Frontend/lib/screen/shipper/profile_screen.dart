@@ -40,6 +40,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _saving = true;
     });
 
+    try {
+      await widget.orderService.setShipperOnline(isOnline: false);
+    } catch (_) {}
+
     await AuthService.logout();
     if (!mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);

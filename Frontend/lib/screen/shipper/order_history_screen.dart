@@ -7,9 +7,11 @@ class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({
     super.key,
     required this.orderService,
+    this.refreshTick = 0,
   });
 
   final OrderService orderService;
+  final int? refreshTick;
 
   @override
   State<OrderHistoryScreen> createState() => _OrderHistoryScreenState();
@@ -38,6 +40,14 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant OrderHistoryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if ((widget.refreshTick ?? 0) != (oldWidget.refreshTick ?? 0)) {
+      _loadHistory();
+    }
+  }
+
   Future<List<OrderModel>> _fetchCompletedOrders({String search = ''}) async {
     try {
       return await widget.orderService.getCompletedOrders(search: search);
@@ -47,7 +57,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         if (mounted) {
           Future.microtask(() {
             if (!mounted) return;
-            Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+            Navigator.of(context)
+                .pushNamedAndRemoveUntil('/login', (route) => false);
           });
         }
         return const <OrderModel>[];

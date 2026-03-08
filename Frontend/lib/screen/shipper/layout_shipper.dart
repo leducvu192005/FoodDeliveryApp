@@ -12,26 +12,46 @@ class ShipperLayout extends StatefulWidget {
   State<ShipperLayout> createState() => _ShipperLayoutState();
 }
 
-class _ShipperLayoutState extends State<ShipperLayout> {
+class _ShipperLayoutState extends State<ShipperLayout>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
+  int _historyRefreshTick = 0;
+  int _earningsRefreshTick = 0;
   late final OrderService _orderService;
-
-  late final List<Widget> _tabs;
+  bool _offlineSyncing = false;
 
   @override
   void initState() {
     super.initState();
 
     _orderService = OrderService();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
-    _tabs = [
-      ShipperHomeScreen(
-        orderService: _orderService,
-      ),
-      OrderHistoryScreen(orderService: _orderService),
-      EarningsScreen(orderService: _orderService),
-      ProfileScreen(orderService: _orderService),
-    ];
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _markShipperOffline();
+    }
+  }
+
+  Future<void> _markShipperOffline() async {
+    if (_offlineSyncing) return;
+    _offlineSyncing = true;
+    try {
+      await _orderService.setShipperOnline(isOnline: false);
+    } catch (_) {
+    } finally {
+      _offlineSyncing = false;
+    }
   }
 
   @override
@@ -39,13 +59,31 @@ class _ShipperLayoutState extends State<ShipperLayout> {
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: _tabs,
+        children: [
+          ShipperHomeScreen(
+            orderService: _orderService,
+          ),
+          OrderHistoryScreen(
+            orderService: _orderService,
+            refreshTick: _historyRefreshTick,
+          ),
+          EarningsScreen(
+            orderService: _orderService,
+            refreshTick: _earningsRefreshTick,
+          ),
+          ProfileScreen(orderService: _orderService),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() {
             _currentIndex = index;
+            if (index == 1) {
+              _historyRefreshTick++;
+            } else if (index == 2) {
+              _earningsRefreshTick++;
+            }
           });
         },
         destinations: const [

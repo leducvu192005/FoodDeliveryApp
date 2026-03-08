@@ -123,7 +123,8 @@ class _BuyerHomeState extends State<BuyerHome> {
     }
   }
 
-  Future<String> _reverseGeocodeAddress(double latitude, double longitude) async {
+  Future<String> _reverseGeocodeAddress(
+      double latitude, double longitude) async {
     try {
       final placemarks = await placemarkFromCoordinates(latitude, longitude);
       if (placemarks.isNotEmpty) {
@@ -303,7 +304,8 @@ class _BuyerHomeState extends State<BuyerHome> {
                         children: [
                           const Padding(
                             padding: EdgeInsets.only(top: 2),
-                            child: Icon(Icons.my_location_rounded, color: accent),
+                            child:
+                                Icon(Icons.my_location_rounded, color: accent),
                           ),
                           const SizedBox(width: 10),
                           const Expanded(
@@ -316,7 +318,8 @@ class _BuyerHomeState extends State<BuyerHome> {
                             ),
                           ),
                           TextButton.icon(
-                            onPressed: _isLocating ? null : _loadCurrentLocation,
+                            onPressed:
+                                _isLocating ? null : _loadCurrentLocation,
                             icon: _isLocating
                                 ? const SizedBox(
                                     width: 14,
@@ -346,8 +349,9 @@ class _BuyerHomeState extends State<BuyerHome> {
                                 _locationError ??
                                 'Khong lay duoc vi tri hien tai',
                         style: TextStyle(
-                          color:
-                              _locationError == null ? Colors.black54 : Colors.red,
+                          color: _locationError == null
+                              ? Colors.black54
+                              : Colors.red,
                         ),
                       ),
                     ],
@@ -400,7 +404,7 @@ class _BuyerHomeState extends State<BuyerHome> {
                         _isLocating
                             ? 'Dang tai vi tri de loc mon an...'
                             : _locationError ??
-                                'Can vi tri hien tai de hien thi mon trong 5km',
+                                'Can vi tri hien tai de hien thi mon an gan ban',
                         textAlign: TextAlign.center,
                       ),
                     ),
