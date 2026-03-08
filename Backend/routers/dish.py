@@ -30,6 +30,7 @@ class DishResponse(BaseModel):
     category_id: int
     description: Optional[str]
     group: Optional[str]
+    seller_name: Optional[str] = None
     seller_address: Optional[str] = None
     seller_lat: Optional[float] = None
     seller_lng: Optional[float] = None
@@ -49,6 +50,7 @@ def _to_dish_response(dish: Dish) -> DishResponse:
         category_id=dish.category_id,
         description=dish.description,
         group=dish.group,
+        seller_name=seller.name_shop if seller else None,
         seller_address=seller.address if seller else None,
         seller_lat=seller.lat if seller else None,
         seller_lng=seller.lng if seller else None,

@@ -9,6 +9,7 @@ class Product {
   final int? sellerId;
   final int? categoryId;
   final String? description;
+  final String? sellerName;
   final String? sellerAddress;
   final double? sellerLat;
   final double? sellerLng;
@@ -21,6 +22,7 @@ class Product {
     this.sellerId,
     this.categoryId,
     this.description,
+    this.sellerName,
     this.sellerAddress,
     this.sellerLat,
     this.sellerLng,
@@ -35,6 +37,7 @@ class Product {
       sellerId: json['seller_id'] as int?,
       categoryId: json['category_id'] as int?,
       description: json['description'] as String?,
+      sellerName: json['seller_name'] as String?,
       sellerAddress: json['seller_address'] as String?,
       sellerLat: (json['seller_lat'] as num?)?.toDouble(),
       sellerLng: (json['seller_lng'] as num?)?.toDouble(),

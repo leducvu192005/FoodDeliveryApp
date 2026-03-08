@@ -185,7 +185,8 @@ class _OrderList extends StatelessWidget {
   }
 
   int? _estimatedDeliveryMinutes(Map<String, dynamic> order) {
-    final raw = order['estimated_delivery_minutes'] ?? order['estimated_minutes'];
+    final raw =
+        order['estimated_delivery_minutes'] ?? order['estimated_minutes'];
     if (raw is int) return raw > 0 ? raw : null;
     if (raw is num) return raw.toInt() > 0 ? raw.toInt() : null;
     if (raw is String) {

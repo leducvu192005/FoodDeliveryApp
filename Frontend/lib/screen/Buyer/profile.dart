@@ -58,10 +58,12 @@ class _ProfileState extends State<Profile> {
     }
 
     try {
-      final response = await http.get(
-        Uri.parse(ApiConfig.path('/profile/me')),
-        headers: await _authHeaders(),
-      ).timeout(_requestTimeout);
+      final response = await http
+          .get(
+            Uri.parse(ApiConfig.path('/profile/me')),
+            headers: await _authHeaders(),
+          )
+          .timeout(_requestTimeout);
 
       if (response.statusCode == 200) {
         _profile =
@@ -91,11 +93,13 @@ class _ProfileState extends State<Profile> {
     });
 
     try {
-      final response = await http.put(
-        Uri.parse(ApiConfig.path('/profile/me')),
-        headers: await _authHeaders(),
-        body: jsonEncode(payload),
-      ).timeout(_requestTimeout);
+      final response = await http
+          .put(
+            Uri.parse(ApiConfig.path('/profile/me')),
+            headers: await _authHeaders(),
+            body: jsonEncode(payload),
+          )
+          .timeout(_requestTimeout);
 
       if (!mounted) return false;
 
@@ -132,14 +136,16 @@ class _ProfileState extends State<Profile> {
     });
 
     try {
-      final response = await http.put(
-        Uri.parse(ApiConfig.path('/profile/me/password')),
-        headers: await _authHeaders(),
-        body: jsonEncode({
-          'current_password': currentPassword,
-          'new_password': newPassword,
-        }),
-      ).timeout(_requestTimeout);
+      final response = await http
+          .put(
+            Uri.parse(ApiConfig.path('/profile/me/password')),
+            headers: await _authHeaders(),
+            body: jsonEncode({
+              'current_password': currentPassword,
+              'new_password': newPassword,
+            }),
+          )
+          .timeout(_requestTimeout);
 
       if (!mounted) return false;
 
@@ -246,7 +252,7 @@ class _ProfileState extends State<Profile> {
     return Scaffold(
       backgroundColor: pageBg,
       appBar: AppBar(
-        backgroundColor: pageBg,
+        backgroundColor: accent,
         title: const Text('Tai khoan'),
         actions: [
           IconButton(

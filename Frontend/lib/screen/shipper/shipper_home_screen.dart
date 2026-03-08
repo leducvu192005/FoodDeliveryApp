@@ -285,7 +285,12 @@ class _ShipperHomeScreenState extends State<ShipperHomeScreen> {
       appBar: AppBar(
         toolbarHeight: 72,
         titleSpacing: 0,
-        title: const Text('Giao hang ngay nao!'),
+        title: const Text(
+          'Giao hàng ngay nào!',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+        backgroundColor: Colors.deepOrange,
       ),
       body: RefreshIndicator(
         onRefresh: _refreshAll,

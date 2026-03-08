@@ -20,6 +20,8 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sellerName = (product.sellerName ?? '').trim();
+
     return GestureDetector(
       onTap: onTap,
       child: Card(
@@ -41,7 +43,8 @@ class ProductCard extends StatelessWidget {
                   right: 8,
                   child: Consumer<FavoriteProvider>(
                     builder: (context, favoriteProvider, _) {
-                      final isFavorite = favoriteProvider.isFavorite(product.id);
+                      final isFavorite =
+                          favoriteProvider.isFavorite(product.id);
                       return GestureDetector(
                         onTap: () async {
                           try {
@@ -49,7 +52,9 @@ class ProductCard extends StatelessWidget {
                           } catch (e) {
                             if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Khong cap nhat duoc yeu thich: $e')),
+                              SnackBar(
+                                  content: Text(
+                                      'Khong cap nhat duoc yeu thich: $e')),
                             );
                           }
                         },
@@ -102,10 +107,27 @@ class ProductCard extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Text(
-                product.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (sellerName.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      sellerName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
             Padding(

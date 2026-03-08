@@ -94,7 +94,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ca nhan'),
+        title: const Text('Ca nhan',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        backgroundColor: Colors.deepOrange,
         actions: [
           IconButton(
             onPressed: _saving ? null : _reload,

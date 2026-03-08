@@ -53,7 +53,10 @@ class _EarningsScreenState extends State<EarningsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Thu nhập')),
+      appBar: AppBar(
+        title: const Text('Thu nhập'),
+        backgroundColor: Colors.deepOrange,
+      ),
       body: FutureBuilder<EarningsSummary>(
         future: _earningsFuture,
         builder: (context, snapshot) {

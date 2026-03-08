@@ -80,7 +80,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Lịch sử')),
+      appBar: AppBar(
+        title: const Text('Lịch sử'),
+        backgroundColor: Colors.deepOrange,
+      ),
       body: Column(
         children: [
           Padding(

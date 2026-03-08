@@ -48,7 +48,7 @@ class _FavoritesState extends State<Favorites> {
       backgroundColor: pageBg,
       appBar: AppBar(
         title: const Text('Yeu thich'),
-        backgroundColor: pageBg,
+        backgroundColor: accent,
       ),
       body: Consumer<FavoriteProvider>(
         builder: (context, favoriteProvider, _) => FutureBuilder<List<Product>>(
@@ -56,10 +56,13 @@ class _FavoritesState extends State<Favorites> {
           builder: (context, snapshot) {
             if (!favoriteProvider.isLoaded ||
                 snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: accent));
+              return const Center(
+                  child: CircularProgressIndicator(color: accent));
             }
             if (snapshot.hasError) {
-              return Center(child: Text('Khong tai duoc danh sach mon: ${snapshot.error}'));
+              return Center(
+                  child:
+                      Text('Khong tai duoc danh sach mon: ${snapshot.error}'));
             }
 
             final dishes = snapshot.data ?? [];
@@ -68,7 +71,8 @@ class _FavoritesState extends State<Favorites> {
                 .toList();
 
             if (favoriteDishes.isEmpty) {
-              return const Center(child: Text('Chua co mon nao trong yeu thich'));
+              return const Center(
+                  child: Text('Chua co mon nao trong yeu thich'));
             }
 
             return GridView.builder(
@@ -88,7 +92,8 @@ class _FavoritesState extends State<Favorites> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => DetailsScreen(product: product)),
+                      MaterialPageRoute(
+                          builder: (_) => DetailsScreen(product: product)),
                     );
                   },
                   child: Container(
@@ -110,8 +115,11 @@ class _FavoritesState extends State<Favorites> {
                           child: Stack(
                             children: [
                               ClipRRect(
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                                child: SizedBox(width: double.infinity, child: _buildImage(product)),
+                                borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(14)),
+                                child: SizedBox(
+                                    width: double.infinity,
+                                    child: _buildImage(product)),
                               ),
                               Positioned(
                                 right: 8,
@@ -119,11 +127,15 @@ class _FavoritesState extends State<Favorites> {
                                 child: InkWell(
                                   onTap: () async {
                                     try {
-                                      await favoriteProvider.toggleFavorite(product.id);
+                                      await favoriteProvider
+                                          .toggleFavorite(product.id);
                                     } catch (e) {
                                       if (!context.mounted) return;
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Khong cap nhat duoc yeu thich: $e')),
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                            content: Text(
+                                                'Khong cap nhat duoc yeu thich: $e')),
                                       );
                                     }
                                   },
