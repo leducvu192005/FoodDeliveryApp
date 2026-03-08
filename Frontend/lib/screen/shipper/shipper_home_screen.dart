@@ -288,7 +288,6 @@ class _ShipperHomeScreenState extends State<ShipperHomeScreen> {
         title: const Text(
           'Giao hàng ngay nào!',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
         ),
         backgroundColor: Colors.deepOrange,
       ),
