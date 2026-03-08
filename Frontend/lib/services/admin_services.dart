@@ -94,6 +94,30 @@ class AdminServices {
     throw Exception('Duyet ho so that bai: ${response.body}');
   }
 
+  static Future<List<Map<String, dynamic>>> getShipperForms() async {
+    final url = Uri.parse('$baseUrl/shipper-forms');
+    final response = await http.get(url, headers: await _authHeaders());
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    }
+    throw Exception('Khong lay duoc danh sach ho so shipper: ${response.body}');
+  }
+
+  static Future<Map<String, dynamic>> reviewShipperForm(
+      int formId, String status) async {
+    final url = Uri.parse('$baseUrl/shipper-forms/$formId/review');
+    final response = await http.patch(
+      url,
+      headers: await _authHeaders(),
+      body: jsonEncode({'status': status}),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Duyet ho so shipper that bai: ${response.body}');
+  }
+
   static Future<List<Map<String, dynamic>>> getPendingUsers(String type) async {
     final url = Uri.parse('$baseUrl/pending-users?type=$type');
     final response = await http.get(url, headers: await _authHeaders());

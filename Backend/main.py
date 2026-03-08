@@ -20,6 +20,7 @@ from routers.shipper_router import (
     ws_router as shipper_ws_router,
 )
 from routers.form_seller_router import router as form_seller_router
+from routers.form_shipper_router import router as form_shipper_router
 from routers.admin_router import router as admin_router
 from setup_shipper_tables import setup_shipper_tables
 from setup_favorites_table import setup_favorites_table
@@ -47,6 +48,7 @@ app.include_router(shipper_ws_router)
 app.include_router(payment_router, prefix="/api/payment", tags=["Payment"])
 app.include_router(sepay_router, prefix="/api/sepay", tags=["Sepay Payment"])
 app.include_router(form_seller_router)
+app.include_router(form_shipper_router)
 app.include_router(admin_router)
 
 @app.get("/")

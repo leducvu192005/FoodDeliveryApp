@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -5,11 +6,13 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 
 class ShipperApiClient {
+  static const Duration _requestTimeout = Duration(seconds: 15);
+
   Future<dynamic> get(String path, {String? token}) async {
     final res = await http.get(
       Uri.parse(ApiConfig.path(path)),
       headers: _headers(token),
-    );
+    ).timeout(_requestTimeout);
     return _handleResponse(res);
   }
 
@@ -19,7 +22,7 @@ class ShipperApiClient {
       Uri.parse(ApiConfig.path(path)),
       headers: _headers(token),
       body: jsonEncode(body ?? {}),
-    );
+    ).timeout(_requestTimeout);
     return _handleResponse(res);
   }
 
@@ -29,7 +32,7 @@ class ShipperApiClient {
       Uri.parse(ApiConfig.path(path)),
       headers: _headers(token),
       body: jsonEncode(body ?? {}),
-    );
+    ).timeout(_requestTimeout);
     return _handleResponse(res);
   }
 
@@ -42,8 +45,9 @@ class ShipperApiClient {
 
   dynamic _handleResponse(http.Response res) {
     dynamic payload;
-    if (res.body.isNotEmpty) {
-      payload = jsonDecode(res.body);
+    final body = utf8.decode(res.bodyBytes);
+    if (body.isNotEmpty) {
+      payload = jsonDecode(body);
     }
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -53,8 +57,8 @@ class ShipperApiClient {
     String message = 'Request failed (${res.statusCode})';
     if (payload is Map<String, dynamic> && payload['detail'] != null) {
       message = payload['detail'].toString();
-    } else if (res.body.isNotEmpty) {
-      message = res.body;
+    } else if (body.isNotEmpty) {
+      message = body;
     }
     throw Exception(message);
   }

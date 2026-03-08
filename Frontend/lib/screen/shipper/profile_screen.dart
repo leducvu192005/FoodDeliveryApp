@@ -30,7 +30,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _profileFuture = widget.orderService.getShipperProfile();
     });
-    await _profileFuture;
+    try {
+      await _profileFuture;
+    } catch (error) {
+      _showSnack(error.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
   Future<void> _logout() async {

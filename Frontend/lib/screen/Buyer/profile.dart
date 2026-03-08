@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../../config/api_config.dart';
 import '../../services/auth_services.dart';
 import 'form_seller.dart';
+import 'form_shipper.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -15,6 +17,8 @@ class Profile extends StatefulWidget {
 }
 
 class _ProfileState extends State<Profile> {
+  static const Duration _requestTimeout = Duration(seconds: 15);
+
   Map<String, dynamic>? _profile;
   bool _loading = true;
   bool _saving = false;
@@ -45,15 +49,17 @@ class _ProfileState extends State<Profile> {
   }
 
   Future<void> _loadProfile() async {
-    setState(() {
-      _loading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _loading = true;
+      });
+    }
 
     try {
       final response = await http.get(
         Uri.parse(ApiConfig.path('/profile/me')),
         headers: await _authHeaders(),
-      );
+      ).timeout(_requestTimeout);
 
       if (response.statusCode == 200) {
         _profile =
@@ -61,6 +67,9 @@ class _ProfileState extends State<Profile> {
       } else {
         _profile = null;
       }
+    } on TimeoutException {
+      _profile = null;
+      _showMessage('Ket noi qua lau. Vui long thu lai.');
     } catch (_) {
       _profile = null;
     } finally {
@@ -84,16 +93,19 @@ class _ProfileState extends State<Profile> {
         Uri.parse(ApiConfig.path('/profile/me')),
         headers: await _authHeaders(),
         body: jsonEncode(payload),
-      );
+      ).timeout(_requestTimeout);
 
       if (!mounted) return false;
 
       if (response.statusCode == 200) {
-        await _loadProfile(); // reload profile
+        await _loadProfile();
         return true;
       }
 
       _showMessage('Khong the cap nhat: ${utf8.decode(response.bodyBytes)}');
+      return false;
+    } on TimeoutException {
+      _showMessage('Luu thong tin qua lau. Vui long thu lai.');
       return false;
     } catch (e) {
       _showMessage('Loi cap nhat: $e');
@@ -125,7 +137,7 @@ class _ProfileState extends State<Profile> {
           'current_password': currentPassword,
           'new_password': newPassword,
         }),
-      );
+      ).timeout(_requestTimeout);
 
       if (!mounted) return false;
 
@@ -135,6 +147,9 @@ class _ProfileState extends State<Profile> {
 
       _showMessage(
           'Khong the cap nhat mat khau: ${utf8.decode(response.bodyBytes)}');
+      return false;
+    } on TimeoutException {
+      _showMessage('Luu mat khau qua lau. Vui long thu lai.');
       return false;
     } catch (e) {
       _showMessage('Loi cap nhat mat khau: $e');
@@ -470,6 +485,21 @@ class _ProfileState extends State<Profile> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => const FormSeller(),
+                            ),
+                          );
+                        },
+                ),
+                _ActionCard(
+                  icon: Icons.delivery_dining_outlined,
+                  title: 'Tro thanh Shipper',
+                  subtitle: 'Dang ky giao hang tren ung dung',
+                  onTap: _saving
+                      ? () {}
+                      : () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const FormShipper(),
                             ),
                           );
                         },

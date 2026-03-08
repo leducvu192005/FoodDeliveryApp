@@ -157,12 +157,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Expanded(
                                 child: Text(
                                   'Welcome to Food Delivery',
-                                  style: TextStyle(fontSize: 22),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                  ),
                                 ),
                               ),
                             ],
@@ -172,6 +175,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             size: 100,
                             color: Colors.deepOrange,
                           ),
+                          const SizedBox(height: 10),
                           TextField(
                             controller: emailCtrl,
                             decoration: const InputDecoration(
@@ -188,7 +192,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             obscureText: true,
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            child: TextButton(
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.deepOrange,
+                                alignment: Alignment.centerLeft,
+                              ),
+                              onPressed: () => Navigator.pushNamed(
+                                  context, '/forgot-password'),
+                              child: const Text('Quen mat khau?'),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
                           ElevatedButton(
                             onPressed: loading ? null : login,
                             child: loading
@@ -205,12 +221,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Navigator.pushNamed(context, '/register'),
                             child: const Text('Dang ky'),
                           ),
-                          TextButton(
-                            onPressed: () => Navigator.pushNamed(
-                                context, '/forgot-password'),
-                            child: const Text('Quen mat khau?'),
-                          ),
-                          const SizedBox(height: 8),
                         ],
                       ),
                     ),

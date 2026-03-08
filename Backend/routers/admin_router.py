@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from database import get_db
-from models import User, Order, Payment, Dish, Shipper, FormSeller
+from models import User, Order, Payment, Dish, Shipper, FormSeller, FormShipper
 from dependencies import require_role
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -192,6 +192,77 @@ def review_seller_form(
         if user:
             user.role = "seller"
             user.address = form.address
+
+    db.commit()
+    return {"id": form.id, "status": form.status}
+
+
+@router.get("/shipper-forms")
+def get_shipper_forms(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_role("admin")),
+):
+    forms = db.query(FormShipper).order_by(FormShipper.id.desc()).all()
+    return [
+        {
+            "id": f.id,
+            "user_id": f.user_id,
+            "name": f.name,
+            "phone": f.phone,
+            "email": f.email,
+            "cccd": f.cccd,
+            "vehicle_registration": f.vehicle_registration,
+            "license": f.license,
+            "status": f.status,
+            "created_at": str(f.created_at) if f.created_at else None,
+        }
+        for f in forms
+    ]
+
+
+@router.patch("/shipper-forms/{form_id}/review")
+def review_shipper_form(
+    form_id: int,
+    body: ReviewFormRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_role("admin")),
+):
+    new_status = body.status.strip().lower()
+    if new_status not in {"yes", "no"}:
+        raise HTTPException(status_code=400, detail="Status khong hop le")
+
+    form = db.query(FormShipper).filter(FormShipper.id == form_id).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Khong tim thay don dang ky")
+
+    form.status = new_status
+
+    user = db.query(User).filter(User.id == form.user_id).first()
+    if user:
+        user.full_name = form.name
+        user.sdt = form.phone
+        user.cccd = int(form.cccd) if form.cccd.isdigit() else user.cccd
+        user.vehicle_registration = (
+            int(form.vehicle_registration)
+            if form.vehicle_registration.isdigit()
+            else user.vehicle_registration
+        )
+        user.license = int(form.license) if form.license.isdigit() else user.license
+        if new_status == "yes":
+            user.role = "shipper"
+            user.status = "yes"
+            existing = db.query(Shipper).filter(Shipper.user_id == user.id).first()
+            if not existing:
+                db.add(
+                    Shipper(
+                        user_id=user.id,
+                        full_name=form.name,
+                        phone=form.phone,
+                        verhice_type="motorbike",
+                        is_online=False,
+                        rating=5.0,
+                    )
+                )
 
     db.commit()
     return {"id": form.id, "status": form.status}

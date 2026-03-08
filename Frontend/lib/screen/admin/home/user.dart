@@ -440,7 +440,9 @@ class _PendingUserReviewScreenState extends State<_PendingUserReviewScreen> {
   Future<void> _loadPendingUsers() async {
     setState(() => _loading = true);
     try {
-      final users = await AdminServices.getPendingUsers(widget.type);
+      final users = widget.type == 'seller'
+          ? await AdminServices.getSellerForms()
+          : await AdminServices.getShipperForms();
       if (mounted) setState(() => _users = users);
     } catch (e) {
       if (mounted) {
@@ -455,7 +457,11 @@ class _PendingUserReviewScreenState extends State<_PendingUserReviewScreen> {
 
   Future<void> _review(int userId, String status) async {
     try {
-      await AdminServices.reviewPendingUser(userId, status);
+      if (widget.type == 'seller') {
+        await AdminServices.reviewSellerForm(userId, status);
+      } else {
+        await AdminServices.reviewShipperForm(userId, status);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -533,7 +539,7 @@ class _PendingUserCard extends StatelessWidget {
     final headerColor = isSeller ? const Color(0xFFE67E22) : Colors.purple;
     final headerText = isSeller
         ? (user['name_shop'] ?? 'Seller')
-        : (user['full_name'] ?? 'Shipper');
+        : (user['name'] ?? 'Shipper');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -576,15 +582,17 @@ class _PendingUserCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            _infoRow(Icons.person_outline, 'Ho ten', user['full_name'] ?? ''),
+            _infoRow(Icons.person_outline, 'Ho ten',
+                (user['full_name'] ?? user['name'] ?? '').toString()),
             _infoRow(Icons.email_outlined, 'Email', user['email'] ?? ''),
-            _infoRow(Icons.phone_outlined, 'SDT', user['sdt'] ?? ''),
+            _infoRow(Icons.phone_outlined, 'SDT',
+                (user['sdt'] ?? user['phone'] ?? '').toString()),
             _infoRow(Icons.badge_outlined, 'CCCD', user['cccd'] ?? ''),
             if (isSeller) ...[
               _infoRow(Icons.storefront_outlined, 'Ten quan',
                   user['name_shop'] ?? ''),
               _infoRow(Icons.location_on_outlined, 'Dia chi',
-                  user['address_shop'] ?? ''),
+                  (user['address_shop'] ?? user['address'] ?? '').toString()),
             ],
             if (!isSeller) ...[
               _infoRow(Icons.directions_car_outlined, 'Dang ky xe',

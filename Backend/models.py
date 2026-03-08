@@ -268,3 +268,18 @@ class FormSeller(Base):
     address = Column(Text, nullable=False)
     status = Column(String(20), default="pending")
     created_at = Column(Datetime, server_default=func.now())
+
+
+class FormShipper(Base):
+    __tablename__ = "form_shipper"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    phone = Column(String(20), nullable=False)
+    email = Column(String(255), nullable=True)
+    cccd = Column(String(20), nullable=False)
+    vehicle_registration = Column(String(50), nullable=False)
+    license = Column(String(50), nullable=False)
+    status = Column(String(20), default="pending")
+    created_at = Column(Datetime, server_default=func.now())
