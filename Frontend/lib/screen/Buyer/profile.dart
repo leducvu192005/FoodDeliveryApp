@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 
 import '../../config/api_config.dart';
 import '../../services/auth_services.dart';
+import 'change_password_screen.dart';
+import 'edit_profile_screen.dart';
 import 'form_seller.dart';
 import 'form_shipper.dart';
 
@@ -163,186 +165,60 @@ class _ProfileState extends State<Profile> {
     }
   }
 
-  Future<String?> _showEditFieldDialog({
-    required String title,
-    required String label,
-    required String initialValue,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-    int maxLines = 1,
-  }) async {
-    final controller = TextEditingController(text: initialValue);
+  Future<void> _openEditProfileScreen() async {
+    final profile = _profile;
+    if (profile == null || _saving) return;
 
-    final result = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: SingleChildScrollView(
-          child: TextField(
-            controller: controller,
-            keyboardType: keyboardType,
-            maxLines: maxLines,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: label,
-              prefixIcon: Icon(icon),
-              border: const OutlineInputBorder(),
-            ),
-          ),
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BuyerEditProfileScreen(
+          initialName: (profile['name'] ?? '').toString(),
+          initialPhone: (profile['sdt'] ?? '').toString(),
+          initialAddress: (profile['live'] ?? '').toString(),
+          onSave: ({
+            required String name,
+            required String phone,
+            required String address,
+          }) async {
+            return _updateProfileField({
+              'name': name,
+              'sdt': phone,
+              'live': address,
+            });
+          },
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Huy'),
-          ),
-          ElevatedButton(
-            onPressed: () =>
-                Navigator.of(dialogContext).pop(controller.text.trim()),
-            child: const Text('Luu'),
-          ),
-        ],
       ),
     );
 
-    controller.dispose();
-    return result;
+    if (saved == true) {
+      _showMessage('Cap nhat thong tin ca nhan thanh cong');
+    }
   }
 
-  Future<_PasswordPayload?> _showChangePasswordDialog() async {
-    final currentController = TextEditingController();
-    final newController = TextEditingController();
-    final confirmController = TextEditingController();
+  Future<void> _openChangePasswordScreen() async {
+    if (_saving) return;
 
-    final result = await showDialog<_PasswordPayload>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Cap nhat mat khau'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: currentController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Mat khau hien tai',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: newController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Mat khau moi',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: confirmController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Nhap lai mat khau moi',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BuyerChangePasswordScreen(
+          onSave: ({
+            required String currentPassword,
+            required String newPassword,
+          }) async {
+            return _updatePassword(
+              currentPassword: currentPassword,
+              newPassword: newPassword,
+            );
+          },
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Huy'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop(
-                _PasswordPayload(
-                  currentPassword: currentController.text.trim(),
-                  newPassword: newController.text.trim(),
-                  confirmPassword: confirmController.text.trim(),
-                ),
-              );
-            },
-            child: const Text('Luu'),
-          ),
-        ],
       ),
     );
 
-    currentController.dispose();
-    newController.dispose();
-    confirmController.dispose();
-    return result;
-  }
-
-  Future<void> _handleUpdateName() async {
-    final value = await _showEditFieldDialog(
-      title: 'Cap nhat ten',
-      label: 'Ten',
-      initialValue: (_profile?['name'] ?? '').toString(),
-      icon: Icons.person_outline_rounded,
-    );
-    if (value == null) return;
-    if (value.isEmpty) {
-      _showMessage('Ten khong duoc de trong');
-      return;
+    if (saved == true) {
+      _showMessage('Cap nhat mat khau thanh cong');
     }
-    final ok = await _updateProfileField({'name': value});
-    if (ok) _showMessage('Cap nhat ten thanh cong');
-  }
-
-  Future<void> _handleUpdatePhone() async {
-    final value = await _showEditFieldDialog(
-      title: 'Cap nhat so dien thoai',
-      label: 'So dien thoai',
-      initialValue: (_profile?['sdt'] ?? '').toString(),
-      icon: Icons.phone_outlined,
-      keyboardType: TextInputType.phone,
-    );
-    if (value == null) return;
-    if (value.isEmpty) {
-      _showMessage('So dien thoai khong duoc de trong');
-      return;
-    }
-    final ok = await _updateProfileField({'sdt': value});
-    if (ok) _showMessage('Cap nhat so dien thoai thanh cong');
-  }
-
-  Future<void> _handleUpdateAddress() async {
-    final value = await _showEditFieldDialog(
-      title: 'Cap nhat dia chi',
-      label: 'Dia chi giao hang',
-      initialValue: (_profile?['live'] ?? '').toString(),
-      icon: Icons.location_on_outlined,
-      maxLines: 2,
-    );
-    if (value == null) return;
-    final ok = await _updateProfileField({'live': value});
-    if (ok) _showMessage('Cap nhat dia chi thanh cong');
-  }
-
-  Future<void> _handleUpdatePassword() async {
-    final payload = await _showChangePasswordDialog();
-    if (payload == null) return;
-
-    if (payload.currentPassword.isEmpty ||
-        payload.newPassword.isEmpty ||
-        payload.confirmPassword.isEmpty) {
-      _showMessage('Vui long nhap day du thong tin');
-      return;
-    }
-    if (payload.newPassword != payload.confirmPassword) {
-      _showMessage('Mat khau moi khong khop');
-      return;
-    }
-
-    final ok = await _updatePassword(
-      currentPassword: payload.currentPassword,
-      newPassword: payload.newPassword,
-    );
-    if (ok) _showMessage('Cap nhat mat khau thanh cong');
   }
 
   Future<void> _logout() async {
@@ -435,32 +311,12 @@ class _ProfileState extends State<Profile> {
                 const SizedBox(height: 14),
                 _ActionCard(
                   icon: Icons.edit_outlined,
-                  title: 'Cap nhat ten',
-                  subtitle: displayName,
+                  title: 'Sua thong tin ca nhan',
+                  subtitle: 'Cap nhat ten, so dien thoai, dia chi',
                   onTap: _saving
                       ? () {}
                       : () {
-                          _handleUpdateName();
-                        },
-                ),
-                _ActionCard(
-                  icon: Icons.phone_outlined,
-                  title: 'Cap nhat so dien thoai',
-                  subtitle: displayPhone,
-                  onTap: _saving
-                      ? () {}
-                      : () {
-                          _handleUpdatePhone();
-                        },
-                ),
-                _ActionCard(
-                  icon: Icons.location_on_outlined,
-                  title: 'Cap nhat dia chi',
-                  subtitle: displayAddress,
-                  onTap: _saving
-                      ? () {}
-                      : () {
-                          _handleUpdateAddress();
+                          _openEditProfileScreen();
                         },
                 ),
                 _ActionCard(
@@ -470,7 +326,7 @@ class _ProfileState extends State<Profile> {
                   onTap: _saving
                       ? () {}
                       : () {
-                          _handleUpdatePassword();
+                          _openChangePasswordScreen();
                         },
                 ),
                 const SizedBox(height: 20),
@@ -554,16 +410,4 @@ class _ActionCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _PasswordPayload {
-  final String currentPassword;
-  final String newPassword;
-  final String confirmPassword;
-
-  const _PasswordPayload({
-    required this.currentPassword,
-    required this.newPassword,
-    required this.confirmPassword,
-  });
 }

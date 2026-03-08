@@ -181,7 +181,7 @@ class OrderService {
     String? phone,
     String? address,
   }) async {
-    final data = await _apiClient.put(
+    await _apiClient.put(
       '/shipper/profile',
       token: await _requireToken(),
       body: <String, dynamic>{
@@ -190,18 +190,7 @@ class OrderService {
         if (address != null) 'address': address,
       },
     );
-    final payload = data as Map<String, dynamic>;
-    return ShipperProfileModel(
-      id: (payload['shipper_id'] ?? '').toString(),
-      fullName: (payload['name'] ?? '').toString(),
-      email: (payload['email'] ?? '').toString(),
-      phone: (payload['phone'] ?? '').toString(),
-      address: (payload['address'] ?? '').toString(),
-      rating: _toDouble(payload['rating']),
-      isOnline: payload['is_online'] == true,
-      completedOrders: _toInt(payload['completed_orders']),
-      completionRate: _toDouble(payload['completion_rate']),
-    );
+    return getShipperProfile();
   }
 
   Future<List<OrderModel>> getCompletedOrders({

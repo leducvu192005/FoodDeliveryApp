@@ -378,7 +378,7 @@ def _to_shipper_profile_payload(
         "name": shipper.full_name or user.full_name or "",
         "email": user.email or "",
         "phone": shipper.phone or user.sdt or "",
-        "address": profile.live if profile and profile.live else "",
+        "address": (user.address or profile.live or "").strip() if profile else (user.address or "").strip(),
         "avatar": shipper.avatar or (profile.img if profile else None),
         "vehicle_type": shipper.verhice_type,
         "license_plate": shipper.license_plate or "",

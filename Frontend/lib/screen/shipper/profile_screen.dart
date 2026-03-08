@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/order_model.dart';
+import 'package:flutter_application_1/screen/shipper/edit_profile_screen.dart';
 import 'package:flutter_application_1/services/order_service.dart';
 import 'package:flutter_application_1/widgets/stat_card.dart';
 import '../../services/auth_services.dart';
@@ -19,6 +20,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late Future<ShipperProfileModel> _profileFuture;
   bool _saving = false;
+  bool _redirectingToLogin = false;
 
   @override
   void initState() {
@@ -32,7 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
     try {
       await _profileFuture;
-    } catch (error) {
+    } catch (error, _) {
       _showSnack(error.toString().replaceFirst('Exception: ', ''));
     }
   }
@@ -53,49 +55,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
-  Future<String?> _showEditFieldDialog({
-    required String title,
-    required String label,
-    required String initialValue,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-    int maxLines = 1,
-  }) async {
-    final controller = TextEditingController(text: initialValue);
-
-    final result = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          maxLines: maxLines,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: label,
-            prefixIcon: Icon(icon),
-            border: const OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Huy'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.of(dialogContext).pop(controller.text.trim()),
-            child: const Text('Luu'),
-          ),
-        ],
-      ),
-    );
-
-    controller.dispose();
-    return result;
-  }
-
   void _showSnack(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -103,139 +62,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _saveProfile({
-    required String successMessage,
-    required Future<ShipperProfileModel> Function() action,
-  }) async {
-    if (_saving) return;
-
-    setState(() {
-      _saving = true;
-    });
-
-    try {
-      final updatedProfile = await action();
+  void _redirectToLoginIfNeeded() {
+    if (!mounted || _redirectingToLogin) return;
+    _redirectingToLogin = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      setState(() {
-        _profileFuture = Future<ShipperProfileModel>.value(updatedProfile);
-      });
-      _showSnack(successMessage);
-    } catch (error) {
-      _showSnack(error.toString().replaceFirst('Exception: ', ''));
-    } finally {
-      if (mounted) {
-        setState(() {
-          _saving = false;
-        });
-      }
-    }
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+    });
   }
 
-  Future<void> _editName(ShipperProfileModel profile) async {
-    final value = await _showEditFieldDialog(
-      title: 'Cap nhat ten',
-      label: 'Ho va ten',
-      initialValue: profile.fullName,
-      icon: Icons.person_outline_rounded,
+  Future<void> _openEditProfileScreen(ShipperProfileModel profile) async {
+    final updatedProfile =
+        await Navigator.of(context).push<ShipperProfileModel>(
+      MaterialPageRoute(
+        builder: (_) => EditShipperProfileScreen(
+          orderService: widget.orderService,
+          initialProfile: profile,
+        ),
+      ),
     );
-    if (value == null) return;
-    if (value.isEmpty) {
-      _showSnack('Ten khong duoc de trong');
-      return;
-    }
-
-    await _saveProfile(
-      successMessage: 'Cap nhat ten thanh cong',
-      action: () => widget.orderService.updateShipperProfile(fullName: value),
-    );
-  }
-
-  Future<void> _editPhone(ShipperProfileModel profile) async {
-    final value = await _showEditFieldDialog(
-      title: 'Cap nhat so dien thoai',
-      label: 'So dien thoai',
-      initialValue: profile.phone,
-      icon: Icons.phone_outlined,
-      keyboardType: TextInputType.phone,
-    );
-    if (value == null) return;
-    if (value.isEmpty) {
-      _showSnack('So dien thoai khong duoc de trong');
-      return;
-    }
-
-    await _saveProfile(
-      successMessage: 'Cap nhat so dien thoai thanh cong',
-      action: () => widget.orderService.updateShipperProfile(phone: value),
-    );
-  }
-
-  Future<void> _editAddress(ShipperProfileModel profile) async {
-    final value = await _showEditFieldDialog(
-      title: 'Cap nhat dia chi',
-      label: 'Dia chi',
-      initialValue: profile.address,
-      icon: Icons.location_on_outlined,
-      maxLines: 2,
-    );
-    if (value == null) return;
-
-    await _saveProfile(
-      successMessage: 'Cap nhat dia chi thanh cong',
-      action: () => widget.orderService.updateShipperProfile(address: value),
-    );
-  }
-
-  Future<void> _showEditProfileBottomSheet(ShipperProfileModel profile) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _SheetActionTile(
-                  icon: Icons.person_outline_rounded,
-                  title: 'Sua ten',
-                  subtitle: profile.fullName.trim().isEmpty
-                      ? 'Chua cap nhat ten'
-                      : profile.fullName,
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    _editName(profile);
-                  },
-                ),
-                _SheetActionTile(
-                  icon: Icons.phone_outlined,
-                  title: 'Sua so dien thoai',
-                  subtitle: profile.phone.trim().isEmpty
-                      ? 'Chua cap nhat so dien thoai'
-                      : profile.phone,
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    _editPhone(profile);
-                  },
-                ),
-                _SheetActionTile(
-                  icon: Icons.location_on_outlined,
-                  title: 'Sua dia chi',
-                  subtitle: profile.address.trim().isEmpty
-                      ? 'Chua cap nhat dia chi'
-                      : profile.address,
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    _editAddress(profile);
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    if (!mounted || updatedProfile == null) return;
+    setState(() {
+      _profileFuture = Future<ShipperProfileModel>.value(updatedProfile);
+    });
+    _showSnack('Cap nhat thong tin ca nhan thanh cong');
   }
 
   @override
@@ -261,10 +111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           if (snapshot.hasError) {
             if (snapshot.error.toString().contains("Vui long dang nhap lai")) {
-              Future.microtask(() {
-                Navigator.pushNamedAndRemoveUntil(
-                    context, '/login', (route) => false);
-              });
+              _redirectToLoginIfNeeded();
             }
 
             return const Center(child: Text("Session expired"));
@@ -289,17 +136,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Text(
-                          displayName,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
+                        CircleAvatar(
+                          radius: 28,
+                          backgroundColor: const Color(0xFFFFE4BF),
+                          child: Icon(
+                            Icons.person_rounded,
+                            color: Colors.orange.shade800,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text('Rating: ${profile.rating.toStringAsFixed(1)}'),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                displayName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                displayPhone,
+                                style: const TextStyle(color: Colors.black54),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                displayAddress,
+                                style: const TextStyle(color: Colors.black45),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -329,10 +200,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _EditableInfoCard(
                   icon: Icons.badge_outlined,
                   title: 'Thong tin ca nhan',
-                  subtitle: 'Nhan vao de sua ten, so dien thoai, dia chi',
-                  onTap: _saving
-                      ? null
-                      : () => _showEditProfileBottomSheet(profile),
+                  subtitle: 'Nhan vao de mo man hinh chinh sua thong tin',
+                  onTap: _saving ? null : () => _openEditProfileScreen(profile),
                 ),
                 const SizedBox(height: 10),
                 Card(
@@ -444,37 +313,6 @@ class _EditableInfoCard extends StatelessWidget {
         ),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.chevron_right_rounded),
-      ),
-    );
-  }
-}
-
-class _SheetActionTile extends StatelessWidget {
-  const _SheetActionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: ListTile(
-          onTap: onTap,
-          leading: Icon(icon),
-          title: Text(title),
-          subtitle: Text(subtitle),
-          trailing: const Icon(Icons.edit_outlined),
-        ),
       ),
     );
   }
