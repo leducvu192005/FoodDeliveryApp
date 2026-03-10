@@ -1,11 +1,9 @@
-import os
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
 from database import get_db
-from models import CartItem, Dish, Order, OrderItem, Payment, PendingStripeCheckout, Profile, User
+from models import CartItem, DiscountCode, Dish, Order, OrderItem, Payment, Profile, Seller, User
 from services.distance_service import (
     calculate_delivery_fee,
     calculate_distance_km,
@@ -81,11 +79,17 @@ def get_user_orders(
             .first()
         )
 
+        total = order.total_price or 0
+        shipper_collect = 0.0 if (order.payment_method or '').lower() == 'sepay' else total
+
         result.append({
             "id": order.id,
             "status": order.status,
             "payment_method": order.payment_method,
-            "total_price": order.total_price,
+            "total_price": total,
+            "delivery_fee": order.delivery_fee or 0,
+            "discount_amount": order.discount_amount or 0,
+            "shipper_collect": shipper_collect,
             "delivery_address": order.delivery_address,
             "estimated_delivery_minutes": order.estimated_delivery_minutes,
             "created_at": order.created_at,
@@ -145,6 +149,8 @@ def get_seller_orders(
             "delivery_address": order.delivery_address,
             "pickup_address": order.pickup_address,
             "total_price": order.total_price,
+            "delivery_fee": order.delivery_fee or 0,
+            "discount_amount": order.discount_amount or 0,
             "created_at": order.created_at,
             "items": [
                 {
@@ -160,16 +166,35 @@ def get_seller_orders(
     return result
 
 
-@router.get("/items", response_model=List[CartItemResponse])
+@router.get("/items")
 def get_cart_items(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
-    return (
+    cart_items = (
         db.query(CartItem)
         .filter(CartItem.user_id == user.id)
         .all()
     )
+    result = []
+    for ci in cart_items:
+        dish = ci.dish
+        seller = dish.seller if dish else None
+        result.append({
+            "id": ci.id,
+            "dish_id": ci.dish_id,
+            "quantity": ci.quantity,
+            "dish": {
+                "id": dish.id,
+                "name": dish.name,
+                "price": dish.price,
+                "img": dish.img,
+            } if dish else None,
+            "seller_lat": seller.lat if seller else None,
+            "seller_lng": seller.lng if seller else None,
+            "seller_id": dish.seller_id if dish else None,
+        })
+    return result
 
 @router.post("/add", response_model=list[CartItemResponse])
 def add_to_cart(
@@ -258,7 +283,7 @@ def checkout_cart(
     user: User = Depends(get_current_user),
 ):
     payment_method = (request.method or "").strip().lower()
-    if payment_method not in {"cod", "sepay", "stripe"}:
+    if payment_method not in {"cod", "sepay"}:
         raise HTTPException(status_code=400, detail="Phuong thuc thanh toan khong hop le")
 
     cart_items = (
@@ -269,6 +294,14 @@ def checkout_cart(
 
     if not cart_items:
         raise HTTPException(status_code=400, detail="Gio hang trong")
+
+    # Kiểm tra seller có đang mở quán không
+    first_dish = db.query(Dish).filter(Dish.id == cart_items[0].dish_id).first()
+    seller_id = first_dish.seller_id if first_dish else None
+    if seller_id:
+        seller_record = db.query(Seller).filter(Seller.user_id == seller_id).first()
+        if seller_record and seller_record.status != "on":
+            raise HTTPException(status_code=400, detail="Quan hien dang dong cua. Vui long quay lai sau.")
 
     total_amount = sum(
         (item.dish.price or 0) * item.quantity
@@ -313,69 +346,36 @@ def checkout_cart(
     estimated_delivery_minutes = estimate_delivery_time(distance_km)
     delivery_fee = calculate_delivery_fee(distance_km)
 
+    # Tính discount nếu có mã giảm giá
+    discount_amount = 0.0
+    if request.discount_code:
+        dc = db.query(DiscountCode).filter(
+            DiscountCode.code == request.discount_code,
+            DiscountCode.active == True,
+        ).first()
+        if dc and (dc.seller_id is None or dc.seller_id == seller_id):
+            if dc.discount_type == "percent":
+                discount_amount = total_amount * (float(dc.discount_value) / 100.0)
+            else:
+                discount_amount = float(dc.discount_value)
+            discount_amount = min(discount_amount, total_amount + delivery_fee)
+
     # Lấy seller_id từ món đầu tiên trong giỏ hàng
     first_dish = db.query(Dish).filter(Dish.id == cart_items[0].dish_id).first()
     seller_id = first_dish.seller_id if first_dish else None
 
-    # --- Stripe: tạo PendingStripeCheckout thay vì Order ngay ---
-    if payment_method == "stripe":
-        import stripe as stripe_lib
-        stripe_lib.api_key = os.getenv("STRIPE_API_KEY", "test")
-
-        cart_snapshot = [
-            {
-                "dish_id": item.dish_id,
-                "dish_name": item.dish.name,
-                "dish_image": item.dish.img,
-                "dish_price": item.dish.price,
-                "quantity": item.quantity,
-            }
-            for item in cart_items
-        ]
-
-        pending = PendingStripeCheckout(
-            user_id=user.id,
-            total_price=total_amount,
-            delivery_fee=delivery_fee,
-            distance_km=distance_km,
-            pickup_address=pickup_address,
-            pickup_lat=pickup_lat,
-            pickup_lng=pickup_lng,
-            delivery_address=delivery_address,
-            delivery_lat=delivery_lat,
-            delivery_lng=delivery_lng,
-            estimated_delivery_minutes=estimated_delivery_minutes,
-            seller_id=seller_id,
-            cart_snapshot=cart_snapshot,
-            status="pending",
-        )
-        db.add(pending)
-        db.flush()
-
-        intent = stripe_lib.PaymentIntent.create(
-            amount=int(total_amount * 100),
-            currency="usd",
-            metadata={
-                "pending_checkout_id": str(pending.id),
-            },
-        )
-        pending.payment_intent_id = intent["id"]
-        pending.client_secret = intent["client_secret"]
-        db.commit()
-
-        return {
-            "checkout_id": pending.id,
-            "client_secret": intent["client_secret"],
-            "total_amount": total_amount,
-            "payment_method": "stripe",
-        }
+    # Tổng tiền thực tế khách phải trả = giá món + phí ship - giảm giá
+    actual_total = total_amount + delivery_fee - discount_amount
+    if actual_total < 0:
+        actual_total = 0
 
     # 1️⃣ Tạo Order
     order = Order(
         user_id=user.id,
         seller_id=seller_id,
-        total_price=total_amount,
+        total_price=actual_total,
         delivery_fee=delivery_fee,
+        discount_amount=discount_amount,
         distance_km=distance_km,
         pickup_address=pickup_address,
         pickup_lat=pickup_lat,
@@ -386,6 +386,7 @@ def checkout_cart(
         estimated_delivery_minutes=estimated_delivery_minutes,
         status="pending",
         payment_method=payment_method,
+        note=request.note,
     )
     db.add(order)
     db.flush()
@@ -402,16 +403,19 @@ def checkout_cart(
         )
         db.add(order_item)
 
-    db.add(
-        Payment(
-            order_id=order.id,
-            amount=total_amount,
-            method=payment_method,
-            status="pending",
+    # SePay: không tạo Payment và không xóa giỏ hàng ở đây
+    # SePay /create sẽ tạo Payment, webhook sẽ xóa giỏ hàng khi thanh toán thành công
+    if payment_method != "sepay":
+        db.add(
+            Payment(
+                order_id=order.id,
+                amount=actual_total,
+                method=payment_method,
+                status="pending",
+            )
         )
-    )
-    for item in cart_items:
-        db.delete(item)
+        for item in cart_items:
+            db.delete(item)
 
     db.commit()
 
@@ -419,9 +423,9 @@ def checkout_cart(
     # Giỏ hàng chỉ được cập nhật sau khi payment thành công (webhook).
     return {
         "order_id": order.id,
-        "total_price": total_amount,
+        "total_price": actual_total,
         "delivery_address": delivery_address,
-        "total_amount": total_amount,
+        "total_amount": actual_total,
         "payment_method": payment_method,
         "payment_status": "pending",
         "message": "Order created successfully",

@@ -15,6 +15,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final sdtCtrl = TextEditingController();
   final passCtrl = TextEditingController();
 
+  // Seller fields
+  final shopNameCtrl = TextEditingController();
+  final shopAddressCtrl = TextEditingController();
+  final sellerCccdCtrl = TextEditingController();
+
+  // Shipper fields
+  final shipperCccdCtrl = TextEditingController();
+  final vehicleRegCtrl = TextEditingController();
+  final licenseCtrl = TextEditingController();
+
+  String _selectedRole = 'buyer';
   bool loading = false;
 
   Future<void> register() async {
@@ -26,6 +37,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    if (_selectedRole == 'seller') {
+      if (shopNameCtrl.text.isEmpty ||
+          shopAddressCtrl.text.isEmpty ||
+          sellerCccdCtrl.text.isEmpty) {
+        _showMsg('Vui long nhap day du thong tin seller');
+        return;
+      }
+    }
+
+    if (_selectedRole == 'shipper') {
+      if (shipperCccdCtrl.text.isEmpty ||
+          vehicleRegCtrl.text.isEmpty ||
+          licenseCtrl.text.isEmpty) {
+        _showMsg('Vui long nhap day du thong tin shipper');
+        return;
+      }
+    }
+
     setState(() => loading = true);
 
     final error = await AuthService.register(
@@ -33,14 +62,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
       emailCtrl.text.trim(),
       sdtCtrl.text.trim(),
       passCtrl.text.trim(),
-      'buyer',
+      _selectedRole,
+      cccd: _selectedRole == 'seller'
+          ? sellerCccdCtrl.text.trim()
+          : _selectedRole == 'shipper'
+              ? shipperCccdCtrl.text.trim()
+              : null,
+      nameShop: _selectedRole == 'seller' ? shopNameCtrl.text.trim() : null,
+      addressShop:
+          _selectedRole == 'seller' ? shopAddressCtrl.text.trim() : null,
+      vehicleRegistration:
+          _selectedRole == 'shipper' ? vehicleRegCtrl.text.trim() : null,
+      license: _selectedRole == 'shipper' ? licenseCtrl.text.trim() : null,
     );
 
     if (!mounted) return;
     setState(() => loading = false);
 
     if (error == null) {
-      _showMsg('Dang ky thanh cong!');
+      final msg = _selectedRole == 'buyer'
+          ? 'Dang ky thanh cong!'
+          : 'Dang ky thanh cong! Vui long cho admin duyet.';
+      _showMsg(msg);
       Navigator.pop(context);
     } else {
       _showMsg(error);
@@ -57,6 +100,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     emailCtrl.dispose();
     sdtCtrl.dispose();
     passCtrl.dispose();
+    shopNameCtrl.dispose();
+    shopAddressCtrl.dispose();
+    sellerCccdCtrl.dispose();
+    shipperCccdCtrl.dispose();
+    vehicleRegCtrl.dispose();
+    licenseCtrl.dispose();
     super.dispose();
   }
 
@@ -99,7 +148,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           TextField(
                             controller: nameCtrl,
                             decoration: const InputDecoration(
-                              labelText: 'Full name',
+                              labelText: 'Ho va ten',
                               border: OutlineInputBorder(),
                             ),
                           ),
@@ -125,11 +174,107 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           TextField(
                             controller: passCtrl,
                             decoration: const InputDecoration(
-                              labelText: 'Password',
+                              labelText: 'Mat khau',
                               border: OutlineInputBorder(),
                             ),
                             obscureText: true,
                           ),
+                          const SizedBox(height: 16),
+
+                          // === Role picker ===
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Ban muon dang ky lam:',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 14),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _buildRoleChip('buyer', 'Nguoi mua'),
+                              const SizedBox(width: 8),
+                              _buildRoleChip('seller', 'Nguoi ban'),
+                              const SizedBox(width: 8),
+                              _buildRoleChip('shipper', 'Tai xe'),
+                            ],
+                          ),
+
+                          // === Seller extra fields ===
+                          if (_selectedRole == 'seller') ...[
+                            const SizedBox(height: 16),
+                            const Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text('Thong tin quan',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.deepOrange)),
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: shopNameCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Ten quan',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: shopAddressCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Dia chi quan',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: sellerCccdCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'So CCCD',
+                                border: OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ],
+
+                          // === Shipper extra fields ===
+                          if (_selectedRole == 'shipper') ...[
+                            const SizedBox(height: 16),
+                            const Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text('Thong tin tai xe',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.deepOrange)),
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: shipperCccdCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'So CCCD',
+                                border: OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: vehicleRegCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Dang ky xe',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: licenseCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Bang lai xe',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ],
+
                           const SizedBox(height: 20),
                           SizedBox(
                             width: double.infinity,
@@ -143,7 +288,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       child: CircularProgressIndicator(
                                           strokeWidth: 2),
                                     )
-                                  : const Text('Register'),
+                                  : const Text('Dang ky'),
                             ),
                           ),
                           TextButton(
@@ -158,6 +303,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleChip(String role, String label) {
+    final isSelected = _selectedRole == role;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedRole = role),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.deepOrange : Colors.grey[200],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.black87,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
         ),
       ),
     );

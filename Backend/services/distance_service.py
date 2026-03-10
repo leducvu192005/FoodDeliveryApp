@@ -4,7 +4,7 @@ from math import asin, cos, radians, sin, sqrt
 EARTH_RADIUS_KM = 6371.0
 AVERAGE_SPEED_KMH = 25.0
 BASE_DELIVERY_FEE = 15000.0
-INCLUDED_DISTANCE_KM = 2.0
+FREE_THRESHOLD_KM = 3.0
 EXTRA_KM_PRICE = 5000.0
 
 
@@ -33,7 +33,6 @@ def estimate_delivery_time(distance_km: float) -> int:
 
 
 def calculate_delivery_fee(distance_km: float) -> float:
-    if distance_km <= INCLUDED_DISTANCE_KM:
+    if distance_km <= FREE_THRESHOLD_KM:
         return BASE_DELIVERY_FEE
-    extra_distance = distance_km - INCLUDED_DISTANCE_KM
-    return round(BASE_DELIVERY_FEE + (extra_distance * EXTRA_KM_PRICE), 0)
+    return round(distance_km * EXTRA_KM_PRICE, 0)

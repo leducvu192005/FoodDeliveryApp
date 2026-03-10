@@ -21,7 +21,7 @@ class CategoryService {
       }
 
       final res = await http.get(
-        Uri.parse('$_baseUrl/api/category'),
+        Uri.parse('$_baseUrl/api/category?view_all=true'),
         headers: headers,
       );
 

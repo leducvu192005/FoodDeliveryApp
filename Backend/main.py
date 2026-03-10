@@ -12,7 +12,6 @@ from routers.topping import router as topping_router
 from routers.profile import router as profile_router
 from routers.cartItems_router import router as cart_router
 from routers.favorites_router import router as favorites_router
-from routers.payment_router import router as payment_router
 from routers.sepay_router import router as sepay_router
 from routers.shipper_router import (
     legacy_router as shipper_legacy_router,
@@ -22,13 +21,19 @@ from routers.shipper_router import (
 from routers.form_seller_router import router as form_seller_router
 from routers.form_shipper_router import router as form_shipper_router
 from routers.admin_router import router as admin_router
+from routers.seller_router import router as seller_router
+from routers.display_router import router as display_router
 from setup_shipper_tables import setup_shipper_tables
 from setup_favorites_table import setup_favorites_table
 from setup_user_columns import setup_user_columns
+from setup_discount_columns import setup_discount_columns
+from setup_sellers_table import setup_sellers_table
 Base.metadata.create_all(bind=engine)
 setup_shipper_tables()
 setup_favorites_table()
 setup_user_columns()
+setup_discount_columns()
+setup_sellers_table()
 
 app = FastAPI(title="Food Delivery App")
 
@@ -44,12 +49,12 @@ app.include_router(favorites_router)
 app.include_router(shipper_router)
 app.include_router(shipper_legacy_router)
 app.include_router(shipper_ws_router)
-# 🔥 Payment thêm prefix cho đúng
-app.include_router(payment_router, prefix="/api/payment", tags=["Payment"])
 app.include_router(sepay_router, prefix="/api/sepay", tags=["Sepay Payment"])
 app.include_router(form_seller_router)
 app.include_router(form_shipper_router)
 app.include_router(admin_router)
+app.include_router(seller_router)
+app.include_router(display_router)
 
 @app.get("/")
 def read_root():

@@ -57,6 +57,7 @@ def _to_profile_payload(profile: Profile, user: User) -> dict:
         "img": profile.img,
         "user_id": user.id,
         "email": (user.email or "").strip(),
+        "status": user.status or "",
     }
 
 

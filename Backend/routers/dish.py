@@ -51,7 +51,7 @@ def _to_dish_response(dish: Dish) -> DishResponse:
         description=dish.description,
         group=dish.group,
         seller_name=seller.name_shop if seller else None,
-        seller_address=seller.address if seller else None,
+        seller_address=seller.address_shop if seller else None,
         seller_lat=seller.lat if seller else None,
         seller_lng=seller.lng if seller else None,
     )
@@ -138,21 +138,20 @@ def create_dish(
 def get_dishes(
     category_id: Optional[int] = None,
     seller_id: Optional[int] = None,
+    view_all: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Nếu là seller: chỉ lấy món của seller đó
-    # Nếu là buyer/customer: lấy tất cả món
+   
     if current_user.role == 'seller':
         query = db.query(Dish).filter(Dish.seller_id == current_user.id)
     else:
-        # Buyer/Customer: xem tất cả dishes
         query = db.query(Dish)
+        if seller_id:
+            query = query.filter(Dish.seller_id == seller_id)
     
     if category_id:
         query = query.filter(Dish.category_id == category_id)
-    if seller_id:
-        query = query.filter(Dish.seller_id == seller_id)
 
     dishes = query.order_by(Dish.id).all()
     return [_to_dish_response(dish) for dish in dishes]

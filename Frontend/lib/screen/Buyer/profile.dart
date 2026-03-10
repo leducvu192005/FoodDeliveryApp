@@ -227,6 +227,43 @@ class _ProfileState extends State<Profile> {
     }
   }
 
+  Future<void> _switchToSeller() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      final res = await AuthService.switchRole('seller');
+      if (!mounted) return;
+      if (res != null && res['error'] == null) {
+        Navigator.pushNamedAndRemoveUntil(context, '/seller', (route) => false);
+      } else {
+        _showMessage(res?['error'] ?? 'Khong the chuyen sang seller');
+      }
+    } catch (e) {
+      _showMessage('Loi: $e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _switchToShipper() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      final res = await AuthService.switchRole('shipper');
+      if (!mounted) return;
+      if (res != null && res['error'] == null) {
+        Navigator.pushNamedAndRemoveUntil(
+            context, '/shipper/layout', (route) => false);
+      } else {
+        _showMessage(res?['error'] ?? 'Khong the chuyen sang shipper');
+      }
+    } catch (e) {
+      _showMessage('Loi: $e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _logout() async {
     await AuthService.logout();
     if (!mounted) return;
@@ -336,36 +373,54 @@ class _ProfileState extends State<Profile> {
                         },
                 ),
                 const SizedBox(height: 20),
-                _ActionCard(
-                  icon: Icons.store_rounded,
-                  title: 'Tro thanh Seller',
-                  subtitle: 'Dang ky ban hang tren ung dung',
-                  onTap: _saving
-                      ? () {}
-                      : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const FormSeller(),
-                            ),
-                          );
-                        },
-                ),
-                _ActionCard(
-                  icon: Icons.delivery_dining_outlined,
-                  title: 'Tro thanh Shipper',
-                  subtitle: 'Dang ky giao hang tren ung dung',
-                  onTap: _saving
-                      ? () {}
-                      : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const FormShipper(),
-                            ),
-                          );
-                        },
-                ),
+                if (_profile?['status'] == 'done_seller' ||
+                    _profile?['status'] == 'done')
+                  _ActionCard(
+                    icon: Icons.store_rounded,
+                    title: 'Chuyen sang Seller',
+                    subtitle: 'Chuyen sang giao dien nguoi ban',
+                    onTap: _saving ? () {} : _switchToSeller,
+                  )
+                else
+                  _ActionCard(
+                    icon: Icons.store_rounded,
+                    title: 'Tro thanh Seller',
+                    subtitle: 'Dang ky ban hang tren ung dung',
+                    onTap: _saving
+                        ? () {}
+                        : () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const FormSeller(),
+                              ),
+                            );
+                          },
+                  ),
+                if (_profile?['status'] == 'done_shipper' ||
+                    _profile?['status'] == 'done')
+                  _ActionCard(
+                    icon: Icons.delivery_dining_outlined,
+                    title: 'Chuyen sang Shipper',
+                    subtitle: 'Chuyen sang giao dien tai xe',
+                    onTap: _saving ? () {} : _switchToShipper,
+                  )
+                else
+                  _ActionCard(
+                    icon: Icons.delivery_dining_outlined,
+                    title: 'Tro thanh Shipper',
+                    subtitle: 'Dang ky giao hang tren ung dung',
+                    onTap: _saving
+                        ? () {}
+                        : () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const FormShipper(),
+                              ),
+                            );
+                          },
+                  ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
                   onPressed: _saving ? null : _logout,

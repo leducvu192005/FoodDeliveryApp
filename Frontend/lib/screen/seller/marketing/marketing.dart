@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'discount_codes.dart';
+import 'display.dart';
 
 class MarketingScreen extends StatefulWidget {
   const MarketingScreen({super.key});
@@ -105,13 +106,16 @@ class _MarketingScreenState extends State<MarketingScreen> {
 
             SizedBox(height: 12),
             _buildMarketingTool(
-              'Thông báo khách hàng',
-              'Gửi thông báo đến khách hàng',
-              Icons.notifications,
+              'Tăng tương tác cho quán',
+              'Tham gia chương trình hiển thị của admin',
+              Icons.trending_up,
               Colors.teal,
               () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Chức năng đang phát triển')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SellerDisplayScreen(),
+                  ),
                 );
               },
             ),

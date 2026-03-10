@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/providers/auth_provider.dart';
 import 'package:flutter_application_1/providers/favorite_provider.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/api_config.dart';
@@ -12,16 +11,6 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await ApiConfig.init();
-
-  // Stripe key: DEV dùng fallback, PROD truyền qua --dart-define
-  const stripeKey = String.fromEnvironment(
-    'STRIPE_PUBLISHABLE_KEY',
-    defaultValue:
-        'pk_test_51SzzRqFk1s2i0vMsjdJUZWcGBALXKMMFTy7E9a5M5q1gr0O38jc9UlOuVt2yy34UDiCxWxjjk32t2X5ehrTsl1aA00GQzxTYW2',
-  );
-
-  Stripe.publishableKey = stripeKey;
-  await Stripe.instance.applySettings();
 
   await Supabase.initialize(
     url: 'https://pwwkqdizdbxvgpbysfgy.supabase.co',

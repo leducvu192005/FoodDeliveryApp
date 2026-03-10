@@ -6,9 +6,9 @@ import hmac
 import os
 from typing import Optional
 from database import get_db
-from models import Order, Payment, CartItem, OrderItem, User
+from models import Order, Payment, CartItem, OrderItem, User, PendingShipperDeposit, Shipper, HistoryPriceShipper
 from schemas import PaymentCreateRequest
-from dependencies import get_current_user
+from dependencies import get_current_user, require_role
 import re
 import logging
 import json
@@ -104,10 +104,13 @@ def create_sepay_payment(
     # Không cần timestamp phức tạp, order_id đã unique
     transaction_id = f"FD{order.id}"
 
+    # total_price đã là tổng tiền thực tế (giá món + phí ship - giảm giá)
+    total_with_fee = order.total_price or 0
+
     # Tạo payment record
     payment = Payment(
         order_id=order.id,
-        amount=order.total_price,
+        amount=total_with_fee,
         method="sepay_bank_transfer",
         status="pending",
         transaction_id=transaction_id,
@@ -121,7 +124,7 @@ def create_sepay_payment(
     transfer_content = f"{transaction_id} {user.full_name}"
 
     # Tạo QR Code URL cho VietQR
-    amount_str = str(int(order.total_price))
+    amount_str = str(int(total_with_fee))
     qr_url = (
         f"https://img.vietqr.io/image/"
         f"{SEPAY_BANK_CODE}-{SEPAY_ACCOUNT_NUMBER}-compact2.jpg"
@@ -137,7 +140,7 @@ def create_sepay_payment(
         "bank_code": SEPAY_BANK_CODE,
         "account_number": SEPAY_ACCOUNT_NUMBER,
         "account_name": SEPAY_ACCOUNT_NAME,
-        "amount": order.total_price,
+        "amount": total_with_fee,
         "transfer_content": transfer_content,
         "message": "Vui lòng quét mã QR hoặc chuyển khoản với nội dung trên"
     }
@@ -209,6 +212,56 @@ async def sepay_webhook(
         transaction_id = extract_transaction_id_from_content(transaction_content)
         order_id = extract_order_id_from_content(transaction_content)
         
+        # ===== Xử lý nạp tiền shipper (SD prefix) =====
+        sd_match = re.search(r'(SD\d+)', transaction_content, re.IGNORECASE)
+        if sd_match:
+            sd_tx_id = sd_match.group(1).upper()
+            logger.info(f"[SEPAY] Detected shipper deposit: {sd_tx_id}")
+
+            deposit = db.query(PendingShipperDeposit).filter(
+                PendingShipperDeposit.transaction_id == sd_tx_id,
+                PendingShipperDeposit.status == "pending",
+            ).first()
+
+            if not deposit:
+                logger.warning(f"[SEPAY] Shipper deposit NOT found for {sd_tx_id}")
+                return {"status": "ignored", "message": f"Shipper deposit not found for {sd_tx_id}"}
+
+            if amount_in > 0 and abs(amount_in - deposit.amount) > 0.01:
+                logger.warning(f"[SEPAY] Amount mismatch: expected={deposit.amount}, got={amount_in}")
+
+            # Cập nhật deposit
+            deposit.status = "paid"
+            deposit.paid_at = datetime.now()
+
+            # Cộng tiền vào ví shipper
+            shipper = db.query(Shipper).filter(Shipper.id == deposit.shipper_id).first()
+            if shipper:
+                current_balance = shipper.price or 0
+                balance_after = current_balance + deposit.amount
+                shipper.price = balance_after
+
+                # Lưu lịch sử
+                history = HistoryPriceShipper(
+                    shipper_id=shipper.id,
+                    type="deposit",
+                    amount=deposit.amount,
+                    balance_before=current_balance,
+                    balance_after=balance_after,
+                    note=f"Nap tien qua SePay ({sd_tx_id})",
+                    status="completed",
+                )
+                db.add(history)
+
+            db.commit()
+            logger.info(f"[SEPAY] 🎉 Shipper deposit confirmed! Deposit #{deposit.id}, Amount={deposit.amount}")
+            return {
+                "status": "success",
+                "message": "Shipper deposit confirmed",
+                "deposit_id": deposit.id,
+            }
+
+        # ===== Xử lý thanh toán order (FD prefix) =====
         if not transaction_id and not order_id:
             logger.warning(f"[SEPAY] ❌ No FD pattern found in content: '{transaction_content}'")
             return {"status": "ignored", "message": "No transaction ID found in content"}
@@ -377,3 +430,132 @@ def cancel_sepay_payment(
         "status": "success",
         "message": "Đã hủy thanh toán"
     }
+
+
+# ==============================
+# 5️⃣ SHIPPER DEPOSIT - CREATE
+# ==============================
+from pydantic import BaseModel as _BaseModel
+
+class _ShipperDepositRequest(_BaseModel):
+    amount: float
+
+
+@router.post("/shipper-deposit/create")
+def create_shipper_deposit(
+    body: _ShipperDepositRequest,
+    user: User = Depends(require_role("shipper")),
+    db: Session = Depends(get_db),
+):
+    if body.amount <= 0:
+        raise HTTPException(status_code=400, detail="So tien nap phai lon hon 0")
+
+    shipper = db.query(Shipper).filter(Shipper.user_id == user.id).first()
+    if not shipper:
+        raise HTTPException(status_code=404, detail="Khong tim thay shipper")
+
+    # Hủy các pending deposit cũ
+    old_pending = (
+        db.query(PendingShipperDeposit)
+        .filter(
+            PendingShipperDeposit.shipper_id == shipper.id,
+            PendingShipperDeposit.status == "pending",
+        )
+        .all()
+    )
+    for old in old_pending:
+        old.status = "cancelled"
+
+    # Tạo transaction_id: SD{shipper_id}
+    transaction_id = f"SD{shipper.id}"
+
+    deposit = PendingShipperDeposit(
+        shipper_id=shipper.id,
+        amount=body.amount,
+        transaction_id=transaction_id,
+        status="pending",
+    )
+    db.add(deposit)
+    db.commit()
+    db.refresh(deposit)
+
+    transfer_content = f"{transaction_id} {user.full_name}"
+    amount_str = str(int(body.amount))
+    qr_url = (
+        f"https://img.vietqr.io/image/"
+        f"{SEPAY_BANK_CODE}-{SEPAY_ACCOUNT_NUMBER}-compact2.jpg"
+        f"?amount={amount_str}"
+        f"&addInfo={transfer_content}"
+        f"&accountName={SEPAY_ACCOUNT_NAME}"
+    )
+
+    return {
+        "deposit_id": deposit.id,
+        "transaction_id": transaction_id,
+        "qr_url": qr_url,
+        "bank_code": SEPAY_BANK_CODE,
+        "account_number": SEPAY_ACCOUNT_NUMBER,
+        "account_name": SEPAY_ACCOUNT_NAME,
+        "amount": body.amount,
+        "transfer_content": transfer_content,
+        "message": "Vui long quet ma QR hoac chuyen khoan voi noi dung tren",
+    }
+
+
+# ==============================
+# 6️⃣ SHIPPER DEPOSIT - CHECK STATUS
+# ==============================
+@router.get("/shipper-deposit/check-status/{deposit_id}")
+def check_shipper_deposit_status(
+    deposit_id: int,
+    user: User = Depends(require_role("shipper")),
+    db: Session = Depends(get_db),
+):
+    shipper = db.query(Shipper).filter(Shipper.user_id == user.id).first()
+    if not shipper:
+        raise HTTPException(status_code=404, detail="Khong tim thay shipper")
+
+    deposit = db.query(PendingShipperDeposit).filter(
+        PendingShipperDeposit.id == deposit_id,
+        PendingShipperDeposit.shipper_id == shipper.id,
+    ).first()
+
+    if not deposit:
+        raise HTTPException(status_code=404, detail="Khong tim thay yeu cau nap tien")
+
+    return {
+        "status": deposit.status,
+        "amount": deposit.amount,
+        "transaction_id": deposit.transaction_id,
+        "paid_at": str(deposit.paid_at) if deposit.paid_at else None,
+    }
+
+
+# ==============================
+# 7️⃣ SHIPPER DEPOSIT - CANCEL
+# ==============================
+@router.post("/shipper-deposit/cancel/{deposit_id}")
+def cancel_shipper_deposit(
+    deposit_id: int,
+    user: User = Depends(require_role("shipper")),
+    db: Session = Depends(get_db),
+):
+    shipper = db.query(Shipper).filter(Shipper.user_id == user.id).first()
+    if not shipper:
+        raise HTTPException(status_code=404, detail="Khong tim thay shipper")
+
+    deposit = db.query(PendingShipperDeposit).filter(
+        PendingShipperDeposit.id == deposit_id,
+        PendingShipperDeposit.shipper_id == shipper.id,
+    ).first()
+
+    if not deposit:
+        raise HTTPException(status_code=404, detail="Khong tim thay yeu cau nap tien")
+
+    if deposit.status == "paid":
+        raise HTTPException(status_code=400, detail="Khong the huy giao dich da hoan thanh")
+
+    deposit.status = "cancelled"
+    db.commit()
+
+    return {"status": "success", "message": "Da huy yeu cau nap tien"}

@@ -37,7 +37,8 @@ class OrderService {
       token: await _requireToken(),
     );
     return (data as List<dynamic>)
-        .map((item) => _orderFromLegacyJson(Map<String, dynamic>.from(item as Map)))
+        .map((item) =>
+            _orderFromLegacyJson(Map<String, dynamic>.from(item as Map)))
         .toList();
   }
 
@@ -47,7 +48,8 @@ class OrderService {
       token: await _requireToken(),
     );
     return (data as List<dynamic>)
-        .map((item) => _orderFromLegacyJson(Map<String, dynamic>.from(item as Map)))
+        .map((item) =>
+            _orderFromLegacyJson(Map<String, dynamic>.from(item as Map)))
         .toList();
   }
 
@@ -138,7 +140,8 @@ class OrderService {
       ordersToday: _toInt(payload['completed_orders_today']),
       earningsToday: _toDouble(payload['today_earnings']),
       totalOrders: _toInt(payload['total_orders']),
-      onlineDuration: Duration(minutes: _toInt(payload['online_minutes_today'])),
+      onlineDuration:
+          Duration(minutes: _toInt(payload['online_minutes_today'])),
     );
   }
 
@@ -202,7 +205,8 @@ class OrderService {
     );
     final payload = data as Map<String, dynamic>;
     final rows = (payload['orders'] as List<dynamic>? ?? const <dynamic>[])
-        .map((item) => _orderFromLegacyJson(Map<String, dynamic>.from(item as Map)))
+        .map((item) =>
+            _orderFromLegacyJson(Map<String, dynamic>.from(item as Map)))
         .where((order) => order.status == OrderStatus.delivered)
         .toList();
 
@@ -259,15 +263,16 @@ class OrderService {
     final pickupAddress = (json['pickup_address'] ?? '').toString();
     final deliveryAddress = (json['delivery_address'] ?? '').toString();
     final restaurantNameRaw = (json['restaurant_name'] ?? '').toString().trim();
-    final restaurantName = restaurantNameRaw.isEmpty || restaurantNameRaw == pickupAddress
-        ? 'Diem lay hang'
-        : restaurantNameRaw;
+    final restaurantName =
+        restaurantNameRaw.isEmpty || restaurantNameRaw == pickupAddress
+            ? 'Diem lay hang'
+            : restaurantNameRaw;
     final customerName = (json['customer_name'] ?? 'Khach hang').toString();
     final customerPhone = (json['customer_phone'] ?? '').toString();
     final shippingFee = _toDouble(json['shipping_fee'] ?? json['delivery_fee']);
     final totalPrice = _toDouble(json['total_price']);
-    final normalizedStatus =
-        _normalizeStatusForUi((json['status'] ?? OrderStatus.pending.dbValue).toString());
+    final normalizedStatus = _normalizeStatusForUi(
+        (json['status'] ?? OrderStatus.pending.dbValue).toString());
     final itemCount = _toInt(
       json['item_count'] ??
           json['total_items'] ??
@@ -299,6 +304,7 @@ class OrderService {
         'ordered_at': json['created_at'],
         'picked_up_at': null,
         'completed_at': json['delivered_at'],
+        'payment_method': json['payment_method'] ?? '',
       },
       restaurant: RestaurantModel(
         id: '',

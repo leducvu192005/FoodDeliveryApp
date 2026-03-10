@@ -77,6 +77,7 @@ class DiscountCodeResponse(BaseModel):
     end_at: Optional[datetime]
     active:bool
     user_id: Optional[int] = None
+    seller_id: Optional[int] = None
     class Config:
         from_attributes =True
 
@@ -95,10 +96,12 @@ class DiscountCodeUpdate(BaseModel):
 class DiscountCodeValidateRequest(BaseModel):
     code: str
     cart_total: float
+    seller_id: Optional[int] = None
 
 class DiscountCodeValidateResponse(BaseModel):
     valid: bool
-    discount_value: float
+    discount_amount: float
+    final_total: float
     message: Optional[str]    
 class DishResponse(BaseModel):
     id: int
@@ -151,6 +154,8 @@ class CartCheckoutRequest(BaseModel):
     delivery_address: Optional[str] = None
     delivery_lat: Optional[float] = None
     delivery_lng: Optional[float] = None
+    note: Optional[str] = None
+    discount_code: Optional[str] = None
 
 
 class CartCheckoutResponse(BaseModel):

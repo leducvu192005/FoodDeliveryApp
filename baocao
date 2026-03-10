@@ -1,0 +1,1741 @@
+================================================================================
+                              ĐẠI HỌC PHENIKAA
+                   TRƯỜNG CÔNG NGHỆ THÔNG TIN PHENIKAA
+================================================================================
+
+
+
+                            ĐỒ ÁN CƠ SỞ
+
+        XÂY DỰNG ỨNG DỤNG ĐẶT VÀ GIAO ĐỒ ĂN TRỰC TUYẾN
+                       (FOOD DELIVERY APP)
+
+
+
+Giảng viên hướng dẫn: TS. Nguyễn Thị Thùy Liên
+Sinh viên thực hiện: Lê Ngọc Khánh (23010546)
+                     Nguyễn Anh Tài (23010584)
+Khoá: K17 – 2023 – 2027
+Lớp tín chỉ: Đồ án cơ sở Công nghệ Thông tin -1-2-25(N01)
+Chương trình đào tạo: Công nghệ thông tin
+
+
+
+                     Hà Nội, tháng 3 năm 2026
+
+
+================================================================================
+                            LỜI CẢM ƠN
+================================================================================
+
+Chúng em xin chân thành cảm ơn TS. Nguyễn Thị Thùy Liên đã tận tình hướng dẫn,
+hỗ trợ và góp ý trong suốt quá trình thực hiện. Những chỉ dẫn và nhận xét quý
+báu của cô đã giúp chúng em hoàn thiện đề tài một cách tốt nhất.
+
+Chúng em xin trân trọng cảm ơn.
+
+
+================================================================================
+                            LỜI CAM ĐOAN
+================================================================================
+
+Chúng tôi cam đoan Đồ án cơ sở là sản phẩm trí tuệ của tập thể chúng tôi. Mọi
+thông tin, dữ liệu, hình ảnh, etc. được sử dụng từ các nguồn khác đều được trích
+dẫn đầy đủ và có thể tìm thấy các tài liệu liên quan thông qua mục tài liệu
+tham khảo.
+
+Chúng tôi xin chịu trách nhiệm hoàn toàn về nội dung của Đồ án cơ sở mà chúng
+tôi đã nộp.
+
+Hà Nội, ngày 08 tháng 03 năm 2026
+
+  Lê Ngọc Khánh, Nguyễn Anh Tài
+
+
+================================================================================
+                      PHÂN CÔNG NHIỆM VỤ ĐỒ ÁN
+================================================================================
+
+Danh sách các công việc/nhiệm vụ:
+
++----+---------------------------------------+---------------------------------------------+
+| #  | Công việc/nhiệm vụ                   | Mô tả tóm tắt công việc                    |
++----+---------------------------------------+---------------------------------------------+
+| 1  | Tìm hiểu và lựa chọn công nghệ      | Phân tích và lựa chọn Flutter, FastAPI,     |
+|    |                                       | PostgreSQL và Supabase làm nền tảng cốt lõi|
++----+---------------------------------------+---------------------------------------------+
+| 2  | Thiết kế kiến trúc hệ thống         | Xây dựng mô hình Client-Server, RESTful     |
+|    |                                       | API và luồng giao tiếp WebSocket            |
++----+---------------------------------------+---------------------------------------------+
+| 3  | Thiết kế cơ sở dữ liệu             | Thiết kế các bảng PostgreSQL, quan hệ       |
+|    |                                       | khóa ngoại và schema dữ liệu               |
++----+---------------------------------------+---------------------------------------------+
+| 4  | Xây dựng hệ thống xác thực          | Đăng ký, đăng nhập, quên mật khẩu (OTP),   |
+|    |                                       | JWT token và phân quyền RBAC               |
++----+---------------------------------------+---------------------------------------------+
+| 5  | Xây dựng giao diện người dùng       | Phát triển UI cho Buyer, Seller, Shipper    |
+|    |                                       | và Admin bằng Flutter Material Design 3     |
++----+---------------------------------------+---------------------------------------------+
+| 6  | Phát triển chức năng đặt hàng       | Giỏ hàng, checkout, tính phí giao hàng     |
+|    |                                       | và quản lý trạng thái đơn hàng             |
++----+---------------------------------------+---------------------------------------------+
+| 7  | Tích hợp thanh toán đa phương thức  | Stripe (thẻ quốc tế), Sepay (chuyển khoản  |
+|    |                                       | ngân hàng), COD và webhook xác nhận         |
++----+---------------------------------------+---------------------------------------------+
+| 8  | Xây dựng hệ thống giao hàng         | Shipper online/offline, GPS tracking,       |
+|    |                                       | gán đơn theo vị trí, WebSocket realtime     |
++----+---------------------------------------+---------------------------------------------+
+| 9  | Xây dựng trang quản trị             | Dashboard thống kê, quản lý người dùng,     |
+|    |                                       | duyệt đơn đăng ký Seller/Shipper           |
++----+---------------------------------------+---------------------------------------------+
+| 10 | Kiểm thử và hoàn thiện              | Đánh giá độ ổn định, hiệu năng và hoàn     |
+|    |                                       | thiện báo cáo tổng kết                      |
++----+---------------------------------------+---------------------------------------------+
+
+Phân công chi tiết:
+
++----+----------+------------------+---------------------------------------------+--------+
+| TT | Mã SV    | Họ và tên        | Nội dung đã thực hiện                       |Đánh giá|
++----+----------+------------------+---------------------------------------------+--------+
+| 1  | 23010546 | Lê Ngọc Khánh   | - Xây dựng chức năng Admin: dashboard       | 100%   |
+|    |          |                  |   thống kê, quản lý người dùng, duyệt đơn  |        |
+|    |          |                  |   đăng ký Seller/Shipper.                   |        |
+|    |          |                  | - Xây dựng chức năng Seller: quản lý danh   |        |
+|    |          |                  |   mục, món ăn, topping, xử lý đơn hàng.    |        |
+|    |          |                  | - Tích hợp thanh toán: Stripe, Sepay        |        |
+|    |          |                  |   (VietQR), COD và webhook xác nhận.        |        |
+|    |          |                  | - Xây dựng giỏ hàng và đặt hàng: thêm/     |        |
+|    |          |                  |   sửa/xóa CartItem, checkout tạo đơn.       |        |
+|    |          |                  | - Xây dựng hệ thống xác thực: đăng ký,     |        |
+|    |          |                  |   đăng nhập, quên mật khẩu (OTP), JWT.     |        |
+|    |          |                  | - Quản lý tài khoản: hồ sơ cá nhân, đổi    |        |
+|    |          |                  |   mật khẩu, upload avatar.                  |        |
++----+----------+------------------+---------------------------------------------+--------+
+| 2  | 23010584 | Nguyễn Anh Tài   | - Xây dựng giao diện Buyer: trang chủ,      | 100%   |
+|    |          |                  |   duyệt danh mục, tìm kiếm, xem chi tiết   |        |
+|    |          |                  |   món ăn.                                   |        |
+|    |          |                  | - Xây dựng hệ thống Shipper: online/        |        |
+|    |          |                  |   offline, nhận đơn, giao hàng, thống kê    |        |
+|    |          |                  |   thu nhập, WebSocket realtime.             |        |
+|    |          |                  | - Tích hợp Google Maps và định vị GPS:      |        |
+|    |          |                  |   hiển thị bản đồ, lấy tọa độ người dùng.  |        |
+|    |          |                  | - Tính khoảng cách (Haversine) và phí       |        |
+|    |          |                  |   giao hàng, ETA dự kiến.                   |        |
+|    |          |                  | - Xây dựng chức năng yêu thích, danh mục,  |        |
+|    |          |                  |   mã giảm giá và topping.                   |        |
+|    |          |                  | - Tổng hợp báo cáo đồ án.                  |        |
++----+----------+------------------+---------------------------------------------+--------+
+
+
+================================================================================
+                       DANH MỤC TỪ VIẾT TẮT
+================================================================================
+
++----------+-----------------------------------------------------------+
+| Chữ viết | Giải thích                                                |
+| tắt      |                                                           |
++----------+-----------------------------------------------------------+
+| API      | Application Programming Interface (Giao diện lập trình   |
+|          | ứng dụng)                                                 |
+| BaaS     | Backend-as-a-Service (Dịch vụ Backend dùng sẵn)          |
+| REST     | Representational State Transfer (Kiểu kiến trúc truyền   |
+|          | tải dữ liệu)                                             |
+| JWT      | JSON Web Token (Mã xác thực dạng JSON)                   |
+| ORM      | Object-Relational Mapping (Ánh xạ đối tượng - quan hệ)  |
+| CRUD     | Create, Read, Update, Delete (Tạo, Đọc, Sửa, Xóa)      |
+| GPS      | Global Positioning System (Hệ thống định vị toàn cầu)   |
+| OTP      | One-Time Password (Mật khẩu dùng một lần)               |
+| QR       | Quick Response (Mã phản hồi nhanh)                       |
+| SDK      | Software Development Kit (Bộ công cụ phát triển phần mềm)|
+| SQL      | Structured Query Language (Ngôn ngữ truy vấn có cấu trúc)|
+| UI/UX    | User Interface / User Experience (Giao diện / Trải nghiệm|
+|          | người dùng)                                               |
+| UML      | Unified Modeling Language (Ngôn ngữ mô hình hóa thống    |
+|          | nhất)                                                     |
+| COD      | Cash On Delivery (Thanh toán khi nhận hàng)              |
+| ETA      | Estimated Time of Arrival (Thời gian đến dự kiến)        |
+| SMTP     | Simple Mail Transfer Protocol (Giao thức gửi thư điện tử)|
+| SSL      | Secure Sockets Layer (Tầng bảo mật kết nối)             |
+| SDLC     | Software Development Life Cycle (Quy trình phát triển    |
+|          | phần mềm)                                                |
+| MVP      | Minimum Viable Product (Sản phẩm khả thi tối thiểu)     |
+| IDE      | Integrated Development Environment (Môi trường phát triển|
+|          | tích hợp)                                                 |
+| JSON     | JavaScript Object Notation (Định dạng dữ liệu JSON)     |
+| RBAC     | Role-Based Access Control (Phân quyền truy cập theo      |
+|          | vai trò)                                                  |
+| ACID     | Atomicity, Consistency, Isolation, Durability (Tính nguyên|
+|          | tử, nhất quán, cô lập, bền vững)                         |
+| ASGI     | Asynchronous Server Gateway Interface (Giao diện máy chủ |
+|          | bất đồng bộ)                                              |
++----------+-----------------------------------------------------------+
+
+
+================================================================================
+                    DANH MỤC BẢNG BIỂU, HÌNH VẼ
+================================================================================
+
+Hình 3.1.  Sơ đồ Use Case Tổng quát
+Hình 3.2.  Phân rã Use Case – Xác thực và tài khoản
+Hình 3.3.  Phân rã Use Case – Duyệt và tìm kiếm món ăn
+Hình 3.4.  Phân rã Use Case – Giỏ hàng và đặt hàng
+Hình 3.5.  Phân rã Use Case – Thanh toán
+Hình 3.6.  Phân rã Use Case – Theo dõi đơn hàng
+Hình 3.7.  Phân rã Use Case – Quản lý cửa hàng (Seller)
+Hình 3.8.  Phân rã Use Case – Giao hàng (Shipper)
+Hình 3.9.  Phân rã Use Case – Quản trị hệ thống (Admin)
+Hình 3.10. Biểu đồ hoạt động – Đăng nhập
+Hình 3.11. Biểu đồ hoạt động – Đặt hàng
+Hình 3.12. Biểu đồ hoạt động – Thanh toán trực tuyến
+Hình 3.13. Biểu đồ hoạt động – Giao hàng
+Hình 3.14. Biểu đồ hoạt động – Quản trị người dùng
+Hình 3.15. Biểu đồ tuần tự – Đăng ký tài khoản
+Hình 3.16. Biểu đồ tuần tự – Đặt hàng và thanh toán
+Hình 3.17. Biểu đồ tuần tự – Giao hàng
+Hình 3.18. Sơ đồ quan hệ dữ liệu hệ thống (ERD)
+Hình 3.19. Sơ đồ kiến trúc Client-Server tổng quát
+Hình 3.20. Chi tiết các thành phần Frontend (Flutter)
+Hình 3.21. Chi tiết cấu trúc Backend (FastAPI)
+Hình 3.22. Sơ đồ tương tác giữa Frontend, Backend và các dịch vụ bên thứ ba
+Hình 4.1.  Giao diện đăng nhập / đăng ký
+Hình 4.2.  Giao diện trang chủ người mua
+Hình 4.3.  Giao diện giỏ hàng
+Hình 4.4.  Giao diện thanh toán
+Hình 4.5.  Giao diện theo dõi đơn hàng
+Hình 4.6.  Giao diện quản lý cửa hàng (Seller)
+Hình 4.7.  Giao diện shipper
+Hình 4.8.  Giao diện quản trị (Admin)
+Hình 4.9.  Giao diện hồ sơ cá nhân
+
+Bảng 3.1   Nhóm chức năng dành cho người mua (Buyer)
+Bảng 3.2   Nhóm chức năng dành cho người bán (Seller)
+Bảng 3.3   Nhóm chức năng dành cho shipper
+Bảng 3.4   Nhóm chức năng dành cho quản trị viên (Admin)
+Bảng 3.5.  Danh sách các Use Case chính
+Bảng 3.6.  Các bảng dữ liệu chính
+Bảng 3.7.  Bảng Users
+Bảng 3.8.  Bảng Dishes
+Bảng 3.9.  Bảng Orders
+Bảng 3.10. Bảng Payments
+Bảng 3.11. Bảng Shippers
+Bảng 3.12. Quan hệ giữa các bảng
+Bảng 3.13. Phân quyền truy cập
+Bảng 5.1.  Kiểm thử nhóm chức năng người mua
+Bảng 5.2.  Kiểm thử nhóm chức năng người bán
+Bảng 5.3.  Kiểm thử nhóm chức năng shipper
+Bảng 5.4.  Kiểm thử nhóm chức năng quản trị viên
+
+
+================================================================================
+                            LỜI MỞ ĐẦU
+================================================================================
+
+Trong bối cảnh công nghệ số phát triển mạnh mẽ và nhu cầu tiêu dùng ngày càng
+đa dạng, dịch vụ giao đồ ăn trực tuyến đã trở thành một phần không thể thiếu
+trong cuộc sống hàng ngày. Sự bùng nổ của các nền tảng như GrabFood, ShopeeFood,
+Baemin đã chứng minh tiềm năng to lớn của thị trường này tại Việt Nam. Người
+dùng ngày càng ưa chuộng sự tiện lợi của việc đặt món ăn từ xa, thanh toán
+trực tuyến và theo dõi quá trình giao hàng theo thời gian thực.
+
+Tuy nhiên, việc xây dựng một hệ thống giao đồ ăn hoàn chỉnh đòi hỏi sự kết
+hợp của nhiều công nghệ phức tạp: từ phát triển ứng dụng di động đa nền tảng,
+xây dựng hệ thống Backend có khả năng mở rộng, tích hợp thanh toán trực tuyến,
+cho đến triển khai dịch vụ định vị và tính toán lộ trình giao hàng. Đây là những
+thách thức kỹ thuật thú vị và có giá trị thực tiễn cao đối với sinh viên ngành
+Công nghệ Thông tin.
+
+Nhận thấy nhu cầu thực tiễn đó, nhóm chúng em đã quyết định thực hiện đề tài:
+"Xây dựng ứng dụng đặt và giao đồ ăn trực tuyến" (Food Delivery App). Báo cáo
+này sẽ trình bày chi tiết quá trình từ khảo sát, phân tích yêu cầu, thiết kế
+hệ thống đến triển khai cài đặt và đánh giá kết quả đạt được của ứng dụng.
+
+
+================================================================================
+          CHƯƠNG 1: TỔNG QUAN ĐỀ TÀI
+================================================================================
+
+
+1.1 Lý do chọn đề tài
+----------------------
+
+Trong bối cảnh chuyển đổi số diễn ra mạnh mẽ tại Việt Nam, ngành dịch vụ ăn
+uống (F&B - Food and Beverage) là một trong những lĩnh vực chịu tác động lớn
+nhất. Thị trường giao đồ ăn trực tuyến tại Việt Nam đã tăng trưởng bùng nổ
+trong những năm gần đây, với hàng triệu đơn hàng được xử lý mỗi ngày thông qua
+các nền tảng như GrabFood, ShopeeFood và Baemin.
+
+Tuy nhiên, phần lớn người kinh doanh nhỏ lẻ vẫn gặp nhiều rào cản khi tiếp cận
+các nền tảng lớn:
+
+- Chi phí hoa hồng cao: Các nền tảng lớn thường thu phí hoa hồng từ 20-30% trên
+  mỗi đơn hàng, gây áp lực lớn lên lợi nhuận của người bán.
+
+- Thiếu quyền chủ động: Người bán không kiểm soát được dữ liệu khách hàng, giao
+  diện cửa hàng và chính sách giá cả trên nền tảng của bên thứ ba.
+
+- Khó tiếp cận công nghệ: Việc tự xây dựng hệ thống đặt hàng riêng đòi hỏi kiến
+  thức chuyên sâu về lập trình, cơ sở dữ liệu và tích hợp thanh toán.
+
+Xuất phát từ thực tế đó, việc xây dựng một hệ thống giao đồ ăn trực tuyến hoàn
+chỉnh là vô cùng cần thiết. Hệ thống này không chỉ cung cấp trải nghiệm đặt
+hàng mượt mà cho người mua, mà còn trao quyền quản lý cửa hàng cho người bán,
+hệ thống giao hàng có theo dõi GPS cho tài xế, và bảng điều khiển quản trị toàn
+diện cho quản trị viên.
+
+Đồ án được thực hiện nhằm giải quyết các vấn đề trên. Ứng dụng tích hợp các
+công nghệ hiện đại như Flutter Framework để xây dựng ứng dụng di động đa nền
+tảng, FastAPI (Python) để xây dựng Backend hiệu năng cao, PostgreSQL (Supabase)
+làm hệ quản trị cơ sở dữ liệu, và tích hợp đa phương thức thanh toán bao gồm
+Stripe, chuyển khoản ngân hàng (Sepay) và thanh toán khi nhận hàng (COD). Đề tài
+này không chỉ có ý nghĩa thực tiễn cao mà còn là cơ hội tốt để nhóm sinh viên
+áp dụng kiến thức lập trình ứng dụng di động, phát triển API, quản lý cơ sở dữ
+liệu và kỹ thuật tích hợp hệ thống vào một sản phẩm hoàn chỉnh.
+
+
+1.2 Mục tiêu đề tài
+--------------------
+
+Mục tiêu chính của đồ án là nghiên cứu và xây dựng một ứng dụng đặt và giao đồ
+ăn trực tuyến hoàn chỉnh, đồng thời áp dụng kiến thức về phát triển phần mềm đa
+nền tảng và kiến trúc Client-Server. Các mục tiêu cụ thể bao gồm:
+
+- Xây dựng ứng dụng di động đa nền tảng: Sử dụng Flutter Framework để phát triển
+  ứng dụng hoạt động ổn định trên cả Android và iOS, có kiến trúc rõ ràng và giao
+  diện trực quan, thân thiện với người dùng.
+
+- Phát triển hệ thống Backend RESTful API: Thiết kế và triển khai Backend sử dụng
+  FastAPI (Python) với đầy đủ các endpoint phục vụ xác thực, quản lý sản phẩm,
+  đơn hàng, thanh toán và giao hàng; đảm bảo hiệu năng cao và khả năng mở rộng.
+
+- Xây dựng hệ thống đa vai trò: Phân quyền rõ ràng cho 4 nhóm người dùng: Người
+  mua (Buyer), Người bán (Seller), Tài xế giao hàng (Shipper) và Quản trị viên
+  (Admin), mỗi nhóm có chức năng và giao diện riêng biệt.
+
+- Tích hợp thanh toán đa phương thức: Hỗ trợ thanh toán qua thẻ quốc tế
+  (Stripe), chuyển khoản ngân hàng nội địa (Sepay/VietQR) và thanh toán khi nhận
+  hàng (COD), với cơ chế webhook xác nhận tự động.
+
+- Tích hợp dịch vụ vị trí và bản đồ: Sử dụng GPS và Google Maps để tính toán
+  khoảng cách, phí giao hàng, thời gian giao hàng dự kiến và theo dõi vị trí
+  shipper theo thời gian thực qua WebSocket.
+
+- Hoàn thiện các chức năng bổ trợ: Triển khai hệ thống mã giảm giá, quản lý yêu
+  thích, hồ sơ cá nhân, quản trị viên duyệt đơn đăng ký nhà hàng/shipper, và
+  thống kê doanh thu.
+
+
+1.3 Phạm vi nghiên cứu
+-----------------------
+
+Đề tài được giới hạn trong phạm vi sau:
+
+- Đối tượng sử dụng: Người dùng cuối gồm 4 nhóm: Người mua muốn đặt đồ ăn
+  trực tuyến, Người bán (chủ nhà hàng/quán ăn) muốn bán hàng qua ứng dụng, Tài
+  xế giao hàng muốn nhận đơn và giao hàng kiếm thu nhập, và Quản trị viên quản
+  lý toàn bộ hệ thống.
+
+- Phạm vi hệ thống: Ứng dụng được phát triển dưới dạng ứng dụng di động đa nền
+  tảng bằng Flutter (đã kiểm thử trên Android), Backend triển khai bằng FastAPI
+  với cơ sở dữ liệu PostgreSQL trên nền tảng Supabase.
+
+- Giới hạn kỹ thuật: Hệ thống hoạt động dựa trên kiến trúc Client-Server với
+  giao tiếp qua RESTful API và WebSocket. Tính toán khoảng cách giao hàng sử dụng
+  công thức Haversine (đường chim bay), chưa tích hợp API định tuyến đường đi thực
+  tế. Thanh toán trực tuyến hỗ trợ Stripe (thẻ quốc tế) và Sepay (chuyển khoản
+  ngân hàng nội địa).
+
+- Dữ liệu: Hỗ trợ hình ảnh món ăn lưu trữ trên Supabase Storage, thông tin
+  người dùng và đơn hàng lưu trữ trên PostgreSQL.
+
+
+1.4 Phương pháp thực hiện
+--------------------------
+
+Đồ án được triển khai theo quy trình phát triển phần mềm cơ bản (SDLC), bao gồm
+các giai đoạn chính sau:
+
+- Khảo sát: Nghiên cứu nhu cầu người dùng và đánh giá các ứng dụng giao đồ ăn
+  hiện có (GrabFood, ShopeeFood, Baemin) để xác định ưu điểm và hạn chế.
+
+- Phân tích yêu cầu: Xác định các yêu cầu chức năng và phi chức năng của hệ
+  thống, đồng thời lựa chọn công nghệ phù hợp như Flutter, FastAPI, PostgreSQL
+  và Supabase.
+
+- Thiết kế: Xây dựng kiến trúc tổng thể Client-Server, thiết kế cơ sở dữ liệu
+  quan hệ, mô hình hóa hệ thống bằng các biểu đồ UML và thiết kế giao diện
+  người dùng.
+
+- Lập trình: Hiện thực hóa các module chức năng bao gồm giao diện Flutter,
+  Backend FastAPI, tích hợp thanh toán và dịch vụ định vị.
+
+- Kiểm thử: Thực hiện kiểm thử chức năng và kiểm thử tích hợp nhằm đảm bảo
+  toàn bộ luồng đặt hàng - thanh toán - giao hàng hoạt động chính xác và hệ
+  thống vận hành ổn định.
+
+
+1.5 Cấu trúc báo cáo
+---------------------
+
+Báo cáo được tổ chức thành năm chương:
+
+- Chương 1: Trình bày tổng quan đề tài, bao gồm lý do chọn đề tài, mục tiêu,
+  phạm vi nghiên cứu và phương pháp thực hiện.
+
+- Chương 2: Giới thiệu cơ sở lý thuyết và các công nghệ được sử dụng trong quá
+  trình phát triển hệ thống.
+
+- Chương 3: Phân tích yêu cầu và thiết kế hệ thống thông qua các mô hình UML,
+  thiết kế cơ sở dữ liệu và kiến trúc phần mềm.
+
+- Chương 4: Trình bày quá trình cài đặt, triển khai và kết quả giao diện thực tế
+  của ứng dụng.
+
+- Chương 5: Đánh giá kết quả đạt được, phân tích hạn chế và đề xuất hướng phát
+  triển trong tương lai.
+
+
+================================================================================
+          CHƯƠNG 2: CƠ SỞ LÝ THUYẾT VÀ CÔNG NGHỆ
+================================================================================
+
+
+2.1. Xu hướng phát triển ứng dụng di động hiện đại
+---------------------------------------------------
+
+2.1.1. Hạn chế của phát triển Native truyền thống
+
+Trước đây, việc phát triển ứng dụng di động thường yêu cầu lập trình viên sử
+dụng các ngôn ngữ và công cụ đặc thù cho từng hệ điều hành (Native Development).
+Ví dụ: Kotlin/Java cho Android, Swift/Objective-C cho iOS. Phương pháp này tồn
+tại một số hạn chế lớn:
+
+- Chi phí phát triển cao: Do tính đặc thù của ngôn ngữ, doanh nghiệp cần duy trì
+  nhiều đội ngũ lập trình viên riêng biệt cho từng nền tảng, dẫn đến ngân sách
+  đầu tư và vận hành bộ máy nhân sự tăng vọt.
+
+- Khó bảo trì và đồng bộ: Khi cập nhật tính năng mới, phải viết lại mã nguồn cho
+  từng hệ điều hành riêng biệt, dễ dẫn đến sự không đồng nhất về tính năng và
+  giao diện.
+
+- Rào cản ngôn ngữ: Lập trình viên phải thông thạo các ngôn ngữ đặc thù nền
+  tảng, gây khó khăn trong việc tuyển dụng và đào tạo.
+
+2.1.2. Sự chuyển dịch sang Cross-platform
+
+Để giải quyết vấn đề trên, xu hướng hiện đại chuyển dịch mạnh mẽ sang phát triển
+đa nền tảng. Các framework như Flutter, React Native hay Kotlin Multiplatform cho
+phép viết mã một lần và chạy trên nhiều nền tảng. Điều này giúp giảm thiểu thời
+gian đưa sản phẩm ra thị trường và tối ưu hóa nguồn lực phát triển.
+
+2.1.3. Lợi ích của Flutter so với các giải pháp khác
+
+Flutter nổi bật so với các framework đa nền tảng khác nhờ:
+
+- Hiệu năng gần Native: Flutter biên dịch trực tiếp sang mã máy (ARM/x86), không
+  cần cầu nối JavaScript như React Native, đảm bảo hiệu năng mượt mà.
+
+- Widget System phong phú: Cung cấp bộ widget đồ sộ tuân theo Material Design và
+  Cupertino, giúp tạo giao diện đẹp mắt và nhất quán trên mọi nền tảng.
+
+- Hot Reload: Cho phép lập trình viên thấy ngay kết quả thay đổi mã nguồn mà
+  không cần biên dịch lại toàn bộ ứng dụng, tăng tốc quá trình phát triển.
+
+- Hệ sinh thái lớn: Tận dụng được hàng nghìn package từ pub.dev, cộng đồng phát
+  triển rộng lớn và tài liệu phong phú từ Google.
+
+
+2.2. Flutter Framework
+----------------------
+
+2.2.1. Kiến trúc Flutter
+
+Flutter là một framework mã nguồn mở được phát triển bởi Google, cho phép xây
+dựng ứng dụng di động, web và desktop từ một codebase duy nhất bằng ngôn ngữ
+Dart. Kiến trúc Flutter gồm 3 tầng chính:
+
+- Framework Layer: Cung cấp các widget, animation, gesture detection và rendering
+  engine viết bằng Dart.
+
+- Engine Layer: Viết bằng C++, bao gồm Skia Graphics Engine để render giao diện,
+  Dart Runtime và Platform Channels để giao tiếp với native code.
+
+- Embedder Layer: Tầng tích hợp với hệ điều hành cụ thể (Android, iOS, Web),
+  quản lý vòng đời ứng dụng và đầu vào từ người dùng.
+
+2.2.2. Widget Tree và Element Tree
+
+Flutter sử dụng hệ thống Widget Tree để mô tả giao diện người dùng. Mỗi thành
+phần hiển thị đều là một Widget (StatelessWidget hoặc StatefulWidget). Khi trạng
+thái thay đổi, Flutter so sánh Widget Tree mới với cũ thông qua Element Tree và
+chỉ render lại những phần thay đổi, đảm bảo hiệu năng tối ưu.
+
+2.2.3. State Management với Provider
+
+Trong đồ án, nhóm sử dụng Provider – thư viện quản lý trạng thái được Google
+khuyến nghị. Provider hoạt động dựa trên mô hình InheritedWidget, cho phép chia
+sẻ dữ liệu (state) giữa các widget mà không cần truyền qua constructor nhiều
+tầng. Dự án sử dụng ChangeNotifierProvider cho AuthProvider và FavoriteProvider
+để quản lý trạng thái xác thực và danh sách yêu thích.
+
+
+2.3. FastAPI (Python Backend Framework)
+---------------------------------------
+
+2.3.1. Giới thiệu FastAPI
+
+FastAPI là một web framework hiện đại, hiệu năng cao cho Python, được thiết kế
+để xây dựng RESTful API nhanh chóng và dễ dàng. FastAPI nổi bật nhờ:
+
+- Hiệu năng cao: Dựa trên Starlette và Pydantic, FastAPI có hiệu năng tương
+  đương Node.js và Go, nhanh hơn đáng kể so với Flask và Django.
+
+- Type Hints: Tận dụng Python Type Hints để tự động validate dữ liệu đầu vào,
+  serialize đầu ra và sinh tài liệu API (Swagger/OpenAPI) tự động.
+
+- Async Support: Hỗ trợ lập trình bất đồng bộ (async/await) giúp xử lý đồng
+  thời nhiều request mà không block I/O.
+
+2.3.2. SQLAlchemy ORM
+
+Đồ án sử dụng SQLAlchemy – thư viện ORM (Object-Relational Mapping) phổ biến
+nhất cho Python – để tương tác với cơ sở dữ liệu PostgreSQL. SQLAlchemy cho phép
+định nghĩa các bảng dữ liệu dưới dạng Python class (Declarative Base), thực hiện
+truy vấn thông qua Session và hỗ trợ connection pooling để tối ưu hiệu năng.
+
+2.3.3. Pydantic Schema Validation
+
+Pydantic được sử dụng để định nghĩa các schema cho request/response body. Mỗi
+API endpoint có schema riêng biệt đảm bảo dữ liệu đầu vào luôn hợp lệ trước khi
+được xử lý bởi business logic. Điều này giúp giảm thiểu lỗi runtime và tăng
+tính an toàn cho hệ thống.
+
+
+2.4. Supabase (Backend-as-a-Service)
+------------------------------------
+
+2.4.1. PostgreSQL Database
+
+Supabase cung cấp cơ sở dữ liệu PostgreSQL được quản lý hoàn toàn trên cloud.
+PostgreSQL là hệ quản trị cơ sở dữ liệu quan hệ mã nguồn mở mạnh mẽ, hỗ trợ:
+
+- ACID Transactions: Đảm bảo tính toàn vẹn dữ liệu trong các giao dịch phức tạp
+  như thanh toán và đặt hàng.
+
+- JSON/JSONB columns: Lưu trữ dữ liệu bán cấu trúc (như danh sách topping) linh
+  hoạt mà vẫn có thể truy vấn hiệu quả.
+
+- Indexing: Hỗ trợ nhiều loại index (B-Tree, Hash, GiST) giúp tối ưu hóa truy
+  vấn trên tập dữ liệu lớn.
+
+2.4.2. Supabase Storage
+
+Supabase Storage (tương thích S3) được sử dụng để lưu trữ hình ảnh món ăn và
+avatar người dùng. Hệ thống upload hình ảnh qua Backend và lưu URL tham chiếu
+trong cơ sở dữ liệu, đảm bảo tốc độ tải nhanh và khả năng mở rộng.
+
+2.4.3. Lý do lựa chọn Supabase
+
+- Open Source: Mã nguồn mở, không bị lock-in với nhà cung cấp.
+- PostgreSQL: Sử dụng cơ sở dữ liệu quan hệ mạnh mẽ thay vì NoSQL, phù hợp với
+  dữ liệu có quan hệ phức tạp như hệ thống đặt hàng.
+- Tốc độ phát triển: Tích hợp nhanh chóng, phù hợp với quy mô đồ án.
+- Chi phí: Gói miễn phí đủ đáp ứng nhu cầu phát triển và kiểm thử.
+
+
+2.5. Kỹ thuật tích hợp thanh toán
+----------------------------------
+
+2.5.1. Stripe – Thanh toán thẻ quốc tế
+
+Stripe là nền tảng thanh toán trực tuyến hàng đầu thế giới, cung cấp API đơn
+giản và an toàn để xử lý thanh toán thẻ tín dụng/ghi nợ. Trong đồ án, luồng
+thanh toán Stripe được triển khai theo mô hình PaymentIntent:
+
+- Backend tạo PaymentIntent với số tiền cần thanh toán.
+- Frontend nhận client_secret và hiển thị form nhập thẻ qua Stripe SDK.
+- Sau khi thanh toán thành công, Stripe gửi webhook event đến Backend để xác nhận.
+
+2.5.2. Sepay – Chuyển khoản ngân hàng nội địa
+
+Sepay là dịch vụ giám sát tài khoản ngân hàng, cho phép nhận thông báo realtime
+khi có giao dịch chuyển khoản. Hệ thống tích hợp Sepay theo luồng:
+
+- Backend sinh mã QR thanh toán theo chuẩn VietQR có chứa mã giao dịch duy nhất
+  (format: FD{order_id}).
+- Người dùng quét QR và chuyển khoản qua ứng dụng ngân hàng.
+- Sepay phát hiện giao dịch và gửi webhook đến Backend, Backend phân tích nội
+  dung chuyển khoản để xác định đơn hàng tương ứng và cập nhật trạng thái.
+
+2.5.3. COD – Thanh toán khi nhận hàng
+
+Phương thức đơn giản nhất: đơn hàng được tạo với trạng thái thanh toán "pending",
+shipper thu tiền mặt khi giao hàng thành công và cập nhật trạng thái đơn hàng.
+
+
+2.6. Kỹ thuật tính toán khoảng cách và phí giao hàng
+-----------------------------------------------------
+
+2.6.1. Công thức Haversine
+
+Hệ thống sử dụng công thức Haversine để tính khoảng cách giữa hai điểm GPS
+(vĩ độ, kinh độ) trên bề mặt Trái Đất. Công thức này cho kết quả chính xác
+với khoảng cách ngắn (trong phạm vi thành phố), phù hợp cho bài toán tính phí
+giao hàng.
+
+2.6.2. Cơ chế tính phí giao hàng
+
+- Phí giao hàng cơ bản: 15.000 VND (bao gồm 2 km đầu tiên).
+- Phí phụ trội: 5.000 VND/km cho mỗi km vượt quá 2 km.
+- Thời gian giao hàng dự kiến (ETA): Tính dựa trên vận tốc trung bình 25 km/h.
+
+2.6.3. Real-time Location Tracking
+
+Hệ thống sử dụng WebSocket để theo dõi vị trí shipper theo thời gian thực.
+Shipper khi online sẽ duy trì kết nối WebSocket với Backend, gửi cập nhật tọa
+độ GPS liên tục. Backend sử dụng thông tin vị trí này để gán đơn hàng cho
+shipper gần nhất (trong phạm vi accept_radius).
+
+
+2.7. Bảo mật hệ thống
+-----------------------
+
+2.7.1. JWT Authentication
+
+Hệ thống sử dụng JSON Web Token (JWT) cho cơ chế xác thực. Khi đăng nhập thành
+công, Backend tạo JWT token chứa user_id và role, có thời hạn 24 giờ. Mọi
+request API đều phải kèm token trong header Authorization để xác thực danh tính.
+
+2.7.2. Argon2 Password Hashing
+
+Mật khẩu người dùng được mã hóa bằng thuật toán Argon2 – thuật toán giành giải
+nhất trong cuộc thi Password Hashing Competition 2015. Argon2 được thiết kế để
+chống lại các cuộc tấn công brute-force và GPU-based nhờ cơ chế memory-hard.
+
+2.7.3. Role-Based Access Control (RBAC)
+
+Hệ thống triển khai phân quyền truy cập dựa trên vai trò (RBAC). Mỗi API
+endpoint được bảo vệ bởi dependency `require_role()` kiểm tra role trong JWT
+token. Ví dụ: chỉ seller mới có thể tạo/sửa/xóa món ăn, chỉ admin mới có thể
+duyệt đơn đăng ký và quản lý người dùng.
+
+
+================================================================================
+          CHƯƠNG 3: PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG
+================================================================================
+
+
+3.1. Phân tích yêu cầu
+-----------------------
+
+3.1.1. Yêu cầu chức năng
+
+Hệ thống được xây dựng phục vụ bốn nhóm người dùng chính: Người mua (Buyer),
+Người bán (Seller), Tài xế giao hàng (Shipper) và Quản trị viên (Admin). Các
+chức năng được phân chia như sau:
+
+a. Nhóm chức năng dành cho Người mua (Buyer)
+
+Bảng 3.1 Nhóm chức năng dành cho người mua (Buyer)
++----+----------------------------+------------------------------------------+
+| #  | Chức năng                  | Mô tả                                   |
++----+----------------------------+------------------------------------------+
+| 1  | Đăng ký / Đăng nhập       | Tạo tài khoản mới, đăng nhập bằng       |
+|    |                            | email/SĐT và mật khẩu                   |
+| 2  | Quên mật khẩu             | Nhận OTP qua email, đặt lại mật khẩu    |
+| 3  | Duyệt danh mục            | Xem danh sách danh mục và món ăn         |
+| 4  | Tìm kiếm món ăn           | Tìm kiếm theo tên món                    |
+| 5  | Xem chi tiết món          | Xem thông tin, giá, topping của món      |
+| 6  | Thêm vào giỏ hàng        | Thêm món ăn vào giỏ với số lượng         |
+| 7  | Quản lý giỏ hàng         | Cập nhật số lượng, xóa món khỏi giỏ     |
+| 8  | Áp mã giảm giá           | Nhập và xác thực mã giảm giá            |
+| 9  | Đặt hàng (Checkout)       | Tạo đơn hàng từ giỏ, chọn địa chỉ giao  |
+| 10 | Thanh toán                | Chọn phương thức: COD / Stripe / Sepay   |
+| 11 | Theo dõi đơn hàng        | Xem trạng thái đơn hàng theo thời gian   |
+| 12 | Xem lịch sử đơn          | Xem danh sách đơn hàng đã đặt            |
+| 13 | Quản lý yêu thích        | Thêm/xóa món ăn vào danh sách yêu thích |
+| 14 | Quản lý hồ sơ            | Cập nhật tên, SĐT, địa chỉ, avatar      |
+| 15 | Đổi mật khẩu             | Thay đổi mật khẩu tài khoản             |
++----+----------------------------+------------------------------------------+
+
+b. Nhóm chức năng dành cho Người bán (Seller)
+
+Bảng 3.2 Nhóm chức năng dành cho người bán (Seller)
++----+----------------------------+------------------------------------------+
+| #  | Chức năng                  | Mô tả                                   |
++----+----------------------------+------------------------------------------+
+| 1  | Đăng ký cửa hàng         | Nộp đơn đăng ký Seller (chờ Admin duyệt)|
+| 2  | Quản lý danh mục          | CRUD danh mục món ăn của cửa hàng       |
+| 3  | Quản lý món ăn           | CRUD món ăn (tên, giá, mô tả, ảnh)      |
+| 4  | Quản lý topping          | CRUD topping (tên, giá, min/max lựa chọn)|
+| 5  | Upload hình ảnh món      | Tải ảnh lên Supabase Storage             |
+| 6  | Xem đơn hàng đến         | Xem danh sách đơn hàng từ người mua     |
+| 7  | Xác nhận đơn hàng        | Chấp nhận hoặc từ chối đơn hàng         |
++----+----------------------------+------------------------------------------+
+
+c. Nhóm chức năng dành cho Shipper
+
+Bảng 3.3 Nhóm chức năng dành cho shipper
++----+----------------------------+------------------------------------------+
+| #  | Chức năng                  | Mô tả                                   |
++----+----------------------------+------------------------------------------+
+| 1  | Đăng ký shipper           | Nộp đơn đăng ký (CCCD, phương tiện)     |
+| 2  | Bật/tắt trạng thái online | Sẵn sàng nhận đơn & chia sẻ vị trí GPS  |
+| 3  | Cập nhật vị trí           | Gửi tọa độ GPS liên tục qua WebSocket   |
+| 4  | Cấu hình bán kính nhận đơn| Thiết lập phạm vi nhận đơn (km)          |
+| 5  | Xem đơn hàng khả dụng    | Xem đơn hàng gần vị trí hiện tại        |
+| 6  | Nhận đơn hàng             | Chấp nhận giao đơn hàng                 |
+| 7  | Cập nhật trạng thái giao  | Đánh dấu: đã lấy hàng / đã giao xong   |
+| 8  | Xem lịch sử giao hàng    | Xem các đơn đã giao và thu nhập         |
+| 9  | Xem thống kê thu nhập     | Tổng thu nhập hôm nay / tuần / tháng    |
+| 10 | Quản lý hồ sơ shipper    | Cập nhật thông tin, phương tiện, biển số |
++----+----------------------------+------------------------------------------+
+
+d. Nhóm chức năng dành cho Quản trị viên (Admin)
+
+Bảng 3.4 Nhóm chức năng dành cho quản trị viên (Admin)
++----+----------------------------+------------------------------------------+
+| #  | Chức năng                  | Mô tả                                   |
++----+----------------------------+------------------------------------------+
+| 1  | Xem thống kê tổng quan    | Dashboard: tổng user, đơn, doanh thu    |
+| 2  | Quản lý người dùng        | Xem danh sách, khóa/mở khóa, đổi role   |
+| 3  | Duyệt đơn đăng ký Seller | Chấp nhận/từ chối đơn đăng ký nhà hàng  |
+| 4  | Duyệt đơn đăng ký Shipper| Chấp nhận/từ chối đơn đăng ký tài xế    |
+| 5  | Xem đơn hàng gần đây      | Giám sát hoạt động đặt hàng             |
+| 6  | Quản lý mã giảm giá      | CRUD mã giảm giá (%, cố định, thời hạn) |
++----+----------------------------+------------------------------------------+
+
+3.1.2. Yêu cầu phi chức năng
+
+a. Hiệu năng
+- Giao diện phản hồi nhanh, danh sách món ăn và giỏ hàng được tải và hiển thị
+  mượt mà trên thiết bị di động.
+- Backend xử lý request nhanh nhờ FastAPI async, thời gian phản hồi API dưới 500ms
+  cho các thao tác thông thường.
+- WebSocket đảm bảo cập nhật vị trí shipper theo thời gian thực với độ trễ thấp.
+
+b. Bảo mật
+- Toàn bộ quá trình xác thực được xử lý qua JWT token, mật khẩu người dùng được
+  mã hóa bằng Argon2.
+- Các giao dịch thanh toán được xử lý thông qua webhook có xác thực chữ ký số
+  (Stripe webhook signature, Sepay webhook secret).
+- Phân quyền RBAC đảm bảo mỗi vai trò chỉ truy cập được các API tương ứng.
+- Kết nối cơ sở dữ liệu bắt buộc sử dụng SSL.
+
+c. Khả năng sử dụng
+- Giao diện trực quan theo Material Design 3, thân thiện với người dùng di động.
+- Hỗ trợ nhiều phương thức thanh toán phù hợp thị trường Việt Nam.
+- Các thông báo lỗi được hiển thị rõ ràng, giúp người dùng dễ dàng xử lý khi
+  có sự cố.
+
+d. Độ tin cậy
+- Dữ liệu được lưu trữ trên Supabase (PostgreSQL) đảm bảo độ bền cao và khả
+  năng phục hồi khi xảy ra sự cố.
+- Hệ thống ghi lại toàn bộ lịch sử đơn hàng và thanh toán, đảm bảo tính minh
+  bạch và có thể truy vết khi cần.
+- Webhook thanh toán có cơ chế retry và fallback để đảm bảo không bỏ sót giao
+  dịch.
+
+e. Khả năng bảo trì
+- Mã nguồn Backend được tổ chức theo mô hình Router/Service/Model rõ ràng, mỗi
+  module chức năng nằm trong file router riêng biệt.
+- Frontend được tổ chức theo mô hình Provider/Service/Screen/Widget, tách biệt
+  logic nghiệp vụ và giao diện.
+- Các service giao tiếp với API được tách thành các file độc lập, dễ dàng mở rộng
+  hoặc thay thế.
+
+
+3.2 Mô hình hóa hệ thống
+--------------------------
+
+3.2.1. Biểu đồ Use Case
+
+a. Xác định các Use Case chính
+
+Hệ thống được tổ chức thành 9 nhóm Use Case để quản lý toàn bộ các yêu cầu chức
+năng từ phía bốn nhóm người dùng. Các Use Case này đóng vai trò là khung xương
+để định hình các luồng xử lý chi tiết trong hệ thống.
+
+Bảng 3.5. Danh sách các Use Case chính
++----+--------------------------------------+------------------------+
+| #  | Use Case                             | Actor                  |
++----+--------------------------------------+------------------------+
+| 1  | UC-AUTH: Xác thực và tài khoản      | Tất cả                 |
+| 2  | UC-BROWSE: Duyệt và tìm kiếm món   | Buyer                  |
+| 3  | UC-CART: Giỏ hàng và đặt hàng      | Buyer                  |
+| 4  | UC-PAY: Thanh toán                  | Buyer                  |
+| 5  | UC-TRACK: Theo dõi đơn hàng        | Buyer, Shipper         |
+| 6  | UC-SELLER: Quản lý cửa hàng        | Seller                 |
+| 7  | UC-SHIP: Giao hàng                  | Shipper                |
+| 8  | UC-ADMIN: Quản trị hệ thống        | Admin                  |
+| 9  | UC-PROMO: Quản lý khuyến mãi       | Admin                  |
++----+--------------------------------------+------------------------+
+
+Hình 3.1. Sơ đồ Use Case Tổng quát
+(Mô tả: Biểu đồ thể hiện 4 Actor: Buyer, Seller, Shipper, Admin tương tác với
+các nhóm Use Case tương ứng trong hệ thống. Buyer tương tác với UC-AUTH,
+UC-BROWSE, UC-CART, UC-PAY, UC-TRACK. Seller tương tác với UC-AUTH, UC-SELLER.
+Shipper tương tác với UC-AUTH, UC-SHIP, UC-TRACK. Admin tương tác với UC-AUTH,
+UC-ADMIN, UC-PROMO.)
+
+b. Phân rã Use Case
+
+Hình 3.2. Phân rã Use Case – Xác thực và tài khoản
+(Mô tả: Đăng ký tài khoản, Đăng nhập, Quên mật khẩu (gửi OTP qua email),
+Đặt lại mật khẩu, Cập nhật hồ sơ, Đổi mật khẩu. Actor: Tất cả người dùng.)
+
+Hình 3.3. Phân rã Use Case – Duyệt và tìm kiếm món ăn
+(Mô tả: Xem danh mục, Xem danh sách món ăn, Tìm kiếm món, Xem chi tiết món,
+Thêm/xóa yêu thích. Actor: Buyer.)
+
+Hình 3.4. Phân rã Use Case – Giỏ hàng và đặt hàng
+(Mô tả: Thêm món vào giỏ, Cập nhật số lượng, Xóa món khỏi giỏ, Áp mã giảm
+giá, Chọn phương thức thanh toán, Checkout tạo đơn hàng. Actor: Buyer.)
+
+Hình 3.5. Phân rã Use Case – Thanh toán
+(Mô tả: Thanh toán COD, Thanh toán Stripe (nhập thẻ → xác nhận), Thanh toán
+Sepay (quét QR → chuyển khoản), Xác nhận thanh toán qua webhook. Actor: Buyer,
+System.)
+
+Hình 3.6. Phân rã Use Case – Theo dõi đơn hàng
+(Mô tả: Xem trạng thái đơn, Xem lịch sử đơn hàng, Theo dõi vị trí shipper
+realtime. Actor: Buyer, Shipper.)
+
+Hình 3.7. Phân rã Use Case – Quản lý cửa hàng (Seller)
+(Mô tả: Quản lý danh mục (CRUD), Quản lý món ăn (CRUD), Quản lý topping
+(CRUD), Upload hình ảnh, Xem đơn hàng đến, Xác nhận/từ chối đơn. Actor: Seller.)
+
+Hình 3.8. Phân rã Use Case – Giao hàng (Shipper)
+(Mô tả: Bật/tắt online, Cập nhật vị trí GPS, Xem đơn hàng khả dụng, Nhận đơn,
+Đánh dấu lấy hàng, Đánh dấu giao xong, Xem thống kê thu nhập. Actor: Shipper.)
+
+Hình 3.9. Phân rã Use Case – Quản trị hệ thống (Admin)
+(Mô tả: Xem dashboard thống kê, Quản lý người dùng (khóa/mở, đổi role), Duyệt
+đơn đăng ký Seller/Shipper, Xem đơn hàng gần đây, Quản lý mã giảm giá. Actor:
+Admin.)
+
+3.2.2. Biểu đồ Hoạt động
+
+Biểu đồ hoạt động mô tả luồng quy trình nghiệp vụ của hệ thống, thể hiện các
+bước xử lý logic và các nhánh rẽ điều kiện từ góc nhìn của người dùng và hệ
+thống.
+
+a. Quy trình Đăng nhập
+
+Quy trình này đảm bảo an toàn truy cập cho hệ thống. Người dùng cung cấp
+email/SĐT và mật khẩu, hệ thống xác thực thông tin qua Argon2 hash comparison
+và kiểm tra trạng thái tài khoản (is_active). Nếu hợp lệ, hệ thống tạo JWT
+token và trả về cho client. Trong trường hợp quên mật khẩu, hệ thống gửi OTP
+qua email Gmail SMTP để người dùng đặt lại mật khẩu.
+
+Hình 3.10. Biểu đồ hoạt động – Đăng nhập
+(Luồng: Nhập email/SĐT + mật khẩu → Kiểm tra tài khoản tồn tại → Kiểm tra
+mật khẩu (Argon2) → Kiểm tra is_active → Tạo JWT token → Trả về token + user
+info → Chuyển đến màn hình tương ứng theo role. Nhánh thất bại: Hiển thị lỗi.)
+
+b. Quy trình Đặt hàng (Checkout)
+
+Đây là luồng nghiệp vụ quan trọng nhất của ứng dụng. Quy trình bắt đầu từ giỏ
+hàng, tính toán tổng tiền sản phẩm, áp mã giảm giá (nếu có), tính khoảng cách
+giao hàng bằng công thức Haversine, tính phí giao hàng và ETA. Người dùng chọn
+phương thức thanh toán, hệ thống tạo Order + OrderItem, Payment record, và xóa
+giỏ hàng.
+
+Hình 3.11. Biểu đồ hoạt động – Đặt hàng
+(Luồng: Xem giỏ hàng → Nhập mã giảm giá (optional) → Validate mã → Chọn địa
+chỉ giao hàng → Tính khoảng cách Haversine → Tính phí giao + ETA → Chọn phương
+thức thanh toán → Tạo Order + OrderItem → Tạo Payment record → Xóa giỏ hàng →
+Chuyển đến trang thanh toán hoặc xác nhận đơn.)
+
+c. Quy trình Thanh toán trực tuyến
+
+Mô tả luồng thanh toán qua Stripe và Sepay. Với Stripe: Backend tạo
+PaymentIntent → Frontend hiển thị form thẻ → Xác nhận thanh toán → Stripe gửi
+webhook → Backend cập nhật trạng thái. Với Sepay: Backend tạo mã QR (VietQR) →
+Người dùng quét và chuyển khoản → Sepay dò giao dịch → Gửi webhook → Backend
+parse nội dung chuyển khoản → Cập nhật trạng thái.
+
+Hình 3.12. Biểu đồ hoạt động – Thanh toán trực tuyến
+(Luồng Stripe: Tạo PaymentIntent → Nhận client_secret → Hiển thị form thẻ →
+Xác nhận → Webhook payment_intent.succeeded → Cập nhật Payment status = "paid"
+→ Cập nhật Order status = "confirmed".)
+(Luồng Sepay: Tạo QR code → Hiển thị QR → Người dùng chuyển khoản → Webhook
+transaction → Parse order_id từ content "FD{id}" → Validate amount → Cập nhật
+Payment + Order status.)
+
+d. Quy trình Giao hàng
+
+Thể hiện luồng hoạt động của shipper từ khi bật online đến khi giao hàng xong.
+Shipper bật trạng thái online và chia sẻ vị trí GPS qua WebSocket. Hệ thống
+hiển thị các đơn hàng khả dụng trong phạm vi bán kính đã cấu hình. Shipper
+chấp nhận đơn, đến nhà hàng lấy hàng (pick up), giao đến địa chỉ người mua
+và đánh dấu hoàn thành (delivered).
+
+Hình 3.13. Biểu đồ hoạt động – Giao hàng
+(Luồng: Bật online → Gửi vị trí GPS → Xem đơn khả dụng (filter theo khoảng
+cách) → Chọn đơn → Nhận đơn (accept) → Di chuyển đến nhà hàng → Lấy hàng
+(pickup) → Di chuyển đến người mua → Giao hàng (deliver) → Cập nhật trạng thái
+→ Ghi nhận thu nhập.)
+
+e. Quy trình Admin quản lý người dùng
+
+Quy trình cho phép quản trị viên giám sát và can thiệp vào danh sách người dùng.
+Admin xem dashboard thống kê tổng quan (số user, đơn hàng, doanh thu), xem danh
+sách người dùng, thực hiện khóa/mở khóa tài khoản, đổi vai trò, và duyệt các
+đơn đăng ký Seller/Shipper mới.
+
+Hình 3.14. Biểu đồ hoạt động – Quản trị người dùng
+(Luồng: Xem dashboard thống kê → Xem danh sách users → [Khóa/Mở khóa tài khoản
+| Đổi role | Xem đơn đăng ký pending] → Với đơn đăng ký: Xem thông tin chi tiết
+→ Approve/Reject → Cập nhật role và is_active → Thông báo kết quả.)
+
+3.2.3. Biểu đồ Tuần tự
+
+a. Luồng Đăng ký tài khoản
+
+Khi người dùng đăng ký, Flutter gửi request POST /auth/register đến Backend.
+Backend validate dữ liệu qua Pydantic schema, kiểm tra email/SĐT trùng lặp,
+hash mật khẩu bằng Argon2, tạo User record trong PostgreSQL. Nếu đăng ký làm
+Seller/Shipper, hệ thống tạo thêm FormSeller/Shipper record với trạng thái
+"pending" chờ Admin duyệt.
+
+Hình 3.15. Biểu đồ tuần tự – Đăng ký tài khoản
+(Flutter App → FastAPI Backend → SQLAlchemy → PostgreSQL
+Luồng: register request → validate schema → check duplicate email/phone →
+hash password → create User → [if seller: create FormSeller, set role=pending]
+→ return success/error)
+
+b. Luồng Đặt hàng và Thanh toán
+
+Khi người dùng bấm checkout, Flutter gửi POST /cart/checkout với thông tin giỏ
+hàng, địa chỉ giao hàng và phương thức thanh toán. Backend tính khoảng cách
+(Haversine), phí giao hàng, ETA, tạo Order + OrderItem, tạo Payment record.
+Nếu thanh toán Stripe, Backend gọi Stripe API tạo PaymentIntent và trả
+client_secret về Flutter. Flutter hiển thị form Stripe, sau khi xác nhận, Stripe
+gửi webhook đến Backend để finalize.
+
+Hình 3.16. Biểu đồ tuần tự – Đặt hàng và thanh toán
+(Flutter → FastAPI → Haversine Service → PostgreSQL → Stripe API
+Luồng: checkout request → get cart items → calculate distance → calculate
+delivery fee + ETA → create Order → create OrderItems → create Payment →
+clear cart → [if Stripe: create PaymentIntent → return client_secret → Flutter
+confirm payment → Stripe webhook → update Payment + Order status])
+
+c. Luồng Giao hàng
+
+Khi shipper bật online, Flutter thiết lập WebSocket connection tới
+/shipper/ws/{token}. Backend xác thực token, cập nhật trạng thái online và vị
+trí. Khi shipper request available-orders, Backend truy vấn đơn hàng có status
+"confirmed" chưa có shipper_id, filter theo khoảng cách từ vị trí shipper đến
+pickup location. Shipper accept → Backend cập nhật shipper_id và status. Shipper
+pickup → delivered → Backend cập nhật timestamps tương ứng.
+
+Hình 3.17. Biểu đồ tuần tự – Giao hàng
+(Flutter → WebSocket → FastAPI → PostgreSQL
+Luồng: set-online → create ShipperSession → update Shipper location →
+get available-orders → filter by distance → accept order → update Order
+shipper_id + status="accepted" → pickup → status="picked_up" → deliver →
+status="delivered" + record delivered_at)
+
+
+3.3 Thiết kế cơ sở dữ liệu
+----------------------------
+
+3.3.1. Tổng quan Database Schema
+
+Hệ thống sử dụng PostgreSQL (thông qua Supabase) làm giải pháp lưu trữ dữ liệu
+chính. Dữ liệu được tổ chức theo mô hình quan hệ (Relational) với các bảng có
+ràng buộc khóa ngoại (Foreign Key) đảm bảo tính toàn vẹn. Toàn bộ dữ liệu được
+tổ chức thành các bảng chính sau:
+
+Bảng 3.6. Các bảng dữ liệu chính
++----+------------------------+-------------------------------------------+
+| #  | Bảng                   | Mô tả                                    |
++----+------------------------+-------------------------------------------+
+| 1  | users                  | Thông tin tài khoản và hồ sơ người dùng  |
+| 2  | categories             | Danh mục món ăn (thuộc cửa hàng)         |
+| 3  | dishes                 | Món ăn với giá, mô tả, hình ảnh          |
+| 4  | toppings               | Topping/addon cho món ăn                  |
+| 5  | cart_items             | Giỏ hàng người mua                       |
+| 6  | favorites              | Danh sách yêu thích                      |
+| 7  | orders                 | Đơn hàng chính                           |
+| 8  | order_items            | Chi tiết sản phẩm trong đơn              |
+| 9  | payments               | Lịch sử thanh toán                       |
+| 10 | shippers               | Hồ sơ tài xế giao hàng                  |
+| 11 | shipper_sessions       | Phiên làm việc shipper                   |
+| 12 | discount_codes         | Mã giảm giá khuyến mãi                   |
+| 13 | password_resets        | OTP đặt lại mật khẩu                    |
+| 14 | profiles               | Hồ sơ mở rộng người dùng                |
+| 15 | form_sellers           | Đơn đăng ký cửa hàng                    |
+| 16 | pending_stripe_checkouts| Trạng thái checkout Stripe tạm thời      |
++----+------------------------+-------------------------------------------+
+
+3.3.2. Bảng Users
+
+Bảng users lưu trữ toàn bộ thông tin của người dùng. Đây là bảng trung tâm của
+hệ thống với trường role phân quyền 5 giá trị: buyer, seller, shipper, admin,
+pending.
+
+Bảng 3.7. Bảng Users
++------------------------+----------+-------------------------------------+
+| Field                  | Type     | Mô tả                              |
++------------------------+----------+-------------------------------------+
+| id                     | Integer  | Khóa chính, tự tăng                |
+| email                  | String   | Email đăng nhập (unique)            |
+| sdt                    | String   | Số điện thoại (unique)              |
+| full_name              | String   | Họ tên đầy đủ                      |
+| password_hash          | String   | Mật khẩu mã hóa Argon2             |
+| role                   | String   | buyer/seller/shipper/admin/pending  |
+| is_active              | Boolean  | Trạng thái hoạt động                |
+| address                | String   | Địa chỉ mặc định                   |
+| lat, lng               | Float    | Tọa độ GPS                         |
+| name_shop              | String   | Tên cửa hàng (seller)              |
+| address_shop           | String   | Địa chỉ cửa hàng (seller)          |
+| cccd                   | String   | CCCD (shipper)                     |
+| vehicle_registration   | String   | Đăng ký phương tiện (shipper)       |
+| license                | String   | Giấy phép lái xe (shipper)          |
+| created_at             | DateTime | Thời điểm tạo                      |
++------------------------+----------+-------------------------------------+
+
+3.3.3. Bảng Dishes
+
+Bảng dishes lưu trữ thông tin món ăn. Mỗi món thuộc một seller và một category.
+Hình ảnh được lưu trên Supabase Storage, chỉ lưu URL tham chiếu qua field
+image_url.
+
+Bảng 3.8. Bảng Dishes
++------------------------+----------+-------------------------------------+
+| Field                  | Type     | Mô tả                              |
++------------------------+----------+-------------------------------------+
+| id                     | Integer  | Khóa chính, tự tăng                |
+| name                   | String   | Tên món ăn                         |
+| price                  | Float    | Giá bán (VND)                      |
+| description            | Text     | Mô tả chi tiết                     |
+| image_url              | String   | URL hình ảnh (Supabase Storage)    |
+| seller_id              | Integer  | FK → users.id (seller)             |
+| category_id            | Integer  | FK → categories.id                 |
+| group                  | String   | Nhóm phân loại                     |
+| type                   | String   | Loại món                           |
+| created_at             | DateTime | Thời điểm tạo                      |
++------------------------+----------+-------------------------------------+
+
+3.3.4. Bảng Orders
+
+Bảng orders ghi lại thông tin đơn hàng, bao gồm thông tin người mua, người bán,
+shipper, địa chỉ giao hàng, phương thức thanh toán và các timestamp theo dõi
+trạng thái.
+
+Bảng 3.9. Bảng Orders
++------------------------------+----------+---------------------------------+
+| Field                        | Type     | Mô tả                          |
++------------------------------+----------+---------------------------------+
+| id                           | Integer  | Khóa chính, tự tăng            |
+| user_id                      | Integer  | FK → users.id (buyer)          |
+| seller_id                    | Integer  | FK → users.id (seller)         |
+| shipper_id                   | Integer  | FK → users.id (shipper)        |
+| status                       | String   | pending/confirmed/accepted/     |
+|                              |          | picked_up/delivered             |
+| payment_method               | String   | cod/stripe/sepay                |
+| total_price                  | Float    | Tổng tiền sản phẩm             |
+| delivery_fee                 | Float    | Phí giao hàng                  |
+| distance_km                  | Float    | Khoảng cách (km)               |
+| estimated_delivery_minutes   | Integer  | Thời gian dự kiến (phút)       |
+| delivery_address             | String   | Địa chỉ giao                   |
+| delivery_lat, delivery_lng   | Float    | Tọa độ giao hàng               |
+| pickup_address               | String   | Địa chỉ lấy hàng              |
+| pickup_lat, pickup_lng       | Float    | Tọa độ lấy hàng               |
+| note                         | Text     | Ghi chú đơn hàng              |
+| created_at                   | DateTime | Thời điểm tạo                  |
+| assigned_at                  | DateTime | Thời điểm shipper nhận         |
+| picked_up_at                 | DateTime | Thời điểm lấy hàng            |
+| delivered_at                 | DateTime | Thời điểm giao xong            |
++------------------------------+----------+---------------------------------+
+
+3.3.5. Bảng Payments
+
+Bảng payments ghi lại thông tin thanh toán cho mỗi đơn hàng, hỗ trợ nhiều
+phương thức và liên kết với giao dịch Stripe/Sepay.
+
+Bảng 3.10. Bảng Payments
++------------------------+----------+-------------------------------------+
+| Field                  | Type     | Mô tả                              |
++------------------------+----------+-------------------------------------+
+| id                     | Integer  | Khóa chính, tự tăng                |
+| order_id               | Integer  | FK → orders.id                     |
+| method                 | String   | stripe/sepay_bank_transfer/cod     |
+| status                 | String   | pending/paid/failed                |
+| amount                 | Float    | Số tiền thanh toán                 |
+| stripe_payment_intent  | String   | Stripe PaymentIntent ID            |
+| transaction_id         | String   | Mã giao dịch Sepay                 |
+| paid_at                | DateTime | Thời điểm thanh toán thành công    |
+| created_at             | DateTime | Thời điểm tạo                      |
++------------------------+----------+-------------------------------------+
+
+3.3.6. Bảng Shippers
+
+Bảng shippers lưu trữ thông tin mở rộng của tài xế giao hàng, bao gồm vị trí
+hiện tại, trạng thái online, và các chỉ số hiệu suất.
+
+Bảng 3.11. Bảng Shippers
++------------------------+----------+-------------------------------------+
+| Field                  | Type     | Mô tả                              |
++------------------------+----------+-------------------------------------+
+| id                     | Integer  | Khóa chính, tự tăng                |
+| user_id                | Integer  | FK → users.id                      |
+| full_name              | String   | Họ tên                             |
+| phone                  | String   | Số điện thoại                      |
+| vehicle_type           | String   | Loại phương tiện                   |
+| license_plate          | String   | Biển số xe                         |
+| is_online              | Boolean  | Trạng thái online                  |
+| lat, lng               | Float    | Vị trí hiện tại (GPS)              |
+| accept_radius          | Float    | Bán kính nhận đơn (km)             |
+| rating                 | Float    | Đánh giá trung bình                |
+| total_completed_orders | Integer  | Tổng đơn đã giao                  |
+| last_location_update   | DateTime | Lần cập nhật vị trí gần nhất      |
++------------------------+----------+-------------------------------------+
+
+3.3.7. Quan hệ giữa các bảng
+
+PostgreSQL là cơ sở dữ liệu quan hệ, các bảng liên kết với nhau thông qua
+Foreign Key constraints.
+
+Bảng 3.12. Quan hệ giữa các bảng
++----+-----------------------+-------------------+------------------------+
+| #  | Bảng                  | FK                | Tham chiếu             |
++----+-----------------------+-------------------+------------------------+
+| 1  | categories.seller_id  | →                 | users.id               |
+| 2  | dishes.seller_id      | →                 | users.id               |
+| 3  | dishes.category_id    | →                 | categories.id          |
+| 4  | cart_items.user_id    | →                 | users.id               |
+| 5  | cart_items.dish_id    | →                 | dishes.id              |
+| 6  | favorites.user_id     | →                 | users.id               |
+| 7  | favorites.dish_id     | →                 | dishes.id              |
+| 8  | orders.user_id        | →                 | users.id (buyer)       |
+| 9  | orders.seller_id      | →                 | users.id (seller)      |
+| 10 | orders.shipper_id     | →                 | users.id (shipper)     |
+| 11 | order_items.order_id  | →                 | orders.id              |
+| 12 | payments.order_id     | →                 | orders.id              |
+| 13 | shippers.user_id      | →                 | users.id               |
++----+-----------------------+-------------------+------------------------+
+
+Hình 3.18. Sơ đồ quan hệ dữ liệu hệ thống (ERD)
+(Mô tả: ERD thể hiện 16 bảng với quan hệ 1:N giữa users và categories/dishes/
+orders/cart_items/favorites; 1:N giữa orders và order_items/payments; 1:1 giữa
+users và shippers/profiles.)
+
+3.3.8. Bảo mật dữ liệu
+
+Hệ thống áp dụng các chiến lược bảo mật sau:
+
+a. Phân quyền truy cập:
+
+Bảng 3.13. Phân quyền truy cập
++----+------------------+-------+---------+---------+-------+
+| #  | Tài nguyên       | Buyer | Seller  | Shipper | Admin |
++----+------------------+-------+---------+---------+-------+
+| 1  | Dishes (đọc)     | ✓     | ✓       | ✗       | ✓     |
+| 2  | Dishes (ghi)     | ✗     | ✓ (own) | ✗       | ✓     |
+| 3  | Orders (đọc)     |✓(own) | ✓ (own) | ✓ (own) | ✓     |
+| 4  | Cart             |✓(own) | ✗       | ✗       | ✗     |
+| 5  | Users (quản lý)  | ✗     | ✗       | ✗       | ✓     |
+| 6  | Shipper ops      | ✗     | ✗       | ✓       | ✗     |
+| 7  | Discount codes   | ✗     | ✗       | ✗       | ✓     |
++----+------------------+-------+---------+---------+-------+
+
+b. Bảo vệ API endpoints:
+Toàn bộ API endpoint yêu cầu JWT token trong header Authorization. Middleware
+require_role() kiểm tra role từ token payload trước khi cho phép truy cập.
+
+c. Bảo vệ thanh toán:
+- Stripe webhook xác thực chữ ký endpoint secret để đảm bảo request đến từ
+  Stripe.
+- Sepay webhook xác thực secret key để đảm bảo request đến từ Sepay.
+- Số tiền thanh toán được kiểm tra khớp với tổng đơn hàng trước khi xác nhận.
+
+d. Bảo vệ dữ liệu nhạy cảm:
+- Mật khẩu được hash bằng Argon2, không bao giờ lưu dạng plain text.
+- JWT token được lưu trong Flutter Secure Storage (mã hóa on-device).
+- Kết nối cơ sở dữ liệu bắt buộc SSL.
+
+
+3.4. Thiết kế kiến trúc
+------------------------
+
+3.4.1. Lựa chọn mô hình kiến trúc
+
+Hệ thống được xây dựng dựa trên kiến trúc Client-Server, trong đó:
+- Client (Frontend): Ứng dụng Flutter chạy trên thiết bị di động, chịu trách
+  nhiệm hiển thị giao diện và thu thập dữ liệu từ người dùng.
+- Server (Backend): FastAPI application chạy trên server, chịu trách nhiệm xử lý
+  logic nghiệp vụ, quản lý cơ sở dữ liệu và giao tiếp với dịch vụ bên thứ ba.
+
+Giao tiếp giữa Client và Server thông qua RESTful API (HTTP/HTTPS) cho các thao
+tác CRUD, và WebSocket cho real-time tracking.
+
+3.4.2. Sơ đồ kiến trúc và mô tả các tầng
+
+a. Sơ đồ kiến trúc tổng quan
+
+Kiến trúc tổng thể mô tả luồng dữ liệu đi từ tương tác người dùng trên ứng
+dụng Flutter, qua RESTful API đến Backend FastAPI, và cuối cùng tương tác với
+cơ sở dữ liệu PostgreSQL và các dịch vụ bên thứ ba (Stripe, Sepay, Supabase
+Storage).
+
+Hình 3.19. Sơ đồ kiến trúc Client-Server tổng quát
+(Mô tả:
+[Flutter App] ←→ [RESTful API / WebSocket] ←→ [FastAPI Backend]
+                                                     ↕
+                                          [PostgreSQL (Supabase)]
+                                          [Supabase Storage]
+                                          [Stripe API]
+                                          [Sepay API]
+                                          [Gmail SMTP])
+
+b. Mô tả chi tiết các tầng
+
+Tầng Giao diện (Presentation Layer - Flutter):
+
+Vận hành trên thiết bị di động, sử dụng Flutter/Dart để xây dựng các màn hình
+giao diện theo Material Design 3. Ứng dụng được tổ chức theo cấu trúc:
+- Screens: Các màn hình chính (Login, Home, Cart, Order, Profile, Admin, etc.)
+- Widgets: Các thành phần UI tái sử dụng (OrderCard, StatCard, etc.)
+- Providers: Quản lý trạng thái ứng dụng (AuthProvider, FavoriteProvider)
+- Services: Giao tiếp với Backend API
+- Models: Định nghĩa cấu trúc dữ liệu phía client
+- Config: Cấu hình API URL, theme, constants
+
+Hình 3.20. Chi tiết các thành phần Frontend (Flutter)
+(Mô tả: Cấu trúc thư mục lib/ với các folder: screen/, widgets/, providers/,
+services/, models/, config/, core/, routes/)
+
+Tầng Xử lý nghiệp vụ (Business Logic Layer - FastAPI):
+
+Vận hành trên server, đóng vai trò trung tâm xử lý toàn bộ logic nghiệp vụ.
+Cấu trúc Backend:
+- main.py: Entry point, cấu hình FastAPI app, đăng ký routers
+- routers/: 16 router modules xử lý các nhóm API endpoint
+- models.py: Định nghĩa ORM models (SQLAlchemy)
+- schemas.py: Pydantic schemas cho validate dữ liệu
+- auth.py: JWT authentication & Argon2 hashing
+- dependencies.py: Middleware xác thực và phân quyền
+- services/: Business logic (distance calculation, etc.)
+
+Hình 3.21. Chi tiết cấu trúc Backend (FastAPI)
+(Mô tả: Cấu trúc thư mục Backend/ với main.py, routers/, models.py, schemas.py,
+auth.py, dependencies.py, services/, email_utils.py, supabase_client.py)
+
+Tầng Dữ liệu và Dịch vụ (Data & Services Layer):
+
+Kết nối với các dịch vụ bên ngoài:
+- PostgreSQL (Supabase): Lưu trữ dữ liệu chính thông qua SQLAlchemy ORM
+- Supabase Storage: Lưu trữ file hình ảnh
+- Stripe: Xử lý thanh toán thẻ quốc tế
+- Sepay: Giám sát giao dịch chuyển khoản ngân hàng
+- Gmail SMTP: Gửi email OTP
+
+Hình 3.22. Sơ đồ tương tác giữa Frontend, Backend và các dịch vụ bên thứ ba
+(Mô tả:
+Flutter App ←→ FastAPI ←→ PostgreSQL (Supabase DB)
+                  ↕            ↕
+           Supabase Storage  Stripe API
+                  ↕            ↕
+           Gmail SMTP       Sepay API)
+
+
+================================================================================
+          CHƯƠNG 4: CÀI ĐẶT VÀ TRIỂN KHAI
+================================================================================
+
+
+4.1. Môi trường phát triển
+--------------------------
+
+Hệ thống được phát triển và triển khai dựa trên các công cụ, ngôn ngữ và thư
+viện hiện đại, đảm bảo hiệu năng và khả năng mở rộng:
+
+- Công cụ lập trình (IDE): Visual Studio Code
+- Quản lý phiên bản: Git
+
+Backend:
+- Ngôn ngữ: Python 3.10+
+- Framework: FastAPI (web framework hiệu năng cao)
+- ORM: SQLAlchemy (tương tác cơ sở dữ liệu)
+- Server: Uvicorn (ASGI server)
+- Authentication: PyJWT + Argon2 (mã hóa token và mật khẩu)
+- Validation: Pydantic (schema validation)
+- Database: PostgreSQL trên Supabase
+- Storage: Supabase Storage (lưu trữ hình ảnh)
+- Payment: Stripe SDK, Sepay API
+- Email: Gmail SMTP (gửi OTP)
+
+Frontend:
+- Ngôn ngữ: Dart
+- Framework: Flutter (SDK for mobile, web, desktop)
+- State Management: Provider (ChangeNotifierProvider)
+- HTTP Client: http package
+- Local Storage: shared_preferences, flutter_secure_storage
+- Maps: google_maps_flutter, flutter_map
+- Location: geolocator, geocoding
+- Payment UI: flutter_stripe
+- Image: image_picker
+- Real-time: web_socket_channel
+- Backend Client: supabase_flutter
+
+
+4.2. Triển khai các Module cốt lõi
+-----------------------------------
+
+4.2.1. Module Xác thực (Authentication)
+
+Module xác thực là nền tảng bảo mật của toàn bộ hệ thống, xử lý đăng ký, đăng
+nhập, quên mật khẩu và phân quyền truy cập. Quá trình này được chia thành các
+phần chính:
+
+a. Đăng ký tài khoản:
+- Hệ thống nhận thông tin từ form đăng ký (tên, email, SĐT, mật khẩu, role).
+- Validate dữ liệu qua Pydantic schema, kiểm tra email/SĐT chưa được sử dụng.
+- Mật khẩu được hash bằng Argon2 trước khi lưu vào database.
+- Nếu đăng ký vai trò Seller: tạo FormSeller record với trạng thái "pending",
+  role được set thành "pending" chờ Admin duyệt.
+- Nếu đăng ký vai trò Shipper: tạo Shipper record với thông tin phương tiện.
+
+b. Đăng nhập:
+- Người dùng nhập email/SĐT và mật khẩu.
+- Backend tìm user theo email hoặc SĐT, so sánh mật khẩu với hash Argon2.
+- Kiểm tra trạng thái is_active (tài khoản bị khóa sẽ không thể đăng nhập).
+- Tạo JWT token (24 giờ) chứa user_id và role, trả về cho client.
+- Flutter lưu token vào Secure Storage.
+
+c. Quên mật khẩu:
+- Backend tạo OTP 6 chữ số, lưu vào bảng password_resets (hết hạn 10 phút).
+- Gửi OTP qua Gmail SMTP đến email người dùng.
+- Người dùng nhập OTP + mật khẩu mới, Backend verify OTP và cập nhật password.
+
+4.2.2. Module Giỏ hàng và Đặt hàng (Cart & Order)
+
+Module này quản lý toàn bộ luồng từ thêm món vào giỏ đến tạo đơn hàng. Đây là
+module nghiệp vụ cốt lõi:
+
+a. Quản lý giỏ hàng:
+- Thêm món: Nếu món đã có trong giỏ, tăng số lượng; nếu chưa, tạo CartItem mới.
+- Cập nhật: Thay đổi số lượng theo cart_item_id.
+- Xóa: Loại bỏ CartItem khỏi giỏ.
+- Xem giỏ: Trả về danh sách CartItem kèm thông tin Dish đầy đủ.
+
+b. Checkout (Đặt hàng):
+- Lấy toàn bộ cart items của user.
+- Xác định seller_id từ dish đầu tiên trong giỏ.
+- Lấy tọa độ GPS của seller và buyer.
+- Tính khoảng cách bằng Haversine formula.
+- Tính phí giao hàng: base_fee (15.000đ) + extra (5.000đ/km sau 2km).
+- Tính ETA: distance / 25 km/h * 60 phút.
+- Tạo Order record với đầy đủ thông tin giao hàng.
+- Tạo OrderItem records (snapshot dữ liệu dish tại thời điểm đặt).
+- Tạo Payment record với phương thức đã chọn.
+- Xóa toàn bộ CartItem của user.
+
+4.2.3. Module Thanh toán (Payment)
+
+Module thanh toán hỗ trợ 3 phương thức và sử dụng cơ chế webhook để xác nhận
+giao dịch tự động:
+
+a. Stripe (thẻ quốc tế):
+- Backend gọi Stripe API tạo PaymentIntent với amount.
+- Trả client_secret về Flutter.
+- Flutter hiển thị form thẻ qua flutter_stripe package.
+- Sau khi user xác nhận, Stripe xử lý thanh toán.
+- Stripe gửi webhook event (payment_intent.succeeded/failed) đến Backend.
+- Backend cập nhật Payment status = "paid" và Order status = "confirmed".
+
+b. Sepay (chuyển khoản ngân hàng):
+- Backend sinh mã giao dịch duy nhất: FD{order_id}.
+- Tạo QR code theo chuẩn VietQR chứa số tài khoản, số tiền và nội dung.
+- Trả URL QR image cho Flutter hiển thị.
+- Người dùng quét QR bằng ứng dụng ngân hàng và chuyển khoản.
+- Sepay phát hiện giao dịch mới, gửi webhook đến Backend.
+- Backend parse nội dung chuyển khoản (tìm pattern "FD{number}") để xác định
+  order_id, validate số tiền, cập nhật trạng thái.
+
+c. COD (thanh toán khi nhận hàng):
+- Đơn hàng được tạo với Payment status = "pending".
+- Shipper thu tiền mặt khi giao hàng thành công.
+
+4.2.4. Module Shipper (Giao hàng)
+
+Module quản lý toàn bộ hoạt động của tài xế giao hàng, từ bật online đến giao
+hàng thành công:
+
+a. Quản lý trạng thái online:
+- Shipper bật online: Tạo ShipperSession, cập nhật is_online = true và vị trí GPS.
+- Cập nhật vị trí liên tục qua WebSocket connection.
+- Shipper tắt online: Đóng ShipperSession (ghi end_time).
+
+b. Nhận và giao đơn hàng:
+- Xem đơn hàng khả dụng: Lọc đơn có status "confirmed", chưa có shipper, trong
+  phạm vi accept_radius (tính khoảng cách Haversine từ shipper đến pickup).
+- Accept: Cập nhật Order shipper_id, status = "accepted", assigned_at.
+- Pickup: Cập nhật status = "picked_up", picked_up_at.
+- Deliver: Cập nhật status = "delivered", delivered_at.
+
+c. Thống kê thu nhập:
+- Tổng thu nhập: Sum delivery_fee của tất cả đơn delivered.
+- Thu nhập hôm nay: Filter theo ngày hiện tại.
+- Tổng hợp tuần/tháng: Group by time period.
+
+4.2.5. Module Quản trị (Admin)
+
+Module dành cho Admin quản lý toàn bộ hệ thống:
+
+a. Dashboard thống kê:
+- Tổng số người dùng, tổng số đơn hàng, tổng doanh thu, tổng số món ăn.
+- Dữ liệu được truy vấn trực tiếp từ database.
+
+b. Quản lý người dùng:
+- Xem danh sách tất cả users với filter theo role.
+- Toggle active: Khóa/mở khóa tài khoản.
+- Change role: Đổi vai trò người dùng.
+- Duyệt đơn đăng ký: Xem pending users, approve (chuyển role sang seller/shipper,
+  set is_active = true) hoặc reject.
+
+c. Quản lý mã giảm giá:
+- CRUD discount codes với các thuộc tính: code, loại giảm (% hoặc cố định),
+  giá trị giảm, giá trị đơn tối thiểu, thời hạn, trạng thái active.
+- Validate mã giảm giá: Kiểm tra tồn tại, thời hạn, điều kiện đơn tối thiểu.
+
+
+4.3. Triển khai giao diện
+--------------------------
+
+Giao diện ứng dụng được thiết kế theo Material Design 3 với tông màu chủ đạo
+cam (#E67E22), tập trung vào trải nghiệm người dùng di động. Dưới đây là các
+màn hình chức năng chính đã được triển khai thực tế:
+
+a. Màn hình Đăng nhập / Đăng ký
+Nơi người dùng xác thực danh tính để truy cập hệ thống. Giao diện hỗ trợ đăng
+nhập bằng email/SĐT, chuyển đổi giữa form đăng nhập và đăng ký, tích hợp chức
+năng quên mật khẩu (nhận OTP qua email). Đăng ký hỗ trợ chọn vai trò (Buyer,
+Seller, Shipper) với form thông tin tương ứng.
+
+Hình 4.1. Giao diện đăng nhập / đăng ký
+
+b. Màn hình Trang chủ Người mua (Buyer Home)
+Hiển thị danh sách danh mục và món ăn từ tất cả các seller. Người mua có thể
+tìm kiếm theo tên món, lọc theo danh mục. Mỗi món ăn hiển thị tên, giá, hình
+ảnh và nút thêm vào giỏ hàng / yêu thích. Bottom navigation bar cho phép chuyển
+đổi nhanh giữa các tab: Home, Favorites, Cart, Orders, Profile.
+
+Hình 4.2. Giao diện trang chủ người mua
+
+c. Màn hình Giỏ hàng (Cart)
+Hiển thị danh sách món đã thêm với số lượng, giá đơn vị và tổng tiền. Người
+dùng có thể tăng/giảm số lượng, xóa món, nhập mã giảm giá. Phía dưới hiển thị
+tổng tiền sản phẩm, phí giao hàng, giảm giá và tổng cần thanh toán.
+
+Hình 4.3. Giao diện giỏ hàng
+
+d. Màn hình Thanh toán (Payment)
+Hiển thị tóm tắt đơn hàng, địa chỉ giao hàng, khoảng cách và thời gian giao
+dự kiến. Người dùng chọn phương thức thanh toán: COD (tiền mặt), Stripe (thẻ
+quốc tế - hiển thị form nhập thẻ), Sepay (chuyển khoản - hiển thị mã QR).
+
+Hình 4.4. Giao diện thanh toán
+
+e. Màn hình Theo dõi Đơn hàng (Order Tracking)
+Hiển thị trạng thái đơn hàng theo timeline: Đang chờ → Đã xác nhận → Đã nhận
+→ Đang giao → Đã giao. Mỗi trạng thái có timestamp và thông tin shipper (nếu
+đã được gán). Danh sách lịch sử đơn hàng được hiển thị dưới dạng card với
+thông tin tóm tắt.
+
+Hình 4.5. Giao diện theo dõi đơn hàng
+
+f. Màn hình Quản lý Cửa hàng (Seller)
+Giao diện dành cho Seller quản lý cửa hàng với các tab: Danh mục (thêm/sửa/xóa
+category), Món ăn (thêm/sửa/xóa dish với upload hình ảnh), Topping (quản lý
+addon), Đơn hàng (xem và xử lý đơn hàng đến).
+
+Hình 4.6. Giao diện quản lý cửa hàng (Seller)
+
+g. Màn hình Shipper
+Giao diện dành cho tài xế giao hàng: Toggle online/offline, bản đồ hiển thị vị
+trí hiện tại, danh sách đơn hàng khả dụng (với khoảng cách và phí giao), nút
+nhận đơn/lấy hàng/giao xong, dashboard thu nhập (hôm nay, tuần, tháng).
+
+Hình 4.7. Giao diện shipper
+
+h. Màn hình Quản trị (Admin)
+Khu vực dành cho Admin với dashboard thống kê tổng quan (card hiển thị tổng user,
+đơn hàng, doanh thu, món ăn). Các tab quản lý: Người dùng (danh sách, khóa/mở,
+đổi role), Đơn đăng ký (duyệt seller/shipper pending), Đơn hàng gần đây.
+
+Hình 4.8. Giao diện quản trị (Admin)
+
+i. Màn hình Hồ sơ cá nhân (Profile)
+Hiển thị thông tin cá nhân: avatar, tên, email, SĐT, địa chỉ. Người dùng có
+thể chỉnh sửa thông tin, cập nhật GPS location, đổi avatar (chọn từ thư viện
+hoặc chụp ảnh), đổi mật khẩu và đăng xuất.
+
+Hình 4.9. Giao diện hồ sơ cá nhân
+
+
+================================================================================
+          CHƯƠNG 5: KIỂM THỬ VÀ ĐÁNH GIÁ
+================================================================================
+
+
+5.1. Kịch bản kiểm thử
+-----------------------
+
+a. Nhóm chức năng dành cho Người mua (Buyer)
+
+Bảng 5.1. Kiểm thử nhóm chức năng người mua
++----+-------------------------------+----------------------------+----------+
+| #  | Chức năng                     | Kịch bản kiểm thử         | Kết quả  |
++----+-------------------------------+----------------------------+----------+
+| 1  | Đăng ký tài khoản Buyer      | Nhập đầy đủ thông tin,     | Đạt      |
+|    |                               | email/SĐT hợp lệ          |          |
+| 2  | Đăng nhập                    | Đăng nhập email + mật khẩu | Đạt      |
+| 3  | Quên mật khẩu                | Nhận OTP email, đặt lại MK | Đạt      |
+| 4  | Duyệt danh mục               | Xem danh sách category     | Đạt      |
+| 5  | Tìm kiếm món ăn              | Tìm theo tên món           | Đạt      |
+| 6  | Thêm vào giỏ hàng           | Thêm món, kiểm tra số lượng| Đạt      |
+| 7  | Cập nhật giỏ hàng           | Tăng/giảm/xóa món trong giỏ| Đạt      |
+| 8  | Áp mã giảm giá              | Nhập mã hợp lệ/hết hạn    | Đạt      |
+| 9  | Checkout tạo đơn             | Tạo đơn từ giỏ hàng       | Đạt      |
+| 10 | Thanh toán COD               | Chọn COD, xác nhận đơn    | Đạt      |
+| 11 | Thanh toán Stripe            | Nhập thẻ, xác nhận webhook | Đạt      |
+| 12 | Thanh toán Sepay             | Quét QR, chuyển khoản     | Đạt      |
+| 13 | Xem lịch sử đơn hàng        | Danh sách đơn đã đặt      | Đạt      |
+| 14 | Quản lý yêu thích           | Thêm/xóa yêu thích       | Đạt      |
+| 15 | Cập nhật hồ sơ              | Sửa tên, SĐT, địa chỉ    | Đạt      |
+| 16 | Đổi mật khẩu                | Nhập MK cũ + mới          | Đạt      |
++----+-------------------------------+----------------------------+----------+
+
+b. Nhóm chức năng dành cho Người bán (Seller)
+
+Bảng 5.2. Kiểm thử nhóm chức năng người bán
++----+-------------------------------+----------------------------+----------+
+| #  | Chức năng                     | Kịch bản kiểm thử         | Kết quả  |
++----+-------------------------------+----------------------------+----------+
+| 1  | Đăng ký Seller               | Nộp form, chờ Admin duyệt | Đạt      |
+| 2  | Quản lý danh mục             | Thêm/sửa/xóa category     | Đạt      |
+| 3  | Quản lý món ăn               | CRUD Dish + upload ảnh     | Đạt      |
+| 4  | Quản lý topping              | CRUD Topping cho dish      | Đạt      |
+| 5  | Xem đơn hàng đến            | Danh sách đơn từ buyer     | Đạt      |
+| 6  | Xử lý đơn hàng              | Xác nhận/từ chối đơn      | Đạt      |
++----+-------------------------------+----------------------------+----------+
+
+c. Nhóm chức năng dành cho Shipper
+
+Bảng 5.3. Kiểm thử nhóm chức năng shipper
++----+-------------------------------+----------------------------+----------+
+| #  | Chức năng                     | Kịch bản kiểm thử         | Kết quả  |
++----+-------------------------------+----------------------------+----------+
+| 1  | Đăng ký Shipper              | Nộp thông tin, chờ duyệt  | Đạt      |
+| 2  | Bật/tắt online               | Toggle trạng thái          | Đạt      |
+| 3  | Cập nhật vị trí GPS          | Gửi tọa độ qua WebSocket  | Đạt      |
+| 4  | Xem đơn khả dụng            | Lọc theo bán kính          | Đạt      |
+| 5  | Nhận đơn hàng                | Accept đơn gần vị trí     | Đạt      |
+| 6  | Đánh dấu lấy hàng           | Update pickup status       | Đạt      |
+| 7  | Đánh dấu giao xong          | Update delivered status    | Đạt      |
+| 8  | Xem lịch sử giao hàng       | Danh sách đơn đã giao     | Đạt      |
+| 9  | Xem thống kê thu nhập        | Tổng hôm nay/tuần/tháng   | Đạt      |
++----+-------------------------------+----------------------------+----------+
+
+d. Nhóm chức năng dành cho Quản trị viên (Admin)
+
+Bảng 5.4. Kiểm thử nhóm chức năng quản trị viên
++----+-------------------------------+----------------------------+----------+
+| #  | Chức năng                     | Kịch bản kiểm thử         | Kết quả  |
++----+-------------------------------+----------------------------+----------+
+| 1  | Xem dashboard thống kê       | Hiển thị số liệu tổng quan| Đạt      |
+| 2  | Xem danh sách users          | Liệt kê tất cả người dùng | Đạt      |
+| 3  | Khóa/mở khóa tài khoản      | Toggle is_active           | Đạt      |
+| 4  | Đổi role người dùng          | Thay đổi vai trò           | Đạt      |
+| 5  | Duyệt đơn đăng ký Seller    | Approve/Reject form seller | Đạt      |
+| 6  | Duyệt đơn đăng ký Shipper   | Approve/Reject shipper     | Đạt      |
+| 7  | Xem đơn hàng gần đây         | Danh sách 50 đơn mới nhất | Đạt      |
++----+-------------------------------+----------------------------+----------+
+
+
+5.2. Kết quả đạt được
+-----------------------
+
+Dựa trên các kịch bản kiểm thử đã thực hiện, hệ thống đã đạt được những kết quả
+cụ thể so với mục tiêu đề ra ban đầu:
+
+- Tính hoàn thiện: Hệ thống đã triển khai đầy đủ toàn bộ chức năng cốt lõi cho
+  cả 4 nhóm người dùng (Buyer, Seller, Shipper, Admin) với hơn 40 chức năng hoạt
+  động ổn định.
+
+- Kiến trúc hệ thống: Backend FastAPI xử lý request nhanh chóng với 16 router
+  modules, tổng cộng hơn 50 API endpoints. Frontend Flutter hoạt động mượt mà
+  trên thiết bị Android với giao diện Material Design 3.
+
+- Thanh toán đa phương thức: Tích hợp thành công 3 phương thức thanh toán (COD,
+  Stripe, Sepay) với cơ chế webhook tự động xác nhận giao dịch, đảm bảo không
+  bỏ sót giao dịch nào.
+
+- Hệ thống giao hàng: Module shipper hoạt động ổn định với GPS tracking qua
+  WebSocket, thuật toán gán đơn theo khoảng cách Haversine và hệ thống thống kê
+  thu nhập chi tiết.
+
+- Tính bảo mật: Toàn bộ mật khẩu được hash bằng Argon2, xác thực JWT, phân
+  quyền RBAC chặt chẽ, webhook có xác thực chữ ký số, kết nối database bắt buộc
+  SSL.
+
+- Trải nghiệm người dùng: Giao diện trực quan theo Material Design 3, tông màu
+  cam thống nhất, điều hướng bottom navigation thuận tiện, tải ảnh và dữ liệu
+  mượt mà.
+
+
+5.3. Các vấn đề và bài học kinh nghiệm
+----------------------------------------
+
+Trong quá trình phát triển và kiểm thử, nhóm đã đối mặt với một số thách thức
+kỹ thuật:
+
+- Vấn đề tính khoảng cách: Sử dụng công thức Haversine cho kết quả khoảng cách
+  theo đường chim bay, có sai số so với khoảng cách đường đi thực tế. Khắc phục:
+  Nhóm đã thêm hệ số bù trừ và ghi nhận đây là giới hạn cần cải thiện bằng API
+  routing thực tế (Google Directions API).
+
+- Xử lý webhook thanh toán: Việc parse nội dung chuyển khoản ngân hàng (Sepay)
+  đôi khi gặp vấn đề do nội dung bị thay đổi bởi ngân hàng trung gian. Khắc
+  phục: Triển khai phiên bản V2 (sepay_router_v2.py) với cơ chế fallback và
+  regex matching linh hoạt hơn.
+
+- Quản lý trạng thái WebSocket: Kết nối WebSocket cho shipper tracking cần
+  xử lý các trường hợp mất kết nối, reconnect và đồng bộ dữ liệu. Khắc phục:
+  Áp dụng cơ chế heartbeat và reconnect tự động phía Flutter client.
+
+- Tối ưu hiệu năng hình ảnh: Upload và tải hình ảnh món ăn với kích thước lớn
+  ảnh hưởng đến trải nghiệm người dùng. Khắc phục: Sử dụng Supabase Storage
+  với CDN và tối ưu kích thước ảnh trước khi upload.
+
+
+5.4. Hạn chế của hệ thống
+--------------------------
+
+Mặc dù đã hoàn thành các mục tiêu cơ bản, hệ thống vẫn tồn tại một số điểm cần
+cải thiện:
+
+- Khoảng cách tính theo đường chim bay (Haversine) thay vì đường đi thực tế, có
+  thể gây sai lệch phí giao hàng ở khu vực có địa hình phức tạp.
+
+- Chưa có hệ thống đánh giá và bình luận từ người mua cho món ăn và cửa hàng.
+
+- Chưa có chức năng chat/nhắn tin giữa người mua, người bán và shipper.
+
+- Chưa triển khai push notification khi đơn hàng thay đổi trạng thái.
+
+- Ứng dụng chưa được kiểm thử trên iOS (chỉ test trên Android).
+
+- Một số thông tin cấu hình nhạy cảm (JWT secret, email password) vẫn được
+  hardcode trong mã nguồn, cần chuyển sang biến môi trường (.env).
+
+
+5.5. Hướng phát triển trong tương lai
+--------------------------------------
+
+Để trở thành một sản phẩm hoàn chỉnh hơn, nhóm đề xuất các hướng phát triển
+tiếp theo:
+
+- Tích hợp Google Directions API: Sử dụng API routing thực tế để tính khoảng
+  cách đường đi chính xác hơn, thay vì đường chim bay.
+
+- Hệ thống đánh giá và bình luận: Cho phép người mua đánh giá sao và viết nhận
+  xét cho món ăn, cửa hàng và shipper.
+
+- Chat trong ứng dụng: Tích hợp chức năng nhắn tin realtime giữa buyer-seller
+  và buyer-shipper.
+
+- Push Notification: Thông báo đẩy khi đơn hàng thay đổi trạng thái, khi có
+  đơn hàng mới (cho seller/shipper).
+
+- Đa nền tảng: Kiểm thử và tối ưu ứng dụng trên iOS, có thể mở rộng sang
+  web app.
+
+- Bảo mật nâng cao: Chuyển toàn bộ config nhạy cảm sang biến môi trường,
+  triển khai rate limiting, HTTPS và audit logging.
+
+
+================================================================================
+                            KẾT LUẬN
+================================================================================
+
+1. Tổng kết đồ án
+
+Sau một thời gian tập trung nghiên cứu và triển khai, đồ án "Xây dựng ứng dụng
+đặt và giao đồ ăn trực tuyến" (Food Delivery App) đã hoàn thành tất cả các mục
+tiêu đề ra ban đầu. Nhóm đã hiện thực hóa thành công một hệ thống giao đồ ăn
+hoàn chỉnh dựa trên kiến trúc Client-Server, với Frontend Flutter đa nền tảng
+kết hợp Backend FastAPI hiệu năng cao và cơ sở dữ liệu PostgreSQL trên nền tảng
+Supabase.
+
+Về mặt kỹ thuật, dự án đã giải quyết được nhiều thách thức phức tạp bao gồm:
+tích hợp đa phương thức thanh toán (Stripe, Sepay, COD) với cơ chế webhook tự
+động, hệ thống giao hàng theo thời gian thực với GPS tracking qua WebSocket,
+thuật toán tính khoảng cách và phí giao hàng bằng công thức Haversine, cùng hệ
+thống phân quyền 4 vai trò (Buyer, Seller, Shipper, Admin) với đầy đủ chức năng
+cho mỗi nhóm người dùng. Hệ thống không chỉ đảm bảo tính năng kỹ thuật mà còn
+chú trọng đến bảo mật thông qua JWT authentication, Argon2 password hashing và
+Role-Based Access Control.
+
+2. Giá trị thực tiễn của đề tài
+
+Sản phẩm mang lại những giá trị thực tiễn rõ rệt:
+
+- Đối với người mua: Ứng dụng cung cấp trải nghiệm đặt hàng tiện lợi với giao
+  diện trực quan, đa phương thức thanh toán và khả năng theo dõi đơn hàng theo
+  thời gian thực.
+
+- Đối với người bán: Hệ thống trao quyền quản lý cửa hàng trực tuyến đầy đủ
+  (danh mục, món ăn, topping, đơn hàng) mà không cần phụ thuộc vào nền tảng
+  trung gian tốn phí.
+
+- Đối với tài xế: Hệ thống giao hàng thông minh với gán đơn theo vị trí GPS,
+  thống kê thu nhập chi tiết và cơ chế quản lý phiên làm việc linh hoạt.
+
+- Giá trị học thuật: Đồ án là minh chứng cho việc ứng dụng hiệu quả kiến trúc
+  Client-Server hiện đại, kết hợp Flutter (mobile), FastAPI (backend) và
+  PostgreSQL (database) để xây dựng một hệ thống phức tạp với đa vai trò, đa
+  phương thức thanh toán và dữ liệu thời gian thực.
+
+Dù vẫn còn những hạn chế nhất định về tính toán khoảng cách, hệ thống đánh giá
+và khả năng triển khai iOS, ứng dụng đã đặt nền móng vững chắc cho một nền tảng
+giao đồ ăn hoàn chỉnh. Đây là tiền đề quan trọng để nhóm tiếp tục phát triển
+các tính năng cộng đồng và mở rộng quy mô trong tương lai.
+
+
+================================================================================
+                       TÀI LIỆU THAM KHẢO
+================================================================================
+
+[1] Flutter Team, Flutter Documentation: Build apps for any screen,
+    https://docs.flutter.dev/, 2026.
+
+[2] Tiangolo, S., FastAPI Documentation: Modern, Fast Web Framework for
+    Building APIs with Python, https://fastapi.tiangolo.com/, 2026.
+
+[3] SQLAlchemy Contributors, SQLAlchemy: The Database Toolkit for Python,
+    https://www.sqlalchemy.org/, 2026.
+
+[4] Supabase Team, Supabase Documentation: The Open Source Firebase Alternative,
+    https://supabase.com/docs, 2026.
+
+[5] Stripe, Inc., Stripe API Documentation: Online Payment Processing,
+    https://stripe.com/docs/api, 2026.
+
+[6] Sepay, Sepay API Documentation: Bank Account Monitoring Service,
+    https://my.sepay.vn/, 2026.
+
+[7] Google, Material Design 3: Design System,
+    https://m3.material.io/, 2026.
+
+[8] Provider Package, Simple State Management for Flutter,
+    https://pub.dev/packages/provider, 2026.
+
+[9] Google Maps Platform, Google Maps SDK for Flutter,
+    https://pub.dev/packages/google_maps_flutter, 2026.
+
+[10] Dart Team, Dart Programming Language Documentation,
+     https://dart.dev/guides, 2026.

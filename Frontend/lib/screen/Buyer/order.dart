@@ -135,14 +135,15 @@ class _OrderList extends StatelessWidget {
   String _statusLabel(String rawStatus) {
     switch (parseOrderStatus(rawStatus.toLowerCase())) {
       case OrderStatus.pending:
-      case OrderStatus.confirmed:
         return 'Cho duoc xu ly';
+      case OrderStatus.confirmed:
+        return 'Dang tim tai xe';
       case OrderStatus.accepted:
         return 'Dang lay hang';
       case OrderStatus.pickedUp:
-        return 'Dang tren duong giao';
+        return 'Don hang dang duoc giao den ban';
       case OrderStatus.delivered:
-        return 'Hoan thanh don';
+        return 'Hoan thanh';
       case OrderStatus.cancelled:
         return 'Da huy';
     }
@@ -151,14 +152,15 @@ class _OrderList extends StatelessWidget {
   int _statusStep(String rawStatus) {
     switch (parseOrderStatus(rawStatus.toLowerCase())) {
       case OrderStatus.pending:
-      case OrderStatus.confirmed:
         return 0;
-      case OrderStatus.accepted:
+      case OrderStatus.confirmed:
         return 1;
-      case OrderStatus.pickedUp:
+      case OrderStatus.accepted:
         return 2;
-      case OrderStatus.delivered:
+      case OrderStatus.pickedUp:
         return 3;
+      case OrderStatus.delivered:
+        return 4;
       case OrderStatus.cancelled:
         return -1;
     }
@@ -247,6 +249,10 @@ class _OrderList extends StatelessWidget {
           (sum, item) => sum + ((item['quantity'] as num?)?.toInt() ?? 0),
         );
         final total = (order['total_price'] as num?)?.toDouble() ?? 0;
+        final shipperCollect =
+            (order['shipper_collect'] as num?)?.toDouble() ?? 0;
+        final payMethod =
+            (order['payment_method'] ?? '').toString().toLowerCase();
         final status = (order['status'] ?? 'pending').toString();
         final paymentStatus = (order['payment_status'] ?? 'pending').toString();
         final deliveryAddress = (order['delivery_address'] ?? '').toString();
@@ -332,6 +338,14 @@ class _OrderList extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'So tien tra shipper: ${_formatMoney(shipperCollect)}',
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   if (estimatedDeliveryText != null) ...[
                     const SizedBox(height: 4),
                     Text(
@@ -350,7 +364,7 @@ class _OrderList extends StatelessWidget {
               ),
             ),
             trailing: Text(
-              '\$${total.toStringAsFixed(2)}',
+              _formatMoney(total),
               style: TextStyle(
                 color: accent,
                 fontWeight: FontWeight.w800,
@@ -373,10 +387,11 @@ class _OrderStatusTracker extends StatelessWidget {
   final Color accent;
 
   static const List<String> _steps = <String>[
-    'Cho duoc xu ly',
+    'Cho xu ly',
+    'Tim tai xe',
     'Dang lay hang',
-    'Dang tren duong giao',
-    'Hoan thanh don',
+    'Dang giao',
+    'Hoan thanh',
   ];
 
   @override

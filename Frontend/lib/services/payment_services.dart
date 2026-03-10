@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
@@ -116,31 +115,6 @@ class PaymentServices {
 
   Future<Map<String, dynamic>> createPayment(int orderId) async {
     return createSepayPayment(orderId);
-  }
-
-  Future<void> processPaymentSheet(String clientSecret) async {
-    await Stripe.instance.initPaymentSheet(
-      paymentSheetParameters: SetupPaymentSheetParameters(
-        paymentIntentClientSecret: clientSecret,
-        merchantDisplayName: 'Food Delivery',
-      ),
-    );
-    await Stripe.instance.presentPaymentSheet();
-  }
-
-  Future<Map<String, dynamic>> confirmCheckout(int checkoutId) async {
-    final url = Uri.parse(
-        "${ApiConfig.baseUrl}/api/payment/confirm-checkout/$checkoutId");
-
-    final response = await http.post(
-      url,
-      headers: await _authHeaders(),
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body) as Map<String, dynamic>;
-    }
-    throw Exception("Xac nhan checkout that bai: ${response.body}");
   }
 }
 

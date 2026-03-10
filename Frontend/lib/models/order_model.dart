@@ -168,6 +168,7 @@ class OrderModel {
   final UserModel? customer;
   final List<OrderItemModel> items;
   final int itemCount;
+  final String paymentMethod;
 
   const OrderModel({
     required this.id,
@@ -193,6 +194,7 @@ class OrderModel {
     required this.customer,
     required this.items,
     required this.itemCount,
+    this.paymentMethod = '',
   });
 
   double get earning => shippingFee;
@@ -219,10 +221,14 @@ class OrderModel {
       deliveryAddress: (map['delivery_address'] ?? '').toString(),
       customerPhone: (map['customer_phone'] ?? '').toString(),
       distanceKm: _toDouble(map['distance_km']),
-      pickupLat: map['pickup_lat'] == null ? null : _toDouble(map['pickup_lat']),
-      pickupLng: map['pickup_lng'] == null ? null : _toDouble(map['pickup_lng']),
-      deliveryLat: map['delivery_lat'] == null ? null : _toDouble(map['delivery_lat']),
-      deliveryLng: map['delivery_lng'] == null ? null : _toDouble(map['delivery_lng']),
+      pickupLat:
+          map['pickup_lat'] == null ? null : _toDouble(map['pickup_lat']),
+      pickupLng:
+          map['pickup_lng'] == null ? null : _toDouble(map['pickup_lng']),
+      deliveryLat:
+          map['delivery_lat'] == null ? null : _toDouble(map['delivery_lat']),
+      deliveryLng:
+          map['delivery_lng'] == null ? null : _toDouble(map['delivery_lng']),
       shippingFee: _toDouble(map['shipping_fee']),
       subtotal: _toDouble(map['subtotal']),
       totalAmount: _toDouble(map['total_amount']),
@@ -234,6 +240,7 @@ class OrderModel {
       customer: customer,
       items: currentItems,
       itemCount: itemCount ?? currentItems.length,
+      paymentMethod: (map['payment_method'] ?? '').toString(),
     );
   }
 }

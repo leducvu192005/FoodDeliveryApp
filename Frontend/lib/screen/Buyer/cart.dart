@@ -1,23 +1,22 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/cart_services.dart';
+import 'package:flutter_application_1/services/discount_services.dart';
 import 'package:flutter_application_1/services/payment_services.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:geolocator/geolocator.dart';
 
-enum _CheckoutPaymentMethod { cod, stripe }
-
-enum _CheckoutDeliveryMethod { currentLocation, customAddress }
+enum _CheckoutPaymentMethod { cod, sepay }
 
 extension on _CheckoutPaymentMethod {
   String get apiValue {
     switch (this) {
       case _CheckoutPaymentMethod.cod:
         return 'cod';
-      case _CheckoutPaymentMethod.stripe:
-        return 'stripe';
+      case _CheckoutPaymentMethod.sepay:
+        return 'sepay';
     }
   }
 
@@ -25,8 +24,8 @@ extension on _CheckoutPaymentMethod {
     switch (this) {
       case _CheckoutPaymentMethod.cod:
         return 'Thanh toan khi nhan hang';
-      case _CheckoutPaymentMethod.stripe:
-        return 'Chuyen khoan qua Stripe';
+      case _CheckoutPaymentMethod.sepay:
+        return 'Chuyen khoan ngan hang';
     }
   }
 
@@ -34,8 +33,8 @@ extension on _CheckoutPaymentMethod {
     switch (this) {
       case _CheckoutPaymentMethod.cod:
         return 'Tao don ngay, thanh toan khi shipper giao den.';
-      case _CheckoutPaymentMethod.stripe:
-        return 'Mo Stripe de thanh toan online. Don chi duoc tao sau khi thanh toan thanh cong.';
+      case _CheckoutPaymentMethod.sepay:
+        return 'Chuyen khoan qua QR code. Don duoc xac nhan sau khi nhan tien.';
     }
   }
 
@@ -43,55 +42,23 @@ extension on _CheckoutPaymentMethod {
     switch (this) {
       case _CheckoutPaymentMethod.cod:
         return Icons.payments_outlined;
-      case _CheckoutPaymentMethod.stripe:
-        return Icons.account_balance_outlined;
+      case _CheckoutPaymentMethod.sepay:
+        return Icons.qr_code_2_outlined;
     }
   }
-}
-
-extension on _CheckoutDeliveryMethod {
-  String get title {
-    switch (this) {
-      case _CheckoutDeliveryMethod.currentLocation:
-        return 'Dung vi tri hien tai';
-      case _CheckoutDeliveryMethod.customAddress:
-        return 'Nhap dia chi giao hang';
-    }
-  }
-
-  String get subtitle {
-    switch (this) {
-      case _CheckoutDeliveryMethod.currentLocation:
-        return 'Lay GPS hien tai cua thiet bi de giao hang tai noi ban dang dung.';
-      case _CheckoutDeliveryMethod.customAddress:
-        return 'Nhap mot dia chi khac va he thong se tim toa do tu dia chi do.';
-    }
-  }
-
-  IconData get icon {
-    switch (this) {
-      case _CheckoutDeliveryMethod.currentLocation:
-        return Icons.my_location_outlined;
-      case _CheckoutDeliveryMethod.customAddress:
-        return Icons.edit_location_alt_outlined;
-    }
-  }
-}
-
-class _ResolvedDeliveryLocation {
-  const _ResolvedDeliveryLocation({
-    required this.address,
-    required this.latitude,
-    required this.longitude,
-  });
-
-  final String address;
-  final double latitude;
-  final double longitude;
 }
 
 class Cart extends StatefulWidget {
-  const Cart({super.key});
+  const Cart({
+    super.key,
+    this.initialAddress,
+    this.initialLat,
+    this.initialLng,
+  });
+
+  final String? initialAddress;
+  final double? initialLat;
+  final double? initialLng;
 
   @override
   State<Cart> createState() => _CartState();
@@ -101,22 +68,31 @@ class _CartState extends State<Cart> {
   final CartServices _cartServices = CartServices();
   final Map<int, TextEditingController> _noteControllers = {};
   final TextEditingController _promoController = TextEditingController();
-  final TextEditingController _deliveryAddressController =
-      TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
   late Future<List<Map<String, dynamic>>> _cartFuture;
   bool _isPaying = false;
   _CheckoutPaymentMethod _selectedPaymentMethod = _CheckoutPaymentMethod.cod;
-  _CheckoutDeliveryMethod _selectedDeliveryMethod =
-      _CheckoutDeliveryMethod.currentLocation;
-  bool _isResolvingCurrentLocation = false;
+  bool _isResolvingLocation = false;
   String? _currentLocationAddress;
-
-  static const double _deliveryFee = 1.5;
+  double? _currentLat;
+  double? _currentLng;
+  double _discountAmountValue = 0;
+  String? _discountMessage;
+  bool _isValidatingPromo = false;
 
   @override
   void initState() {
     super.initState();
     _cartFuture = _cartServices.getCartItems();
+    // Use location from home if available, otherwise fetch GPS
+    if (widget.initialAddress != null &&
+        widget.initialLat != null &&
+        widget.initialLng != null) {
+      _currentLocationAddress = widget.initialAddress;
+      _currentLat = widget.initialLat;
+      _currentLng = widget.initialLng;
+      _addressController.text = widget.initialAddress!;
+    }
   }
 
   @override
@@ -125,7 +101,7 @@ class _CartState extends State<Cart> {
       c.dispose();
     }
     _promoController.dispose();
-    _deliveryAddressController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -151,58 +127,160 @@ class _CartState extends State<Cart> {
     return total;
   }
 
-  double _discountAmount(double itemsTotal) {
-    final promo = _promoController.text.trim().toUpperCase();
-    if (promo == 'SAVE10') return itemsTotal * 0.1;
-    if (promo == 'FREESHIP') return _deliveryFee;
-    return 0;
+  double _calculateDistanceKm(
+      double lat1, double lon1, double lat2, double lon2) {
+    const earthRadius = 6371.0;
+    final dLat = _degToRad(lat2 - lat1);
+    final dLon = _degToRad(lon2 - lon1);
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_degToRad(lat1)) *
+            cos(_degToRad(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+    final c = 2 * asin(sqrt(a));
+    return (earthRadius * c * 100).roundToDouble() / 100;
+  }
+
+  double _degToRad(double deg) => deg * (pi / 180);
+
+  double _deliveryFee(List<Map<String, dynamic>> items) {
+    if (_currentLat == null || _currentLng == null) return 0;
+    final sellerLat = items.isNotEmpty
+        ? (items.first['seller_lat'] as num?)?.toDouble()
+        : null;
+    final sellerLng = items.isNotEmpty
+        ? (items.first['seller_lng'] as num?)?.toDouble()
+        : null;
+    if (sellerLat == null || sellerLng == null) return 0;
+    final distanceKm =
+        _calculateDistanceKm(sellerLat, sellerLng, _currentLat!, _currentLng!);
+    if (distanceKm <= 3) return 15000;
+    return (distanceKm * 5000).roundToDouble();
+  }
+
+  double _discountAmount() {
+    return _discountAmountValue;
   }
 
   double _grandTotal(List<Map<String, dynamic>> items) {
     final total = _itemsTotal(items);
-    final discount = _discountAmount(total);
-    return (total + _deliveryFee - discount).clamp(0, 999999);
+    final fee = _deliveryFee(items);
+    final discount = _discountAmount();
+    return (total + fee - discount).clamp(0, 999999999);
   }
 
-  Future<Map<String, dynamic>> _waitForStripeOrderCreated(
-      PaymentServices paymentService, int checkoutId) async {
-    Map<String, dynamic> lastResult = const {'status': 'pending'};
-    for (int i = 0; i < 5; i++) {
-      lastResult = await paymentService.confirmCheckout(checkoutId);
-      final status = (lastResult['status'] ?? '').toString().toLowerCase();
-      if (status == 'paid' && lastResult['order_id'] != null) {
-        return lastResult;
-      }
-      await Future.delayed(const Duration(seconds: 1));
+  Future<void> _showAvailableDiscounts(
+      List<Map<String, dynamic>> cartItems) async {
+    final sellerId = cartItems.isNotEmpty
+        ? (cartItems.first['seller_id'] as num?)?.toInt()
+        : null;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return _DiscountListSheet(
+          sellerId: sellerId,
+          onSelect: (code) {
+            _promoController.text = code;
+            Navigator.pop(ctx);
+            _validatePromoCode(cartItems);
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _validatePromoCode(List<Map<String, dynamic>> cartItems) async {
+    final code = _promoController.text.trim();
+    if (code.isEmpty) {
+      setState(() {
+        _discountAmountValue = 0;
+        _discountMessage = null;
+      });
+      return;
     }
-    return lastResult;
+
+    setState(() => _isValidatingPromo = true);
+
+    try {
+      final itemsTotal = _itemsTotal(cartItems);
+      final sellerId = cartItems.isNotEmpty
+          ? (cartItems.first['seller_id'] as num?)?.toInt()
+          : null;
+
+      final result = await DiscountService.validateDiscountCode(
+        code: code,
+        cartTotal: itemsTotal,
+        sellerId: sellerId,
+      );
+
+      if (!mounted) return;
+      final valid = result['valid'] == true;
+      setState(() {
+        _discountAmountValue =
+            valid ? (result['discount_amount'] as num?)?.toDouble() ?? 0 : 0;
+        _discountMessage = result['message']?.toString();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _discountAmountValue = 0;
+        _discountMessage = 'Khong the kiem tra ma giam gia';
+      });
+    } finally {
+      if (mounted) setState(() => _isValidatingPromo = false);
+    }
   }
 
   Future<void> _placeOrder() async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
-    final isStripePayment =
-        _selectedPaymentMethod == _CheckoutPaymentMethod.stripe;
+    final isSepay = _selectedPaymentMethod == _CheckoutPaymentMethod.sepay;
 
     setState(() {
       _isPaying = true;
     });
 
     try {
-      final deliveryLocation = await _resolveSelectedDeliveryLocation();
-      final paymentService = PaymentServices();
+      if (_currentLat == null || _currentLng == null) {
+        throw Exception(
+            'Chua xac dinh duoc vi tri giao hang. Vui long nhap dia chi.');
+      }
+      final deliveryAddress = _addressController.text.trim().isNotEmpty
+          ? _addressController.text.trim()
+          : _currentLocationAddress ?? '';
+
+      // Collect notes from all items
+      final notes = <String>[];
+      for (final entry in _noteControllers.entries) {
+        final text = entry.value.text.trim();
+        if (text.isNotEmpty) {
+          notes.add(text);
+        }
+      }
+      final note = notes.isNotEmpty ? notes.join(' | ') : null;
+
       final checkoutResult = await _cartServices.checkout(
-        deliveryAddress: deliveryLocation.address,
-        deliveryLat: deliveryLocation.latitude,
-        deliveryLng: deliveryLocation.longitude,
+        deliveryAddress: deliveryAddress,
+        deliveryLat: _currentLat!,
+        deliveryLng: _currentLng!,
         method: _selectedPaymentMethod.apiValue,
+        note: note,
+        discountCode:
+            _discountAmountValue > 0 ? _promoController.text.trim() : null,
       );
 
-      if (!isStripePayment) {
-        final orderId = checkoutResult['order_id'];
-        if (orderId == null) {
-          throw Exception('Khong nhan duoc order_id tu server');
-        }
+      final orderId = checkoutResult['order_id'];
+      if (orderId == null) {
+        throw Exception('Khong nhan duoc order_id tu server');
+      }
+
+      if (!isSepay) {
+        // COD: done
         if (!mounted) return;
         messenger.showSnackBar(
           const SnackBar(
@@ -215,49 +293,28 @@ class _CartState extends State<Cart> {
         return;
       }
 
-      final rawCheckoutId = checkoutResult['checkout_id'];
-      final checkoutId = rawCheckoutId is int
-          ? rawCheckoutId
-          : int.tryParse(rawCheckoutId?.toString() ?? '');
-      final clientSecret = checkoutResult['client_secret']?.toString();
-
-      if (checkoutId == null || clientSecret == null || clientSecret.isEmpty) {
-        throw Exception(
-            'Khong nhan duoc thong tin thanh toan Stripe tu server');
-      }
-
-      await paymentService.processPaymentSheet(clientSecret);
-      final paymentResult =
-          await _waitForStripeOrderCreated(paymentService, checkoutId);
-      final isPaid =
-          (paymentResult['status'] ?? '').toString().toLowerCase() == 'paid' &&
-              paymentResult['order_id'] != null;
+      // SePay: show QR payment dialog
+      if (!mounted) return;
+      final paymentService = PaymentServices();
+      await paymentService.processSepayPayment(context, orderId as int);
 
       if (!mounted) return;
-
-      if (isPaid) {
-        messenger.showSnackBar(
-            const SnackBar(content: Text('Thanh toan thanh cong')));
-        _refreshCart();
-        navigator.pushNamed('/buyer/order');
-      } else {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Thanh toan hoan tat. Don hang chua duoc tao.'),
-          ),
-        );
-      }
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Thanh toan thanh cong!')));
+      _refreshCart();
+      navigator.pushNamed('/buyer/order');
     } catch (e) {
       final msg = e.toString().toLowerCase();
-      final isCanceled = isStripePayment &&
+      final isCanceled = isSepay &&
           (msg.contains('canceled') ||
               msg.contains('cancelled') ||
               msg.contains('huy'));
+      if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
             content: Text(isCanceled
                 ? 'Ban da huy thanh toan'
-                : '${isStripePayment ? 'Thanh toan that bai' : 'Dat don that bai'}: $e')),
+                : '${isSepay ? 'Thanh toan that bai' : 'Dat don that bai'}: $e')),
       );
     } finally {
       if (mounted) {
@@ -268,121 +325,30 @@ class _CartState extends State<Cart> {
     }
   }
 
-  Future<_ResolvedDeliveryLocation> _resolveSelectedDeliveryLocation() async {
-    if (_selectedDeliveryMethod == _CheckoutDeliveryMethod.currentLocation) {
-      return _getCurrentDeliveryLocation();
-    }
+  Future<void> _geocodeEditedAddress() async {
+    final address = _addressController.text.trim();
+    if (address.isEmpty) return;
 
-    final deliveryAddress = _deliveryAddressController.text.trim();
-    if (deliveryAddress.isEmpty) {
-      throw Exception('Vui long nhap dia chi giao hang truoc khi dat don.');
-    }
-
-    final deliveryLocation =
-        await _getDeliveryLocationFromAddress(deliveryAddress);
-    return _ResolvedDeliveryLocation(
-      address: deliveryAddress,
-      latitude: deliveryLocation.latitude,
-      longitude: deliveryLocation.longitude,
-    );
-  }
-
-  Future<Location> _getDeliveryLocationFromAddress(String address) async {
+    setState(() => _isResolvingLocation = true);
     try {
       final locations = await locationFromAddress(address);
       if (locations.isEmpty) {
-        throw Exception();
+        throw Exception('Khong tim thay toa do');
       }
-      return locations.first;
-    } catch (_) {
-      throw Exception(
-        'Khong tim thay toa do tu dia chi da nhap. Vui long nhap dia chi cu the hon.',
-      );
-    }
-  }
-
-  Future<_ResolvedDeliveryLocation> _getCurrentDeliveryLocation() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      throw Exception('Hay bat dich vu vi tri tren thiet bi.');
-    }
-
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      throw Exception(
-          'Ung dung can quyen vi tri de giao hang tai vi tri hien tai.');
-    }
-
-    final position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-      ),
-    );
-
-    final resolvedAddress = await _reverseGeocodeAddress(
-      position.latitude,
-      position.longitude,
-    );
-
-    return _ResolvedDeliveryLocation(
-      address: resolvedAddress,
-      latitude: position.latitude,
-      longitude: position.longitude,
-    );
-  }
-
-  Future<String> _reverseGeocodeAddress(
-      double latitude, double longitude) async {
-    try {
-      final placemarks = await placemarkFromCoordinates(latitude, longitude);
-      if (placemarks.isNotEmpty) {
-        final placemark = placemarks.first;
-        final parts = [
-          placemark.street,
-          placemark.subLocality,
-          placemark.locality,
-          placemark.administrativeArea,
-          placemark.country,
-        ]
-            .where((part) => part != null && part!.trim().isNotEmpty)
-            .map((part) => part!.trim())
-            .toList();
-        if (parts.isNotEmpty) {
-          return parts.join(', ');
-        }
-      }
-    } catch (_) {}
-
-    return 'Lat: ${latitude.toStringAsFixed(6)}, Lng: ${longitude.toStringAsFixed(6)}';
-  }
-
-  Future<void> _refreshCurrentLocationPreview() async {
-    setState(() {
-      _isResolvingCurrentLocation = true;
-    });
-
-    try {
-      final location = await _getCurrentDeliveryLocation();
+      final loc = locations.first;
       if (!mounted) return;
       setState(() {
-        _currentLocationAddress = location.address;
+        _currentLocationAddress = address;
+        _currentLat = loc.latitude;
+        _currentLng = loc.longitude;
       });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Khong lay duoc vi tri hien tai: $e')),
+        SnackBar(content: Text('Khong xac dinh duoc dia chi: $e')),
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isResolvingCurrentLocation = false;
-        });
-      }
+      if (mounted) setState(() => _isResolvingLocation = false);
     }
   }
 
@@ -415,7 +381,8 @@ class _CartState extends State<Cart> {
           }
 
           final itemsTotal = _itemsTotal(cartItems);
-          final discount = _discountAmount(itemsTotal);
+          final deliveryFee = _deliveryFee(cartItems);
+          final discount = _discountAmount();
           final grandTotal = _grandTotal(cartItems);
 
           return ListView(
@@ -564,104 +531,58 @@ class _CartState extends State<Cart> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.location_on_outlined, color: accent),
-                        SizedBox(width: 8),
-                        Text(
-                          'Dia chi giao hang',
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontWeight: FontWeight.w700,
+                        const Icon(Icons.location_on_outlined, color: accent),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Dia chi giao hang',
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    _DeliveryMethodTile(
-                      method: _CheckoutDeliveryMethod.currentLocation,
-                      selectedMethod: _selectedDeliveryMethod,
-                      accent: accent,
-                      onTap: () {
-                        setState(() {
-                          _selectedDeliveryMethod =
-                              _CheckoutDeliveryMethod.currentLocation;
-                        });
-                        if (_currentLocationAddress == null &&
-                            !_isResolvingCurrentLocation) {
-                          _refreshCurrentLocationPreview();
-                        }
-                      },
-                    ),
-                    if (_selectedDeliveryMethod ==
-                        _CheckoutDeliveryMethod.currentLocation) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF6EA),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _addressController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        hintText: 'Nhap dia chi giao hang...',
+                        filled: true,
+                        fillColor: const Color(0xFFFFF6EA),
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _isResolvingCurrentLocation
-                                  ? 'Dang lay vi tri hien tai...'
-                                  : _currentLocationAddress ??
-                                      'Nhan "Cap nhat vi tri" de xem dia chi se duoc dung khi giao hang.',
-                              style: const TextStyle(
-                                color: Colors.black87,
-                                height: 1.4,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            OutlinedButton.icon(
-                              onPressed: _isResolvingCurrentLocation
-                                  ? null
-                                  : _refreshCurrentLocationPreview,
-                              icon: const Icon(Icons.gps_fixed_outlined),
-                              label: const Text('Cap nhat vi tri'),
-                            ),
-                          ],
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.only(bottom: 24),
+                          child: Icon(Icons.edit_location_alt_outlined,
+                              color: Colors.black45),
+                        ),
+                        suffixIcon: IconButton(
+                          onPressed: _isResolvingLocation
+                              ? null
+                              : _geocodeEditedAddress,
+                          icon: const Icon(Icons.check_circle_outline,
+                              color: accent),
+                          tooltip: 'Xac nhan dia chi',
                         ),
                       ),
-                    ],
-                    const SizedBox(height: 10),
-                    _DeliveryMethodTile(
-                      method: _CheckoutDeliveryMethod.customAddress,
-                      selectedMethod: _selectedDeliveryMethod,
-                      accent: accent,
-                      onTap: () {
-                        setState(() {
-                          _selectedDeliveryMethod =
-                              _CheckoutDeliveryMethod.customAddress;
-                        });
-                      },
+                      onSubmitted: (_) => _geocodeEditedAddress(),
                     ),
-                    if (_selectedDeliveryMethod ==
-                        _CheckoutDeliveryMethod.customAddress) ...[
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _deliveryAddressController,
-                        maxLines: 3,
-                        decoration: InputDecoration(
-                          hintText:
-                              'Nhap dia chi giao hang de he thong xac dinh dung toa do giao.',
-                          alignLabelWithHint: true,
-                          prefixIcon: const Padding(
-                            padding: EdgeInsets.only(bottom: 48),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          filled: true,
-                          fillColor: const Color(0xFFFFF6EA),
+                    if (_currentLat != null && _currentLng != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          'Toa do: ${_currentLat!.toStringAsFixed(5)}, ${_currentLng!.toStringAsFixed(5)}',
+                          style: const TextStyle(
+                              color: Colors.black45, fontSize: 12),
                         ),
                       ),
-                    ],
                   ],
                 ),
               ),
@@ -672,20 +593,80 @@ class _CartState extends State<Cart> {
                   color: cardBg,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: TextField(
-                  controller: _promoController,
-                  onChanged: (_) => setState(() {}),
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: InputDecoration(
-                    hintText: 'Ma giam gia (SAVE10/FREESHIP)',
-                    prefixIcon: const Icon(Icons.sell_outlined, color: accent),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => _showAvailableDiscounts(cartItems),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF6EA),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child:
+                                const Icon(Icons.sell_outlined, color: accent),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _promoController,
+                            textCapitalization: TextCapitalization.characters,
+                            decoration: InputDecoration(
+                              hintText: 'Nhap ma giam gia',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              filled: true,
+                              fillColor: const Color(0xFFFFF6EA),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: _isValidatingPromo
+                              ? null
+                              : () => _validatePromoCode(cartItems),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accent,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14),
+                          ),
+                          child: _isValidatingPromo
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Ap dung'),
+                        ),
+                      ],
                     ),
-                    filled: true,
-                    fillColor: const Color(0xFFFFF6EA),
-                  ),
+                    if (_discountMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          _discountMessage!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _discountAmountValue > 0
+                                ? const Color(0xFF2E7D32)
+                                : Colors.redAccent,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(height: 12),
@@ -698,20 +679,20 @@ class _CartState extends State<Cart> {
                 child: Column(
                   children: [
                     _PriceRow(
-                        label: 'Items total',
-                        value: '\$${itemsTotal.toStringAsFixed(2)}'),
+                        label: 'Tong mon',
+                        value: '${itemsTotal.toStringAsFixed(0)}d'),
                     _PriceRow(
-                        label: 'Delivery fee',
-                        value: '\$${_deliveryFee.toStringAsFixed(2)}'),
+                        label: 'Phi giao hang',
+                        value: '${deliveryFee.toStringAsFixed(0)}d'),
                     _PriceRow(
-                      label: 'Discount',
-                      value: '- \$${discount.toStringAsFixed(2)}',
+                      label: 'Giam gia',
+                      value: '- ${discount.toStringAsFixed(0)}d',
                       valueColor: const Color(0xFF2E7D32),
                     ),
                     const Divider(color: Color(0x1A000000), height: 18),
                     _PriceRow(
-                      label: 'Grand total',
-                      value: '\$${grandTotal.toStringAsFixed(2)}',
+                      label: 'Tong cong',
+                      value: '${grandTotal.toStringAsFixed(0)}d',
                       labelStyle: const TextStyle(
                         color: Colors.black87,
                         fontWeight: FontWeight.w700,
@@ -749,13 +730,12 @@ class _CartState extends State<Cart> {
                     ),
                     const SizedBox(height: 10),
                     _PaymentMethodTile(
-                      method: _CheckoutPaymentMethod.stripe,
+                      method: _CheckoutPaymentMethod.sepay,
                       selectedMethod: _selectedPaymentMethod,
                       accent: accent,
                       onTap: () {
                         setState(() {
-                          _selectedPaymentMethod =
-                              _CheckoutPaymentMethod.stripe;
+                          _selectedPaymentMethod = _CheckoutPaymentMethod.sepay;
                         });
                       },
                     ),
@@ -774,10 +754,10 @@ class _CartState extends State<Cart> {
                 ),
                 child: Text(
                   _isPaying
-                      ? _selectedPaymentMethod == _CheckoutPaymentMethod.stripe
+                      ? _selectedPaymentMethod == _CheckoutPaymentMethod.sepay
                           ? 'Dang xu ly thanh toan...'
                           : 'Dang tao don...'
-                      : _selectedPaymentMethod == _CheckoutPaymentMethod.stripe
+                      : _selectedPaymentMethod == _CheckoutPaymentMethod.sepay
                           ? 'Dat don va thanh toan'
                           : 'Dat don',
                   style: const TextStyle(fontWeight: FontWeight.w700),
@@ -786,87 +766,6 @@ class _CartState extends State<Cart> {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _DeliveryMethodTile extends StatelessWidget {
-  const _DeliveryMethodTile({
-    required this.method,
-    required this.selectedMethod,
-    required this.accent,
-    required this.onTap,
-  });
-
-  final _CheckoutDeliveryMethod method;
-  final _CheckoutDeliveryMethod selectedMethod;
-  final Color accent;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final isSelected = method == selectedMethod;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF3E4) : const Color(0xFFFFFBF6),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? accent : const Color(0x1F000000),
-            width: isSelected ? 1.4 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: isSelected ? accent.withOpacity(0.12) : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                method.icon,
-                color: isSelected ? accent : Colors.black54,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    method.title,
-                    style: const TextStyle(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    method.subtitle,
-                    style: const TextStyle(
-                      color: Colors.black54,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Radio<_CheckoutDeliveryMethod>(
-              value: method,
-              groupValue: selectedMethod,
-              activeColor: accent,
-              onChanged: (_) => onTap(),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -994,5 +893,211 @@ class _PriceRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Bottom sheet hiển thị danh sách mã giảm giá khả dụng
+class _DiscountListSheet extends StatefulWidget {
+  const _DiscountListSheet({required this.sellerId, required this.onSelect});
+  final int? sellerId;
+  final void Function(String code) onSelect;
+
+  @override
+  State<_DiscountListSheet> createState() => _DiscountListSheetState();
+}
+
+class _DiscountListSheetState extends State<_DiscountListSheet> {
+  late Future<List<Map<String, dynamic>>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = DiscountService.getActiveDiscountCodes(sellerId: widget.sellerId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const accent = Color(0xFFF5A623);
+    return DraggableScrollableSheet(
+      initialChildSize: 0.5,
+      minChildSize: 0.3,
+      maxChildSize: 0.85,
+      expand: false,
+      builder: (context, scrollController) {
+        return Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Ma giam gia kha dung',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final codes = snapshot.data ?? [];
+                  if (codes.isEmpty) {
+                    return const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.sell_outlined,
+                              size: 48, color: Colors.grey),
+                          SizedBox(height: 8),
+                          Text('Khong co ma giam gia nao',
+                              style: TextStyle(color: Colors.grey)),
+                        ],
+                      ),
+                    );
+                  }
+                  return ListView.separated(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: codes.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final c = codes[index];
+                      final code = c['code'] ?? '';
+                      final title = c['title'] ?? code;
+                      final desc = c['description'] ?? '';
+                      final type = c['discount_type'];
+                      final value = c['discount_value'] ?? 0;
+                      final minOrder = c['min_order_value'] ?? 0;
+                      final endAt = c['end_at'];
+                      final forUser = c['user_id'];
+
+                      String discountText;
+                      if (type == 'percent') {
+                        discountText = 'Giam ${(value as num).toInt()}%';
+                      } else {
+                        discountText =
+                            'Giam ${_formatVnd((value as num).toDouble())}';
+                      }
+
+                      return InkWell(
+                        onTap: () => widget.onSelect(code),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF6EA),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: accent.withAlpha(80)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: accent.withAlpha(40),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(Icons.sell,
+                                    color: accent, size: 24),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      code,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    if (title != code)
+                                      Text(title,
+                                          style: const TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.black54)),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      discountText,
+                                      style: const TextStyle(
+                                        color: accent,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if ((minOrder as num) > 0)
+                                      Text(
+                                        'Don toi thieu: ${_formatVnd((minOrder).toDouble())}',
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.black45),
+                                      ),
+                                    if (desc.isNotEmpty)
+                                      Text(desc,
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.black45)),
+                                    if (endAt != null)
+                                      Text(
+                                        'Het han: ${_formatDate(endAt)}',
+                                        style: const TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.redAccent),
+                                      ),
+                                    if (forUser != null)
+                                      const Text(
+                                        'Danh rieng cho ban',
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF2E7D32),
+                                            fontWeight: FontWeight.w500),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right,
+                                  color: Colors.grey),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  static String _formatVnd(double v) {
+    final s = v.toStringAsFixed(0);
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
+      buf.write(s[i]);
+    }
+    return '${buf}d';
+  }
+
+  static String _formatDate(String iso) {
+    try {
+      final d = DateTime.parse(iso);
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    } catch (_) {
+      return iso;
+    }
   }
 }
