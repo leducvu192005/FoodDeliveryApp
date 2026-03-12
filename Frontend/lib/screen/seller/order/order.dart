@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../services/order_services.dart';
+import '../../../services/seller_services.dart';
 
 class OrderScreen extends StatefulWidget {
   const OrderScreen({super.key});
@@ -10,6 +11,7 @@ class OrderScreen extends StatefulWidget {
 
 class _OrderScreenState extends State<OrderScreen> {
   final OrderServices _orderServices = OrderServices();
+  final SellerService _sellerService = SellerService();
   late Future<List<Map<String, dynamic>>> _ordersFuture;
 
   @override
@@ -22,6 +24,24 @@ class _OrderScreenState extends State<OrderScreen> {
     setState(() {
       _ordersFuture = _orderServices.getSellerOrders();
     });
+  }
+
+  void _markDone(int orderId) async {
+    try {
+      await _sellerService.markOrderDone(orderId);
+      _reload();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Da danh dau lam xong!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Loi: $e')),
+        );
+      }
+    }
   }
 
   String _formatDate(dynamic rawDate) {
@@ -93,6 +113,7 @@ class _OrderScreenState extends State<OrderScreen> {
                   emptyIcon: Icons.receipt_long_outlined,
                   emptyText: 'Chua co don hang dang xu ly',
                   formatDate: _formatDate,
+                  onMarkDone: _markDone,
                 ),
                 _OrderList(
                   orders: done,
@@ -114,12 +135,14 @@ class _OrderList extends StatelessWidget {
   final IconData emptyIcon;
   final String emptyText;
   final String Function(dynamic) formatDate;
+  final void Function(int)? onMarkDone;
 
   const _OrderList({
     required this.orders,
     required this.emptyIcon,
     required this.emptyText,
     required this.formatDate,
+    this.onMarkDone,
   });
 
   @override
@@ -195,6 +218,24 @@ class _OrderList extends StatelessWidget {
                           fontSize: 16,
                           color: Colors.green)),
                 ),
+                if (onMarkDone != null && status == 'pending') ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => onMarkDone!(order['id'] as int),
+                      icon: const Icon(Icons.check_circle_outline),
+                      label: const Text('Da lam xong'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

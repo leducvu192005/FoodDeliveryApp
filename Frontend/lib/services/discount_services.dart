@@ -4,7 +4,7 @@ import 'auth_services.dart';
 import '../config/api_config.dart';
 
 class DiscountService {
-  static String get baseUrl => ApiConfig.path('/discount-codes');
+  static String get baseUrl => ApiConfig.path('/discount-codes/');
 
   // Header có token
   static Future<Map<String, String>> _authHeaders() async {
@@ -32,14 +32,25 @@ class DiscountService {
       final List<dynamic> data = jsonDecode(response.body);
       return data.cast<Map<String, dynamic>>();
     } else {
-      print('Lỗi: ${response.body}');
-      throw Exception('Không thể lấy danh sách mã giảm giá');
+      print('Lỗi: ${response.statusCode} ${response.body}');
+      String detail = 'Không thể lấy danh sách mã giảm giá';
+      try {
+        final err = jsonDecode(response.body);
+        if (err is Map && err['detail'] != null)
+          detail = err['detail'].toString();
+      } catch (_) {}
+      throw Exception(detail);
     }
   }
 
   // 2. Lấy mã giảm giá đang hoạt động (cho khách hàng)
-  static Future<List<Map<String, dynamic>>> getActiveDiscountCodes() async {
-    final url = Uri.parse('$baseUrl/active');
+  static Future<List<Map<String, dynamic>>> getActiveDiscountCodes({
+    int? sellerId,
+  }) async {
+    final params = <String, String>{};
+    if (sellerId != null) params['seller_id'] = sellerId.toString();
+    final url = Uri.parse('${baseUrl}active')
+        .replace(queryParameters: params.isNotEmpty ? params : null);
 
     final response = await http.get(
       url,
@@ -50,7 +61,7 @@ class DiscountService {
       final List<dynamic> data = jsonDecode(response.body);
       return data.cast<Map<String, dynamic>>();
     } else {
-      print('Lỗi: ${response.body}');
+      print('Lỗi: ${response.statusCode} ${response.body}');
       return [];
     }
   }
@@ -90,9 +101,14 @@ class DiscountService {
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
-      print('Lỗi tạo mã giảm giá: ${response.body}');
-      throw Exception(
-          'Không thể tạo mã giảm giá: ${jsonDecode(response.body)['detail']}');
+      print('Lỗi tạo mã giảm giá: ${response.statusCode} ${response.body}');
+      String detail = 'Không thể tạo mã giảm giá';
+      try {
+        final err = jsonDecode(response.body);
+        if (err is Map && err['detail'] != null)
+          detail = err['detail'].toString();
+      } catch (_) {}
+      throw Exception(detail);
     }
   }
 
@@ -110,7 +126,7 @@ class DiscountService {
     bool? active,
     int? userId,
   }) async {
-    final url = Uri.parse('$baseUrl/$discountCodeId');
+    final url = Uri.parse('$baseUrl$discountCodeId');
 
     final body = <String, dynamic>{};
     if (code != null) body['code'] = code;
@@ -140,7 +156,7 @@ class DiscountService {
 
   // 5. Xóa mã giảm giá
   static Future<bool> deleteDiscountCode(int discountCodeId) async {
-    final url = Uri.parse('$baseUrl/$discountCodeId');
+    final url = Uri.parse('$baseUrl$discountCodeId');
 
     final response = await http.delete(
       url,
@@ -158,7 +174,7 @@ class DiscountService {
   // 6. Lấy chi tiết mã giảm giá
   static Future<Map<String, dynamic>?> getDiscountCode(
       int discountCodeId) async {
-    final url = Uri.parse('$baseUrl/$discountCodeId');
+    final url = Uri.parse('$baseUrl$discountCodeId');
 
     final response = await http.get(
       url,
@@ -177,8 +193,9 @@ class DiscountService {
   static Future<Map<String, dynamic>> validateDiscountCode({
     required String code,
     required double cartTotal,
+    int? sellerId,
   }) async {
-    final url = Uri.parse('$baseUrl/validate');
+    final url = Uri.parse('${baseUrl}validate');
 
     final response = await http.post(
       url,
@@ -186,6 +203,7 @@ class DiscountService {
       body: jsonEncode({
         'code': code,
         'cart_total': cartTotal,
+        'seller_id': sellerId,
       }),
     );
 

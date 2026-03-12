@@ -89,6 +89,8 @@ class CartServices {
     double? deliveryLat,
     double? deliveryLng,
     String method = 'cod',
+    String? note,
+    String? discountCode,
   }) async {
     final url = Uri.parse('$baseUrl/checkout');
 
@@ -100,6 +102,8 @@ class CartServices {
         "delivery_address": deliveryAddress?.trim(),
         "delivery_lat": deliveryLat,
         "delivery_lng": deliveryLng,
+        "note": note,
+        "discount_code": discountCode,
       }),
     );
     if (response.statusCode != 200) {

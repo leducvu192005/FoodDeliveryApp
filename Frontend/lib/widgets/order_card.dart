@@ -45,6 +45,23 @@ class OrderCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (order.paymentMethod.toLowerCase() == 'cod')
+                    Container(
+                      margin: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'COD',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: Colors.orange.shade800,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   _StatusChip(status: order.status),
                 ],
               ),

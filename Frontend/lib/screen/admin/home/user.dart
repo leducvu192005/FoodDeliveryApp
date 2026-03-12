@@ -427,23 +427,39 @@ class _PendingUserReviewScreen extends StatefulWidget {
       _PendingUserReviewScreenState();
 }
 
-class _PendingUserReviewScreenState extends State<_PendingUserReviewScreen> {
-  List<Map<String, dynamic>> _users = [];
+class _PendingUserReviewScreenState extends State<_PendingUserReviewScreen>
+    with SingleTickerProviderStateMixin {
+  List<Map<String, dynamic>> _allForms = [];
   bool _loading = true;
+  late TabController _tabController;
+
+  List<Map<String, dynamic>> get _pendingForms =>
+      _allForms.where((f) => f['status'] == 'pending').toList();
+
+  List<Map<String, dynamic>> get _historyForms => _allForms
+      .where((f) => f['status'] == 'yes' || f['status'] == 'no')
+      .toList();
 
   @override
   void initState() {
     super.initState();
-    _loadPendingUsers();
+    _tabController = TabController(length: 2, vsync: this);
+    _loadForms();
   }
 
-  Future<void> _loadPendingUsers() async {
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadForms() async {
     setState(() => _loading = true);
     try {
-      final users = widget.type == 'seller'
+      final forms = widget.type == 'seller'
           ? await AdminServices.getSellerForms()
           : await AdminServices.getShipperForms();
-      if (mounted) setState(() => _users = users);
+      if (mounted) setState(() => _allForms = forms);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -455,12 +471,12 @@ class _PendingUserReviewScreenState extends State<_PendingUserReviewScreen> {
     }
   }
 
-  Future<void> _review(int userId, String status) async {
+  Future<void> _review(int formId, String status) async {
     try {
       if (widget.type == 'seller') {
-        await AdminServices.reviewSellerForm(userId, status);
+        await AdminServices.reviewSellerForm(formId, status);
       } else {
-        await AdminServices.reviewShipperForm(userId, status);
+        await AdminServices.reviewShipperForm(formId, status);
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -471,7 +487,7 @@ class _PendingUserReviewScreenState extends State<_PendingUserReviewScreen> {
             backgroundColor: status == 'yes' ? Colors.green : Colors.red,
           ),
         );
-        _loadPendingUsers();
+        _loadForms();
       }
     } catch (e) {
       if (mounted) {
@@ -494,27 +510,94 @@ class _PendingUserReviewScreenState extends State<_PendingUserReviewScreen> {
         backgroundColor: accent,
         foregroundColor: Colors.white,
         title: Text(title),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          tabs: [
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.pending_actions, size: 18),
+                  const SizedBox(width: 6),
+                  const Text('Don xet duyet'),
+                  if (_pendingForms.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(50),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${_pendingForms.length}',
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.history, size: 18),
+                  const SizedBox(width: 6),
+                  const Text('Lich su duyet'),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _users.isEmpty
-              ? const Center(child: Text('Khong co ho so nao'))
-              : RefreshIndicator(
-                  onRefresh: _loadPendingUsers,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _users.length,
-                    itemBuilder: (context, index) {
-                      final user = _users[index];
-                      return _PendingUserCard(
-                        user: user,
-                        type: widget.type,
-                        onApprove: () => _review(user['id'] as int, 'yes'),
-                        onReject: () => _review(user['id'] as int, 'no'),
-                      );
-                    },
-                  ),
-                ),
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                // Tab 1: Pending
+                _pendingForms.isEmpty
+                    ? const Center(child: Text('Khong co don nao cho duyet'))
+                    : RefreshIndicator(
+                        onRefresh: _loadForms,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(12),
+                          itemCount: _pendingForms.length,
+                          itemBuilder: (context, index) {
+                            final form = _pendingForms[index];
+                            return _PendingUserCard(
+                              user: form,
+                              type: widget.type,
+                              onApprove: () =>
+                                  _review(form['id'] as int, 'yes'),
+                              onReject: () => _review(form['id'] as int, 'no'),
+                            );
+                          },
+                        ),
+                      ),
+                // Tab 2: History
+                _historyForms.isEmpty
+                    ? const Center(child: Text('Chua co lich su duyet'))
+                    : RefreshIndicator(
+                        onRefresh: _loadForms,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(12),
+                          itemCount: _historyForms.length,
+                          itemBuilder: (context, index) {
+                            final form = _historyForms[index];
+                            return _HistoryCard(
+                              form: form,
+                              type: widget.type,
+                            );
+                          },
+                        ),
+                      ),
+              ],
+            ),
     );
   }
 }
@@ -634,6 +717,124 @@ class _PendingUserCard extends StatelessWidget {
                 ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.black45),
+          const SizedBox(width: 6),
+          Text(
+            '$label: ',
+            style: const TextStyle(color: Colors.black54, fontSize: 13),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== History Card ====================
+class _HistoryCard extends StatelessWidget {
+  final Map<String, dynamic> form;
+  final String type;
+
+  const _HistoryCard({required this.form, required this.type});
+
+  @override
+  Widget build(BuildContext context) {
+    final isSeller = type == 'seller';
+    final isApproved = form['status'] == 'yes';
+    final headerIcon = isSeller ? Icons.store : Icons.delivery_dining;
+    final headerText = isSeller
+        ? (form['name_shop'] ?? 'Seller')
+        : (form['name'] ?? 'Shipper');
+    final statusColor = isApproved ? Colors.green : Colors.red;
+    final statusLabel = isApproved ? 'Da duyet' : 'Tu choi';
+    final statusIcon = isApproved ? Icons.check_circle : Icons.cancel;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(headerIcon, color: Colors.grey),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    headerText,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withAlpha(20),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: statusColor.withAlpha(80)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, size: 14, color: statusColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        statusLabel,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _infoRow(Icons.person_outline, 'Ho ten',
+                (form['full_name'] ?? form['name'] ?? '').toString()),
+            _infoRow(Icons.email_outlined, 'Email', form['email'] ?? ''),
+            _infoRow(Icons.phone_outlined, 'SDT',
+                (form['sdt'] ?? form['phone'] ?? '').toString()),
+            _infoRow(Icons.badge_outlined, 'CCCD', form['cccd'] ?? ''),
+            if (isSeller) ...[
+              _infoRow(Icons.storefront_outlined, 'Ten quan',
+                  form['name_shop'] ?? ''),
+              _infoRow(Icons.location_on_outlined, 'Dia chi',
+                  (form['address_shop'] ?? form['address'] ?? '').toString()),
+            ],
+            if (!isSeller) ...[
+              _infoRow(Icons.directions_car_outlined, 'Dang ky xe',
+                  form['vehicle_registration'] ?? ''),
+              _infoRow(Icons.credit_card_outlined, 'Bang lai',
+                  form['license'] ?? ''),
+            ],
+            if (form['created_at'] != null) ...[
+              const SizedBox(height: 4),
+              _infoRow(Icons.access_time, 'Ngay nop', form['created_at']),
+            ],
           ],
         ),
       ),

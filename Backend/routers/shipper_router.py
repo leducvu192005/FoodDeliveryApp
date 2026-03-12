@@ -3,8 +3,10 @@ import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from jose import JWTError, jwt
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from typing import Optional
 
 from auth import ALGORITHM, SECRET_KEY
 import models
@@ -281,6 +283,7 @@ def _to_order_payload(order: models.Order, db: Session) -> dict:
         "delivery_lng": float(order.delivery_lng) if order.delivery_lng is not None else None,
         "estimated_delivery_minutes": order.estimated_delivery_minutes,
         "status": order.status,
+        "payment_method": order.payment_method or "",
         "created_at": order.created_at,
     }
 
@@ -312,6 +315,7 @@ def _to_legacy_order_payload(order: models.Order, db: Session) -> dict:
         "pickup_lng": float(order.pickup_lng) if order.pickup_lng is not None else None,
         "delivery_lat": float(order.delivery_lat) if order.delivery_lat is not None else None,
         "delivery_lng": float(order.delivery_lng) if order.delivery_lng is not None else None,
+        "payment_method": order.payment_method or "",
     }
 
 
@@ -439,6 +443,15 @@ def _accept_order_for_shipper(
     if distance_to_pickup > float(shipper.accept_radius or 5):
         raise HTTPException(status_code=400, detail="Don nam ngoai ban kinh nhan don")
 
+    if (order.payment_method or "").strip().lower() == "cod":
+        shipper_balance = float(shipper.price or 0)
+        order_total = float(order.total_price or 0)
+        if shipper_balance < order_total:
+            raise HTTPException(
+                status_code=400,
+                detail=f"So du vi ({shipper_balance:,.0f}d) khong du de nhan don COD ({order_total:,.0f}d). Vui long nap them tien.",
+            )
+
     order.shipper_id = shipper.id
     order.status = "accepted"
     order.assigned_at = datetime.now()
@@ -508,6 +521,13 @@ def _deliver_order_for_shipper(
             payment.status = "paid"
             payment.paid_at = order.delivered_at
     shipper.total_completed_orders = int(shipper.total_completed_orders or 0) + 1
+
+    # Cập nhật doanh thu seller (price += total_price * 0.8)
+    if order.seller_id:
+        seller_record = db.query(models.Seller).filter(models.Seller.user_id == order.seller_id).first()
+        if seller_record:
+            seller_record.price = (seller_record.price or 0) + float(order.total_price or 0) * 0.8
+
     db.commit()
     db.refresh(order)
     return order
@@ -837,6 +857,113 @@ def get_earnings_summary(
         "total_orders": total_orders,
         "average_per_order": average_per_order,
     }
+
+
+# ==================== Ví shipper ====================
+
+@router.get("/wallet")
+def get_shipper_wallet(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role("shipper")),
+):
+    shipper = _ensure_shipper(db, current_user)
+    return {"balance": shipper.price or 0}
+
+
+class ShipperWalletRequest(BaseModel):
+    amount: float
+    note: Optional[str] = None
+
+
+@router.post("/wallet/deposit")
+def deposit_wallet(
+    body: ShipperWalletRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role("shipper")),
+):
+    if body.amount <= 0:
+        raise HTTPException(status_code=400, detail="So tien nap phai lon hon 0")
+
+    shipper = _ensure_shipper(db, current_user)
+    current_balance = shipper.price or 0
+    balance_after = current_balance + body.amount
+
+    history = models.HistoryPriceShipper(
+        shipper_id=shipper.id,
+        type="deposit",
+        amount=body.amount,
+        balance_before=current_balance,
+        balance_after=balance_after,
+        note=body.note,
+        status="completed",
+    )
+    shipper.price = balance_after
+    db.add(history)
+    db.commit()
+
+    return {"balance": balance_after, "deposited": body.amount}
+
+
+@router.post("/wallet/withdraw")
+def withdraw_wallet(
+    body: ShipperWalletRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role("shipper")),
+):
+    if body.amount <= 0:
+        raise HTTPException(status_code=400, detail="So tien rut phai lon hon 0")
+
+    shipper = _ensure_shipper(db, current_user)
+    current_balance = shipper.price or 0
+    if body.amount > current_balance:
+        raise HTTPException(status_code=400, detail="So du khong du")
+
+    balance_after = current_balance - body.amount
+
+    history = models.HistoryPriceShipper(
+        shipper_id=shipper.id,
+        type="withdraw",
+        amount=body.amount,
+        balance_before=current_balance,
+        balance_after=balance_after,
+        note=body.note,
+        status="completed",
+    )
+    shipper.price = balance_after
+    db.add(history)
+    db.commit()
+
+    return {"balance": balance_after, "withdrawn": body.amount}
+
+
+@router.get("/wallet/history")
+def get_shipper_wallet_history(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role("shipper")),
+):
+    shipper = _ensure_shipper(db, current_user)
+
+    records = (
+        db.query(models.HistoryPriceShipper)
+        .filter(models.HistoryPriceShipper.shipper_id == shipper.id)
+        .order_by(models.HistoryPriceShipper.created_at.desc())
+        .limit(50)
+        .all()
+    )
+
+    return [
+        {
+            "id": r.id,
+            "type": r.type,
+            "amount": r.amount,
+            "balance_before": r.balance_before,
+            "balance_after": r.balance_after,
+            "note": r.note,
+            "status": r.status,
+            "created_at": str(r.created_at) if r.created_at else None,
+        }
+        for r in records
+    ]
 
 
 @router.patch("/toggle-online", response_model=ShipperStatusResponse)

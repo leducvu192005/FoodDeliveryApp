@@ -20,7 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => loading = true);
 
     try {
-      final role = await AuthService.login(
+      final result = await AuthService.login(
         emailCtrl.text.trim(),
         '',
         passCtrl.text.trim(),
@@ -52,7 +52,43 @@ class _LoginScreenState extends State<LoginScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Role khong hop le')),
             );
+      if (result != null) {
+        final role = result["role"];
+        final status = result["status"];
+
+        if (role == "admin") {
+          Navigator.pushReplacementNamed(context, '/admin');
+          return;
         }
+
+        // Role all hoặc status done → hiển thị 3 lựa chọn
+        if (role == "all" || status == "done") {
+          _showTripleRoleDialog();
+          return;
+        }
+        if (status == "seller" || status == "done_seller") {
+          _showRoleChoiceDialog(
+            targetRole: "seller",
+            targetLabel: "Nguoi ban",
+            approved: status == "done_seller",
+          );
+          return;
+        }
+        if (status == "shipper" || status == "done_shipper") {
+          _showRoleChoiceDialog(
+            targetRole: "shipper",
+            targetLabel: "Tai xe",
+            approved: status == "done_shipper",
+          );
+          return;
+        }
+        if (status == "no_seller" || status == "no_shipper") {
+          _showFailDialog();
+          return;
+        }
+
+        // Normal buyer
+        Navigator.pushReplacementNamed(context, '/buyer/layout');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Sai tai khoan hoac mat khau')),
@@ -73,6 +109,196 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => loading = false);
       }
     }
+  }
+
+  void _showRoleChoiceDialog({
+    required String targetRole,
+    required String targetLabel,
+    required bool approved,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: const Icon(Icons.person, size: 48, color: Colors.deepOrange),
+        title: const Text('Chon vai tro dang nhap'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.shopping_bag),
+                label: const Text('Dang nhap voi vai tro Nguoi mua'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepOrange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () async {
+                  Navigator.of(ctx).pop();
+                  setState(() => loading = true);
+                  await AuthService.switchRole('buyer');
+                  if (!mounted) return;
+                  setState(() => loading = false);
+                  Navigator.pushReplacementNamed(context, '/buyer/layout');
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: Icon(targetRole == "seller"
+                    ? Icons.store
+                    : Icons.delivery_dining),
+                label: Text('Dang nhap voi vai tro $targetLabel'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      approved ? Colors.green : Colors.grey.shade400,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () async {
+                  if (!approved) {
+                    Navigator.of(ctx).pop();
+                    _showPendingDialog();
+                    return;
+                  }
+                  Navigator.of(ctx).pop();
+                  setState(() => loading = true);
+                  final res = await AuthService.switchRole(targetRole);
+                  if (!mounted) return;
+                  setState(() => loading = false);
+                  if (res != null && res["error"] == null) {
+                    if (targetRole == "seller") {
+                      Navigator.pushReplacementNamed(context, '/seller');
+                    } else {
+                      Navigator.pushReplacementNamed(
+                          context, '/shipper/layout');
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content:
+                              Text(res?["error"] ?? 'Khong the chuyen role')),
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Huy'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTripleRoleDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: const Icon(Icons.person, size: 48, color: Colors.deepOrange),
+        title: const Text('Chon vai tro dang nhap'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.shopping_bag),
+                label: const Text('Nguoi mua'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepOrange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () async {
+                  Navigator.of(ctx).pop();
+                  setState(() => loading = true);
+                  await AuthService.switchRole('buyer');
+                  if (!mounted) return;
+                  setState(() => loading = false);
+                  Navigator.pushReplacementNamed(context, '/buyer/layout');
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.store),
+                label: const Text('Nguoi ban'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () async {
+                  Navigator.of(ctx).pop();
+                  setState(() => loading = true);
+                  final res = await AuthService.switchRole('seller');
+                  if (!mounted) return;
+                  setState(() => loading = false);
+                  if (res != null && res["error"] == null) {
+                    Navigator.pushReplacementNamed(context, '/seller');
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content:
+                              Text(res?["error"] ?? 'Khong the chuyen role')),
+                    );
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.delivery_dining),
+                label: const Text('Tai xe'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () async {
+                  Navigator.of(ctx).pop();
+                  setState(() => loading = true);
+                  final res = await AuthService.switchRole('shipper');
+                  if (!mounted) return;
+                  setState(() => loading = false);
+                  if (res != null && res["error"] == null) {
+                    Navigator.pushReplacementNamed(context, '/shipper/layout');
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content:
+                              Text(res?["error"] ?? 'Khong the chuyen role')),
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Huy'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showPendingDialog() {

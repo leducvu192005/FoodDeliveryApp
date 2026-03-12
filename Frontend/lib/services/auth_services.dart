@@ -50,7 +50,7 @@ class AuthService {
     }
   }
 
-  static Future<String?> login(
+  static Future<Map<String, String?>?> login(
       String email, String sdt, String password) async {
     final res = await http.post(
       Uri.parse("$baseUrl/login"),
@@ -72,9 +72,32 @@ class AuthService {
         value: data["access_token"],
       );
 
-      return data["role"];
+      return {
+        "role": data["role"]?.toString(),
+        "status": data["status"]?.toString(),
+      };
     }
     return null;
+  }
+
+  static Future<Map<String, dynamic>?> switchRole(String role) async {
+    final token = await getToken();
+    if (token == null) return null;
+    final res = await http.post(
+      Uri.parse("$baseUrl/switch-role"),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+      body: jsonEncode({"role": role}),
+    );
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      await _storage.write(key: "access_token", value: data["access_token"]);
+      return data;
+    }
+    final data = jsonDecode(res.body);
+    return {"error": data["detail"] ?? "Khong the chuyen role"};
   }
 
   // Lay token da luu trong secure storage.

@@ -1,16 +1,21 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 
+import '../../config/api_config.dart';
 import '../../models/category.dart';
 import '../../models/dish.dart';
 import '../../services/cart_services.dart';
+import '../../services/auth_services.dart';
 import '../../services/category_services.dart';
 import '../../services/dish.dart';
 import 'cart.dart';
 import 'category/category.dart';
 import 'details_screen.dart';
 import 'product_card.dart';
+import 'program_dishes_screen.dart';
 
 class BuyerHome extends StatefulWidget {
   const BuyerHome({super.key});
@@ -23,6 +28,7 @@ class _BuyerHomeState extends State<BuyerHome> {
   static const double _deliveryRadiusKm = 5;
 
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
   final CartServices _cartServices = CartServices();
   late Future<Map<String, dynamic>> _homeDataFuture;
 
@@ -30,6 +36,10 @@ class _BuyerHomeState extends State<BuyerHome> {
   String? _currentLocationText;
   String? _locationError;
   bool _isLocating = false;
+  bool _isEditingAddress = false;
+
+  List<Map<String, dynamic>> _displayPrograms = [];
+  Map<int, List<Product>> _programDishes = {};
 
   @override
   void initState() {
@@ -37,23 +47,35 @@ class _BuyerHomeState extends State<BuyerHome> {
     _homeDataFuture = _loadData();
     _searchController.addListener(() => setState(() {}));
     _loadCurrentLocation();
+    _loadDisplayPrograms();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
   Future<Map<String, dynamic>> _loadData() async {
+    final token = await AuthService.getToken();
+    print('[BuyerHome] Token: ${token != null ? "${token!.substring(0, 20)}..." : "NULL"}');
+
     final results = await Future.wait([
       CategoryService.fetchCategories(),
       DishService.fetchDishes(),
     ]);
 
+    final categories = results[0] as List<Category>;
+    final dishes = results[1] as List<Product>;
+    print('[BuyerHome] Categories: ${categories.length}, Dishes: ${dishes.length}');
+    for (final d in dishes) {
+      print('[BuyerHome] Dish: ${d.name}, seller_id=${d.sellerId}, sellerLat=${d.sellerLat}, sellerLng=${d.sellerLng}');
+    }
+
     return {
-      'categories': results[0] as List<Category>,
-      'dishes': results[1] as List<Product>,
+      'categories': categories,
+      'dishes': dishes,
     };
   }
 
@@ -61,8 +83,48 @@ class _BuyerHomeState extends State<BuyerHome> {
     setState(() {
       _homeDataFuture = _loadData();
     });
-
     await _homeDataFuture;
+    _loadDisplayPrograms();
+  }
+
+  Future<void> _loadDisplayPrograms() async {
+    try {
+      final token = await AuthService.getToken();
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+      };
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+      final res = await http.get(
+        Uri.parse(ApiConfig.path('/display/buyer/programs')),
+        headers: headers,
+      );
+      if (res.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(res.body);
+        final programs = data.cast<Map<String, dynamic>>();
+        if (mounted) {
+          setState(() => _displayPrograms = programs);
+        }
+        // Load dishes for each program
+        for (final p in programs) {
+          final pid = p['id'] as int;
+          final dishRes = await http.get(
+            Uri.parse(ApiConfig.path('/display/buyer/programs/$pid/dishes')),
+            headers: headers,
+          );
+          if (dishRes.statusCode == 200) {
+            final List<dynamic> dishData = jsonDecode(dishRes.body);
+            final dishes = dishData.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
+            if (mounted) {
+              setState(() => _programDishes[pid] = dishes);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('[BuyerHome] Error loading display programs: $e');
+    }
   }
 
   Future<void> _loadCurrentLocation() async {
@@ -106,6 +168,7 @@ class _BuyerHomeState extends State<BuyerHome> {
       setState(() {
         _currentPosition = position;
         _currentLocationText = address;
+        _addressController.text = address;
         _locationError = null;
       });
     } catch (e) {
@@ -146,12 +209,59 @@ class _BuyerHomeState extends State<BuyerHome> {
     return 'Lat ${latitude.toStringAsFixed(5)}, Lng ${longitude.toStringAsFixed(5)}';
   }
 
+  Future<void> _geocodeCustomAddress() async {
+    final address = _addressController.text.trim();
+    if (address.isEmpty) return;
+
+    setState(() {
+      _isLocating = true;
+      _locationError = null;
+    });
+
+    try {
+      final locations = await locationFromAddress(address);
+      if (locations.isEmpty) {
+        throw Exception('Khong tim thay toa do tu dia chi nay');
+      }
+      final loc = locations.first;
+      final position = Position(
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        timestamp: DateTime.now(),
+        accuracy: 0,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        headingAccuracy: 0,
+        speed: 0,
+        speedAccuracy: 0,
+      );
+      if (!mounted) return;
+      setState(() {
+        _currentPosition = position;
+        _currentLocationText = address;
+        _locationError = null;
+        _isEditingAddress = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _locationError = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() => _isLocating = false);
+    }
+  }
+
   bool _isWithinRadius(Product product) {
     final position = _currentPosition;
     final sellerLat = product.sellerLat;
     final sellerLng = product.sellerLng;
 
     if (position == null || sellerLat == null || sellerLng == null) {
+      print('[DEBUG] ${product.name} (seller_id=${product.sellerId}): '
+          'SKIP - position=$position, sellerLat=$sellerLat, sellerLng=$sellerLng');
       return false;
     }
 
@@ -162,7 +272,14 @@ class _BuyerHomeState extends State<BuyerHome> {
       sellerLng,
     );
 
-    return distanceMeters <= _deliveryRadiusKm * 1000;
+    final withinRadius = distanceMeters <= _deliveryRadiusKm * 1000;
+    print('[DEBUG] ${product.name} (seller_id=${product.sellerId}): '
+        'buyer=(${position.latitude}, ${position.longitude}), '
+        'seller=($sellerLat, $sellerLng), '
+        'distance=${(distanceMeters / 1000).toStringAsFixed(2)}km, '
+        'show=$withinRadius');
+
+    return withinRadius;
   }
 
   Future<void> _addToCart(Product product) async {
@@ -184,6 +301,83 @@ class _BuyerHomeState extends State<BuyerHome> {
     }
   }
 
+  List<Widget> _buildCollectionSection() {
+    final widgets = <Widget>[];
+    for (final p in _displayPrograms) {
+      final pid = p['id'] as int;
+      final dishes = _programDishes[pid] ?? [];
+      if (dishes.isEmpty) continue;
+
+      widgets.addAll([
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Mon an hot',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProgramDishesScreen(
+                      programId: pid,
+                      programTitle: p['title'] ?? '',
+                      buyerPosition: _currentPosition,
+                    ),
+                  ),
+                );
+              },
+              child: Row(
+                children: [
+                  Text(
+                    'Xem tat ca',
+                    style: TextStyle(
+                      color: Colors.deepOrange[400],
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, size: 18, color: Colors.deepOrange[400]),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 260,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: dishes.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) {
+              final product = dishes[i];
+              return SizedBox(
+                width: 160,
+                child: ProductCard(
+                  product: product,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DetailsScreen(product: product),
+                      ),
+                    );
+                  },
+                  onAdd: () => _addToCart(product),
+                ),
+              );
+            },
+          ),
+        ),
+      ]);
+    }
+    return widgets;
+  }
+
   @override
   Widget build(BuildContext context) {
     const pageBg = Color(0xFFFFFAF0);
@@ -200,7 +394,13 @@ class _BuyerHomeState extends State<BuyerHome> {
           IconButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const Cart()),
+              MaterialPageRoute(
+                builder: (_) => Cart(
+                  initialAddress: _currentLocationText,
+                  initialLat: _currentPosition?.latitude,
+                  initialLng: _currentPosition?.longitude,
+                ),
+              ),
             ),
             icon: const Icon(Icons.shopping_bag_outlined),
           ),
@@ -317,46 +517,117 @@ class _BuyerHomeState extends State<BuyerHome> {
                               ),
                             ),
                           ),
-                          TextButton.icon(
-                            onPressed:
-                                _isLocating ? null : _loadCurrentLocation,
-                            icon: _isLocating
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
+                          if (!_isEditingAddress)
+                            TextButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _isEditingAddress = true;
+                                  _addressController.text =
+                                      _currentLocationText ?? '';
+                                });
+                              },
+                              icon: const Icon(
+                                Icons.edit_location_alt_outlined,
+                                size: 18,
+                                color: accent,
+                              ),
+                              label: const Text(
+                                'Doi dia chi',
+                                style: TextStyle(color: accent),
+                              ),
+                            ),
+                          if (!_isEditingAddress)
+                            TextButton.icon(
+                              onPressed:
+                                  _isLocating ? null : _loadCurrentLocation,
+                              icon: _isLocating
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: accent,
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.gps_fixed_rounded,
+                                      size: 18,
                                       color: accent,
                                     ),
-                                  )
-                                : const Icon(
-                                    Icons.refresh_rounded,
-                                    size: 18,
-                                    color: accent,
-                                  ),
-                            label: const Text(
-                              'Cap nhat lai',
-                              style: TextStyle(color: accent),
+                              label: const Text(
+                                'GPS',
+                                style: TextStyle(color: accent),
+                              ),
                             ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        _isLocating
-                            ? 'Dang xac dinh vi tri...'
-                            : _currentLocationText ??
-                                _locationError ??
-                                'Khong lay duoc vi tri hien tai',
-                        style: TextStyle(
-                          color: _locationError == null
-                              ? Colors.black54
-                              : Colors.red,
+                      if (_isEditingAddress) ...[
+                        TextField(
+                          controller: _addressController,
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            hintText: 'Nhap dia chi moi...',
+                            filled: true,
+                            fillColor: const Color(0xFFFFF6EA),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            suffixIcon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  onPressed: _isLocating
+                                      ? null
+                                      : _geocodeCustomAddress,
+                                  icon: const Icon(
+                                      Icons.check_circle_outline,
+                                      color: accent),
+                                  tooltip: 'Xac nhan',
+                                ),
+                                IconButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _isEditingAddress = false;
+                                    });
+                                  },
+                                  icon: const Icon(
+                                      Icons.close_rounded,
+                                      color: Colors.black45),
+                                  tooltip: 'Huy',
+                                ),
+                              ],
+                            ),
+                          ),
+                          onSubmitted: (_) => _geocodeCustomAddress(),
                         ),
-                      ),
+                        if (_locationError != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              _locationError!,
+                              style: const TextStyle(
+                                  color: Colors.red, fontSize: 12),
+                            ),
+                          ),
+                      ] else
+                        Text(
+                          _isLocating
+                              ? 'Dang xac dinh vi tri...'
+                              : _currentLocationText ??
+                                  _locationError ??
+                                  'Khong lay duoc vi tri hien tai',
+                          style: TextStyle(
+                            color: _locationError == null
+                                ? Colors.black54
+                                : Colors.red,
+                          ),
+                        ),
                     ],
                   ),
                 ),
+                if (_displayPrograms.isNotEmpty) ..._buildCollectionSection(),
                 const SizedBox(height: 16),
                 const Text(
                   'Danh muc',

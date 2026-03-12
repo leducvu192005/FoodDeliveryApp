@@ -42,18 +42,17 @@ def create_category(
 
 @router.get("/", response_model=List[CategoryResponse])
 def get_categories(
+    view_all: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Nếu là seller: chỉ lấy danh mục của seller đó
-    # Nếu là buyer/customer: lấy tất cả danh mục
+    # Seller: LUÔN chỉ lấy danh mục của quán mình (bỏ qua view_all để bảo mật)
+    # Buyer + view_all: lấy tất cả danh mục (cho trang chủ)
     if current_user.role == 'seller':
         return db.query(Category).filter(
             Category.seller_id == current_user.id
         ).order_by(Category.id).all()
-    else:
-        # Buyer/Customer: xem tất cả categories
-        return db.query(Category).order_by(Category.id).all()
+    return db.query(Category).order_by(Category.id).all()
 
 
 @router.get("/{category_id}", response_model=CategoryResponse)

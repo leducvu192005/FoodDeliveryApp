@@ -93,6 +93,7 @@ def _finalize_pending_checkout(
         estimated_delivery_minutes=pending_checkout.estimated_delivery_minutes,
         status="confirmed",
         payment_method="stripe",
+        note=pending_checkout.note,
     )
     db.add(order)
     db.flush()

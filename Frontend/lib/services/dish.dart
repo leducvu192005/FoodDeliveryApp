@@ -9,7 +9,7 @@ class DishService {
 
   /// Lấy tất cả món ăn
   static Future<List<Product>> fetchDishes() async {
-    final url = Uri.parse('$_baseUrl/api/dish');
+    final url = Uri.parse('$_baseUrl/api/dish?view_all=true');
 
     try {
       final token = await AuthService.getToken();

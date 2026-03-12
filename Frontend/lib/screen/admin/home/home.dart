@@ -3,6 +3,7 @@ import '../../../services/admin_services.dart';
 import '../../../services/auth_services.dart';
 import 'user.dart';
 import 'order.dart';
+import 'display.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -53,6 +54,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       _buildDashboardTab(accent),
       const AdminUserScreen(),
       const AdminOrderScreen(),
+      const AdminDisplayScreen(),
     ];
 
     return Scaffold(
@@ -96,6 +98,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.receipt_long),
             label: 'Don hang',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.display_settings),
+            label: 'Hien thi',
           ),
         ],
       ),

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from database import get_db
-from models import User, Order, Payment, Dish, Shipper, FormSeller, FormShipper
+from models import User, Order, Payment, Dish, Shipper, Seller, FormSeller, FormShipper
 from dependencies import require_role
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -190,8 +190,32 @@ def review_seller_form(
     if new_status == "yes":
         user = db.query(User).filter(User.id == form.user_id).first()
         if user:
-            user.role = "seller"
+            # Nếu đã duyệt shipper rồi → done + role=all
+            if user.status in ("done_shipper", "done"):
+                user.status = "done"
+                user.role = "all"
+            else:
+                user.status = "done_seller"
             user.address = form.address
+            # Tạo bản ghi Seller nếu chưa có
+            existing_seller = db.query(Seller).filter(Seller.user_id == user.id).first()
+            if not existing_seller:
+                db.add(Seller(
+                    user_id=user.id,
+                    name=form.name_shop or form.name,
+                    status="off",
+                    address=form.address,
+                    phone=form.phone,
+                    email=form.email,
+                    cccd=form.cccd,
+                    price=0,
+                ))
+    elif new_status == "no":
+        user = db.query(User).filter(User.id == form.user_id).first()
+        if user:
+            # Chỉ set no_seller nếu chưa có role nào được duyệt
+            if user.status not in ("done_shipper", "done"):
+                user.status = "no_seller"
 
     db.commit()
     return {"id": form.id, "status": form.status}
@@ -249,8 +273,12 @@ def review_shipper_form(
         )
         user.license = int(form.license) if form.license.isdigit() else user.license
         if new_status == "yes":
-            user.role = "shipper"
-            user.status = "yes"
+            # Nếu đã duyệt seller rồi → done + role=all
+            if user.status in ("done_seller", "done"):
+                user.status = "done"
+                user.role = "all"
+            else:
+                user.status = "done_shipper"
             existing = db.query(Shipper).filter(Shipper.user_id == user.id).first()
             if not existing:
                 db.add(
@@ -263,6 +291,10 @@ def review_shipper_form(
                         rating=5.0,
                     )
                 )
+        elif new_status == "no":
+            # Chỉ set no_shipper nếu chưa có role nào được duyệt
+            if user.status not in ("done_seller", "done"):
+                user.status = "no_shipper"
 
     db.commit()
     return {"id": form.id, "status": form.status}

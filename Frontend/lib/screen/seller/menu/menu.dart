@@ -71,15 +71,18 @@ class _MenuScreenState extends State<MenuScreen>
 
         if (dishResponse.statusCode == 200) {
           final List<dynamic> dishData = json.decode(dishResponse.body);
+          final categoryIds = _categories.map((c) => c['id'] as int).toSet();
 
-          // Phân loại món ăn theo danh mục
+          // Phân loại món ăn theo danh mục (chỉ món thuộc danh mục của quán)
           _dishesByCategory.clear();
           for (var dish in dishData) {
             int categoryId = dish['category_id'];
-            if (!_dishesByCategory.containsKey(categoryId)) {
-              _dishesByCategory[categoryId] = [];
+            if (categoryIds.contains(categoryId)) {
+              if (!_dishesByCategory.containsKey(categoryId)) {
+                _dishesByCategory[categoryId] = [];
+              }
+              _dishesByCategory[categoryId]!.add(dish);
             }
-            _dishesByCategory[categoryId]!.add(dish);
           }
         }
       }

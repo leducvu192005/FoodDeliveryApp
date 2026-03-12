@@ -105,7 +105,8 @@ class DiscountCode(Base):
     end_at = Column(Datetime, nullable=True)
     active = Column(Boolean, default=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    create_by = Column(Integer, nullable=False)
+    seller_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    create_by = Column(Integer, nullable=True)
     create_at = Column(Datetime, server_default=func.now())
 
 
@@ -156,6 +157,7 @@ class Order(Base):
     seller_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     total_price = Column(Float)
     delivery_fee = Column(Float, default=0)
+    discount_amount = Column(Float, default=0)
     distance_km = Column(Float, default=0)
     pickup_address = Column(String, nullable=True)
     pickup_lat = Column(Float, nullable=True)
@@ -166,6 +168,7 @@ class Order(Base):
     estimated_delivery_minutes = Column(Integer, nullable=True)
     status = Column(String, default="pending")
     payment_method = Column(String)
+    note = Column(Text, nullable=True)
     assigned_at = Column(Datetime, nullable=True)
     picked_up_at = Column(Datetime, nullable=True)
     delivered_at = Column(Datetime, nullable=True)
@@ -193,6 +196,7 @@ class Payment(Base):
     method = Column(String)
     status = Column(String, default="pending")
     stripe_payment_intent = Column(String, nullable=True)
+    transaction_id = Column(String, nullable=True)
     paid_at = Column(Datetime, nullable=True)
     created_at = Column(Datetime, server_default=func.now())
 
@@ -216,6 +220,7 @@ class Shipper(Base):
     accept_radius = Column(Integer, default=5)
     rating = Column(Numeric(2, 1), default=0.0)
     total_completed_orders = Column(Integer, default=0)
+    price = Column(Float, default=0)
     updated_at = Column(Datetime, server_default=func.now(), onupdate=func.now())
     created_at = Column(Datetime, server_default=func.now())
     user = relationship("User")
@@ -240,6 +245,7 @@ class PendingStripeCheckout(Base):
     estimated_delivery_minutes = Column(Integer, nullable=True)
     seller_id = Column(Integer, nullable=True)
     cart_snapshot = Column(JSON, nullable=True)
+    note = Column(Text, nullable=True)
     status = Column(String, default="pending")
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
     completed_at = Column(Datetime, nullable=True)
@@ -283,3 +289,97 @@ class FormShipper(Base):
     license = Column(String(50), nullable=False)
     status = Column(String(20), default="pending")
     created_at = Column(Datetime, server_default=func.now())
+
+
+class Seller(Base):
+    __tablename__ = "sellers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    name = Column(String(255), nullable=False)
+    status = Column(String(10), default="off")
+    address = Column(Text, nullable=True)
+    phone = Column(String(20), nullable=True)
+    email = Column(String(255), nullable=True)
+    cccd = Column(String(20), nullable=True)
+    lat = Column(Float, nullable=True)
+    lng = Column(Float, nullable=True)
+    price = Column(Float, default=0)
+    created_at = Column(Datetime, server_default=func.now())
+
+    user = relationship("User")
+
+
+class HistoryPriceSeller(Base):
+    __tablename__ = "history_price_seller"
+
+    id = Column(Integer, primary_key=True, index=True)
+    seller_id = Column(Integer, ForeignKey("sellers.id", ondelete="CASCADE"), nullable=False)
+    amount = Column(Float, nullable=False)
+    balance_before = Column(Float, nullable=False)
+    balance_after = Column(Float, nullable=False)
+    note = Column(Text, nullable=True)
+    status = Column(String(20), default="completed")
+    created_at = Column(Datetime, server_default=func.now())
+
+    seller = relationship("Seller")
+
+
+class HistoryPriceShipper(Base):
+    __tablename__ = "history_price_shipper"
+
+    id = Column(Integer, primary_key=True, index=True)
+    shipper_id = Column(Integer, ForeignKey("shippers.id", ondelete="CASCADE"), nullable=False)
+    type = Column(String(20), default="withdraw")
+    amount = Column(Float, nullable=False)
+    balance_before = Column(Float, nullable=False)
+    balance_after = Column(Float, nullable=False)
+    note = Column(Text, nullable=True)
+    status = Column(String(20), default="completed")
+    created_at = Column(Datetime, server_default=func.now())
+
+    shipper = relationship("Shipper")
+
+
+class PendingShipperDeposit(Base):
+    __tablename__ = "pending_shipper_deposits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    shipper_id = Column(Integer, ForeignKey("shippers.id", ondelete="CASCADE"), nullable=False)
+    amount = Column(Float, nullable=False)
+    transaction_id = Column(String(50), unique=True, nullable=False)
+    status = Column(String(20), default="pending")
+    paid_at = Column(Datetime, nullable=True)
+    created_at = Column(Datetime, server_default=func.now())
+
+    shipper = relationship("Shipper")
+
+
+class DisplayProgram(Base):
+    __tablename__ = "display_programs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    program_type = Column(String(50), default="featured")
+    icon = Column(String(50), default="star")
+    color = Column(String(20), default="#FF5722")
+    start_date = Column(Datetime, nullable=False)
+    end_date = Column(Datetime, nullable=False)
+    is_active = Column(Boolean, default=True)
+    max_sellers = Column(Integer, default=0)
+    created_at = Column(Datetime, server_default=func.now())
+
+
+class DisplayProgramSeller(Base):
+    __tablename__ = "display_program_sellers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    program_id = Column(Integer, ForeignKey("display_programs.id", ondelete="CASCADE"), nullable=False)
+    seller_id = Column(Integer, ForeignKey("sellers.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(20), default="joined")
+    dish_show = Column(JSON, default=[])
+    joined_at = Column(Datetime, server_default=func.now())
+
+    program = relationship("DisplayProgram")
+    seller = relationship("Seller")

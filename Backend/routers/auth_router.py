@@ -3,12 +3,14 @@ import random
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy.orm import Session
 
 from auth import create_access_token, hash_password, verify_password
 from database import get_db
+from dependencies import get_current_user
 from email_utils import send_otp_email
-from models import PasswordReset, Shipper, User
+from models import FormSeller, FormShipper, PasswordReset, Shipper, User
 from schemas import ForgotPasswordRequest, LoginRequest, RegisterRequest, ResetPasswordRequest
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -36,9 +38,14 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.sdt == phone).first():
         raise HTTPException(status_code=400, detail="So dien thoai da ton tai")
 
-    # buyer gets role immediately, seller/shipper get "pending"
-    actual_role = data.role if data.role == "buyer" else "pending"
-    actual_status = "pending" if data.role != "buyer" else None
+    # Tất cả đều role=buyer, status phân biệt loại tài khoản
+    actual_role = "buyer"
+    if data.role == "seller":
+        actual_status = "seller"
+    elif data.role == "shipper":
+        actual_status = "shipper"
+    else:
+        actual_status = None
 
     user = User(
         full_name=data.full_name,
@@ -70,7 +77,34 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
                     rating=5.0,
                 )
             )
-            db.commit()
+        db.add(
+            FormShipper(
+                user_id=user.id,
+                name=data.full_name,
+                phone=phone,
+                email=data.email,
+                cccd=data.cccd or "",
+                vehicle_registration=data.vehicle_registration or "",
+                license=data.license or "",
+                status="pending",
+            )
+        )
+        db.commit()
+
+    if data.role == "seller":
+        db.add(
+            FormSeller(
+                user_id=user.id,
+                name=data.full_name,
+                phone=phone,
+                email=data.email,
+                cccd=data.cccd or "",
+                name_shop=data.name_shop or "",
+                address=data.address_shop or "",
+                status="pending",
+            )
+        )
+        db.commit()
 
     return {"message": "Dang ky thanh cong"}
 
@@ -98,7 +132,48 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
         "token_type": "bearer",
         "user_id": user.id,
         "role": user.role,
+        "status": user.status,
     }
+
+
+class SwitchRoleRequest(PydanticBaseModel):
+    role: str  # "buyer", "seller", "shipper"
+
+
+@router.post("/switch-role")
+def switch_role(
+    data: SwitchRoleRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    requested = data.role.strip().lower()
+
+    if requested == "buyer":
+        if user.status != "done":
+            user.role = "buyer"
+        db.commit()
+        token = create_access_token(data={"user_id": str(user.id), "role": user.role})
+        return {"access_token": token, "role": "buyer"}
+
+    if requested == "seller":
+        if user.status not in ("done_seller", "done"):
+            raise HTTPException(status_code=403, detail="Tai khoan seller chua duoc duyet. Vui long cho admin phe duyet.")
+        if user.status != "done":
+            user.role = "seller"
+        db.commit()
+        token = create_access_token(data={"user_id": str(user.id), "role": user.role})
+        return {"access_token": token, "role": "seller"}
+
+    if requested == "shipper":
+        if user.status not in ("done_shipper", "done"):
+            raise HTTPException(status_code=403, detail="Tai khoan shipper chua duoc duyet. Vui long cho admin phe duyet.")
+        if user.status != "done":
+            user.role = "shipper"
+        db.commit()
+        token = create_access_token(data={"user_id": str(user.id), "role": user.role})
+        return {"access_token": token, "role": "shipper"}
+
+    raise HTTPException(status_code=400, detail="Role khong hop le")
 
 
 @router.post("/forgot-password")
