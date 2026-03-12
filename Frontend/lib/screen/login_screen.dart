@@ -34,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Navigator.pushReplacementNamed(context, '/buyer/layout');
             break;
           case 'seller':
-            Navigator.pushReplacementNamed(context, '/buyer/layout');
+            Navigator.pushReplacementNamed(context, '/seller');
             break;
           case 'shipper':
             Navigator.pushReplacementNamed(context, '/shipper/layout');
