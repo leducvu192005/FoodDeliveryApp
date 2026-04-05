@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy.orm import Session
 
-from auth import create_access_token, hash_password, verify_password
+from auth import (
+    create_access_token,
+    hash_password,
+    password_needs_rehash,
+    verify_password,
+)
 from database import get_db
 from dependencies import get_current_user
 from email_utils import send_otp_email
@@ -119,6 +124,11 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 
     if not user or not verify_password(data.password.strip(), user.password_hash):
         raise HTTPException(status_code=401, detail="Sai email, sdt hoac mat khau")
+
+    if password_needs_rehash(user.password_hash):
+        user.password_hash = hash_password(data.password.strip())
+        db.commit()
+        db.refresh(user)
 
     access_token = create_access_token(
         data={

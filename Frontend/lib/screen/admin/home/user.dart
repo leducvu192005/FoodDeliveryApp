@@ -350,7 +350,7 @@ class _UserCard extends StatelessWidget {
                     height: 28,
                     child: Switch(
                       value: isActive,
-                      activeColor: accent,
+                      activeThumbColor: accent,
                       onChanged: (_) => onToggleActive(),
                     ),
                   ),

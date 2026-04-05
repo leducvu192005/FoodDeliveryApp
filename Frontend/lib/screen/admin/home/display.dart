@@ -52,8 +52,9 @@ class _AdminDisplayScreenState extends State<AdminDisplayScreen> {
       );
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
-        if (mounted)
+        if (mounted) {
           setState(() => _programs = data.cast<Map<String, dynamic>>());
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -149,7 +150,7 @@ class _AdminDisplayScreenState extends State<AdminDisplayScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: selectedType,
+                  initialValue: selectedType,
                   decoration: const InputDecoration(
                     labelText: 'Loai chuong trinh',
                     border: OutlineInputBorder(),
@@ -355,7 +356,7 @@ class _AdminDisplayScreenState extends State<AdminDisplayScreen> {
                                   ),
                                   Switch(
                                     value: isActive,
-                                    activeColor: accent,
+                                    activeThumbColor: accent,
                                     onChanged: (_) => _toggleActive(p),
                                   ),
                                 ],
@@ -469,8 +470,9 @@ class _ProgramSellersScreenState extends State<_ProgramSellersScreen> {
       );
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
-        if (mounted)
+        if (mounted) {
           setState(() => _sellers = data.cast<Map<String, dynamic>>());
+        }
       }
     } catch (e) {
       if (mounted) {

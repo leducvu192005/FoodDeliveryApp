@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiConfig {
@@ -47,7 +47,11 @@ class ApiConfig {
       return _trimTrailingSlash(_apiBaseUrlFromEnv);
     }
 
-    if (Platform.isAndroid) {
+    if (kIsWeb) {
+      return 'http://localhost:8000';
+    }
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
       // Real Android device should use LAN URL via --dart-define:
       // --dart-define=API_BASE_URL_ANDROID_DEVICE=http://192.168.x.x:8000
       if (_apiBaseUrlAndroidDeviceFromEnv.isNotEmpty) {
@@ -58,7 +62,7 @@ class ApiConfig {
       return 'http://10.0.2.2:8000';
     }
 
-    if (Platform.isIOS) {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
       return 'http://localhost:8000';
     }
 

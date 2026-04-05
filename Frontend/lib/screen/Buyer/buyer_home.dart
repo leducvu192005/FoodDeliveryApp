@@ -39,7 +39,7 @@ class _BuyerHomeState extends State<BuyerHome> {
   bool _isEditingAddress = false;
 
   List<Map<String, dynamic>> _displayPrograms = [];
-  Map<int, List<Product>> _programDishes = {};
+  final Map<int, List<Product>> _programDishes = {};
 
   @override
   void initState() {
@@ -59,7 +59,8 @@ class _BuyerHomeState extends State<BuyerHome> {
 
   Future<Map<String, dynamic>> _loadData() async {
     final token = await AuthService.getToken();
-    print('[BuyerHome] Token: ${token != null ? "${token!.substring(0, 20)}..." : "NULL"}');
+    print(
+        '[BuyerHome] Token: ${token != null ? "${token.substring(0, 20)}..." : "NULL"}');
 
     final results = await Future.wait([
       CategoryService.fetchCategories(),
@@ -68,9 +69,11 @@ class _BuyerHomeState extends State<BuyerHome> {
 
     final categories = results[0] as List<Category>;
     final dishes = results[1] as List<Product>;
-    print('[BuyerHome] Categories: ${categories.length}, Dishes: ${dishes.length}');
+    print(
+        '[BuyerHome] Categories: ${categories.length}, Dishes: ${dishes.length}');
     for (final d in dishes) {
-      print('[BuyerHome] Dish: ${d.name}, seller_id=${d.sellerId}, sellerLat=${d.sellerLat}, sellerLng=${d.sellerLng}');
+      print(
+          '[BuyerHome] Dish: ${d.name}, seller_id=${d.sellerId}, sellerLat=${d.sellerLat}, sellerLng=${d.sellerLng}');
     }
 
     return {
@@ -115,7 +118,9 @@ class _BuyerHomeState extends State<BuyerHome> {
           );
           if (dishRes.statusCode == 200) {
             final List<dynamic> dishData = jsonDecode(dishRes.body);
-            final dishes = dishData.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
+            final dishes = dishData
+                .map((e) => Product.fromJson(e as Map<String, dynamic>))
+                .toList();
             if (mounted) {
               setState(() => _programDishes[pid] = dishes);
             }
@@ -340,7 +345,8 @@ class _BuyerHomeState extends State<BuyerHome> {
                       fontSize: 13,
                     ),
                   ),
-                  Icon(Icons.chevron_right, size: 18, color: Colors.deepOrange[400]),
+                  Icon(Icons.chevron_right,
+                      size: 18, color: Colors.deepOrange[400]),
                 ],
               ),
             ),
@@ -581,8 +587,7 @@ class _BuyerHomeState extends State<BuyerHome> {
                                   onPressed: _isLocating
                                       ? null
                                       : _geocodeCustomAddress,
-                                  icon: const Icon(
-                                      Icons.check_circle_outline,
+                                  icon: const Icon(Icons.check_circle_outline,
                                       color: accent),
                                   tooltip: 'Xac nhan',
                                 ),
@@ -592,8 +597,7 @@ class _BuyerHomeState extends State<BuyerHome> {
                                       _isEditingAddress = false;
                                     });
                                   },
-                                  icon: const Icon(
-                                      Icons.close_rounded,
+                                  icon: const Icon(Icons.close_rounded,
                                       color: Colors.black45),
                                   tooltip: 'Huy',
                                 ),

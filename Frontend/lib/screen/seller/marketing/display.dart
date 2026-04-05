@@ -52,8 +52,9 @@ class _SellerDisplayScreenState extends State<SellerDisplayScreen> {
       );
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
-        if (mounted)
+        if (mounted) {
           setState(() => _programs = data.cast<Map<String, dynamic>>());
+        }
       }
     } catch (e) {
       if (mounted) {

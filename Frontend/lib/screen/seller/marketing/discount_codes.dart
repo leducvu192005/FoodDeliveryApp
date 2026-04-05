@@ -97,7 +97,7 @@ class _DiscountCodesScreenState extends State<DiscountCodesScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: discountType,
+                  initialValue: discountType,
                   decoration: const InputDecoration(
                     labelText: 'Loại giảm giá *',
                     border: OutlineInputBorder(),

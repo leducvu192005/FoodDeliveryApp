@@ -169,9 +169,9 @@ class _OrderList extends StatelessWidget {
   String _paymentStatusLabel(String rawStatus) {
     switch (rawStatus.toLowerCase()) {
       case 'paid':
-        return 'Da thanh toan';
+        return 'tiep tuc';
       case 'pending':
-        return 'Chua thanh toan';
+        return 'Chưa thanh toán';
       case 'failed':
         return 'Thanh toan that bai';
       default:

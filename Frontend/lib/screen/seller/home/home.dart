@@ -102,7 +102,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
               Switch(
                 value: _isOpen,
                 onChanged: (_) => _toggleStatus(),
-                activeColor: Colors.green,
+                activeThumbColor: Colors.green,
               ),
             ],
           ),

@@ -28,79 +28,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      if (role != null) {
-        switch (role) {
-          case 'buyer':
-            Navigator.pushReplacementNamed(context, '/buyer/layout');
-            break;
-          case 'seller':
-            Navigator.pushReplacementNamed(context, '/seller');
-            break;
-          case 'shipper':
-            Navigator.pushReplacementNamed(context, '/shipper/layout');
-            break;
-          case 'admin':
-            Navigator.pushReplacementNamed(context, '/admin');
-            break;
-          case 'pending':
-            _showPendingDialog();
-            break;
-          case 'fail':
-            _showFailDialog();
-            break;
-          default:
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Role khong hop le')),
-            );
       if (result != null) {
-        final role = result["role"];
-        final status = result["status"];
-
-        if (role == "admin") {
-          Navigator.pushReplacementNamed(context, '/admin');
-          return;
-        }
-
-        // Role all hoặc status done → hiển thị 3 lựa chọn
-        if (role == "all" || status == "done") {
-          _showTripleRoleDialog();
-          return;
-        }
-        if (status == "seller" || status == "done_seller") {
-          _showRoleChoiceDialog(
-            targetRole: "seller",
-            targetLabel: "Nguoi ban",
-            approved: status == "done_seller",
-          );
-          return;
-        }
-        if (status == "shipper" || status == "done_shipper") {
-          _showRoleChoiceDialog(
-            targetRole: "shipper",
-            targetLabel: "Tai xe",
-            approved: status == "done_shipper",
-          );
-          return;
-        }
-        if (status == "no_seller" || status == "no_shipper") {
-          _showFailDialog();
-          return;
-        }
-
-        // Normal buyer
-        Navigator.pushReplacementNamed(context, '/buyer/layout');
+        await _handleLoginResult(result);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sai tai khoan hoac mat khau')),
+          const SnackBar(content: Text('Sai tài khoản hoặc mật khẩu')),
         );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Dang nhap loi: $e\nAPI hien tai: ${ApiConfig.baseUrl}\nNeu la Android that, bam nut "API URL" de doi sang IP LAN may backend.',
-          ),
+          content: Text('Lỗi đăng nhập: $e\nAPI: ${ApiConfig.baseUrl}'),
           duration: const Duration(seconds: 6),
         ),
       );
@@ -111,93 +50,56 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _showRoleChoiceDialog({
-    required String targetRole,
-    required String targetLabel,
-    required bool approved,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        icon: const Icon(Icons.person, size: 48, color: Colors.deepOrange),
-        title: const Text('Chon vai tro dang nhap'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.shopping_bag),
-                label: const Text('Dang nhap voi vai tro Nguoi mua'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepOrange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: () async {
-                  Navigator.of(ctx).pop();
-                  setState(() => loading = true);
-                  await AuthService.switchRole('buyer');
-                  if (!mounted) return;
-                  setState(() => loading = false);
-                  Navigator.pushReplacementNamed(context, '/buyer/layout');
-                },
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: Icon(targetRole == "seller"
-                    ? Icons.store
-                    : Icons.delivery_dining),
-                label: Text('Dang nhap voi vai tro $targetLabel'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      approved ? Colors.green : Colors.grey.shade400,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: () async {
-                  if (!approved) {
-                    Navigator.of(ctx).pop();
-                    _showPendingDialog();
-                    return;
-                  }
-                  Navigator.of(ctx).pop();
-                  setState(() => loading = true);
-                  final res = await AuthService.switchRole(targetRole);
-                  if (!mounted) return;
-                  setState(() => loading = false);
-                  if (res != null && res["error"] == null) {
-                    if (targetRole == "seller") {
-                      Navigator.pushReplacementNamed(context, '/seller');
-                    } else {
-                      Navigator.pushReplacementNamed(
-                          context, '/shipper/layout');
-                    }
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content:
-                              Text(res?["error"] ?? 'Khong the chuyen role')),
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Huy'),
-          ),
-        ],
-      ),
-    );
+  Future<void> _handleLoginResult(Map<String, String?> result) async {
+    final role = result['role']?.trim().toLowerCase();
+    final status = result['status']?.trim().toLowerCase();
+
+    if (role == 'admin') {
+      Navigator.pushReplacementNamed(context, '/admin');
+      return;
+    }
+
+    if (role == 'seller') {
+      Navigator.pushReplacementNamed(context, '/seller');
+      return;
+    }
+
+    if (role == 'shipper') {
+      Navigator.pushReplacementNamed(context, '/shipper/layout');
+      return;
+    }
+
+    if (role == 'all' || status == 'done') {
+      _showTripleRoleDialog();
+      return;
+    }
+
+    // Keep compatibility with accounts that are approved but still return
+    // role=buyer from the backend until a role switch happens.
+    if (role == 'buyer' && status == 'done_seller') {
+      await _switchRoleAfterLogin('seller', '/seller');
+      return;
+    }
+
+    if (role == 'buyer' && status == 'done_shipper') {
+      await _switchRoleAfterLogin('shipper', '/shipper/layout');
+      return;
+    }
+
+    Navigator.pushReplacementNamed(context, '/buyer/layout');
+  }
+
+  Future<void> _switchRoleAfterLogin(String role, String route) async {
+    final res = await AuthService.switchRole(role);
+
+    if (!mounted) return;
+
+    if (res != null && res['error'] == null) {
+      Navigator.pushReplacementNamed(context, route);
+      return;
+    }
+
+    Navigator.pushReplacementNamed(context, '/buyer/layout');
   }
 
   void _showTripleRoleDialog() {
@@ -207,141 +109,82 @@ class _LoginScreenState extends State<LoginScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         icon: const Icon(Icons.person, size: 48, color: Colors.deepOrange),
-        title: const Text('Chon vai tro dang nhap'),
+        title: const Text('Chọn vai trò đăng nhập'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.shopping_bag),
-                label: const Text('Nguoi mua'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepOrange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: () async {
-                  Navigator.of(ctx).pop();
-                  setState(() => loading = true);
-                  await AuthService.switchRole('buyer');
-                  if (!mounted) return;
-                  setState(() => loading = false);
-                  Navigator.pushReplacementNamed(context, '/buyer/layout');
-                },
-              ),
+            _buildDialogButton(
+              icon: Icons.shopping_bag,
+              label: 'Người mua',
+              color: Colors.deepOrange,
+              onPressed: () => _handleSwitchRole('buyer', '/buyer/layout', ctx),
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.store),
-                label: const Text('Nguoi ban'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: () async {
-                  Navigator.of(ctx).pop();
-                  setState(() => loading = true);
-                  final res = await AuthService.switchRole('seller');
-                  if (!mounted) return;
-                  setState(() => loading = false);
-                  if (res != null && res["error"] == null) {
-                    Navigator.pushReplacementNamed(context, '/seller');
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content:
-                              Text(res?["error"] ?? 'Khong the chuyen role')),
-                    );
-                  }
-                },
-              ),
+            _buildDialogButton(
+              icon: Icons.store,
+              label: 'Người bán',
+              color: Colors.green,
+              onPressed: () => _handleSwitchRole('seller', '/seller', ctx),
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.delivery_dining),
-                label: const Text('Tai xe'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: () async {
-                  Navigator.of(ctx).pop();
-                  setState(() => loading = true);
-                  final res = await AuthService.switchRole('shipper');
-                  if (!mounted) return;
-                  setState(() => loading = false);
-                  if (res != null && res["error"] == null) {
-                    Navigator.pushReplacementNamed(context, '/shipper/layout');
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content:
-                              Text(res?["error"] ?? 'Khong the chuyen role')),
-                    );
-                  }
-                },
-              ),
+            _buildDialogButton(
+              icon: Icons.delivery_dining,
+              label: 'Tài xế',
+              color: Colors.blue,
+              onPressed: () =>
+                  _handleSwitchRole('shipper', '/shipper/layout', ctx),
             ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Huy'),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
           ),
         ],
       ),
     );
   }
 
-  void _showPendingDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        icon: const Icon(Icons.hourglass_top_rounded,
-            size: 48, color: Colors.orange),
-        title: const Text('Dang cho phe duyet'),
-        content: const Text(
-          'Tai khoan cua ban dang duoc phe duyet.\nVui long cho admin xac nhan.',
-          textAlign: TextAlign.center,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Dong'),
-          ),
-        ],
-      ),
-    );
+  Future<void> _handleSwitchRole(
+    String role,
+    String route,
+    BuildContext dialogCtx,
+  ) async {
+    Navigator.of(dialogCtx).pop();
+    setState(() => loading = true);
+    final res = await AuthService.switchRole(role);
+
+    if (!mounted) return;
+
+    setState(() => loading = false);
+
+    if (res != null && res['error'] == null) {
+      Navigator.pushReplacementNamed(context, route);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(res?['error'] ?? 'Không thể chuyển vai trò')),
+      );
+    }
   }
 
-  void _showFailDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        icon: const Icon(Icons.cancel_rounded, size: 48, color: Colors.red),
-        title: const Text('Tai khoan khong duoc phe duyet'),
-        content: const Text(
-          'Tai khoan cua ban da bi tu choi.\nVui long lien he admin de biet them chi tiet.',
-          textAlign: TextAlign.center,
+  Widget _buildDialogButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        icon: Icon(icon),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Dong'),
-          ),
-        ],
+        onPressed: onPressed,
       ),
     );
   }
@@ -372,9 +215,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 420),
                     child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 24, horizontal: 16),
+                      padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
@@ -382,70 +223,69 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Expanded(
-                                child: Text(
-                                  'Welcome to Food Delivery',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          const Text(
+                            'Welcome to Food Delivery',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const Icon(
                             Icons.food_bank,
                             size: 100,
                             color: Colors.deepOrange,
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 20),
                           TextField(
                             controller: emailCtrl,
                             decoration: const InputDecoration(
-                              labelText: 'Email hoac so dien thoai',
+                              labelText: 'Email',
                               border: OutlineInputBorder(),
                             ),
                           ),
                           const SizedBox(height: 12),
                           TextField(
                             controller: passCtrl,
+                            obscureText: true,
                             decoration: const InputDecoration(
-                              labelText: 'Password',
+                              labelText: 'Mật khẩu',
                               border: OutlineInputBorder(),
                             ),
-                            obscureText: true,
                           ),
-                          SizedBox(
-                            width: double.infinity,
+                          Align(
+                            alignment: Alignment.centerLeft,
                             child: TextButton(
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.deepOrange,
-                                alignment: Alignment.centerLeft,
-                              ),
                               onPressed: () => Navigator.pushNamed(
-                                  context, '/forgot-password'),
-                              child: const Text('Quen mat khau?'),
+                                context,
+                                '/forgot-password',
+                              ),
+                              child: const Text('Quên mật khẩu?'),
                             ),
                           ),
                           const SizedBox(height: 10),
-                          ElevatedButton(
-                            onPressed: loading ? null : login,
-                            child: loading
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2),
-                                  )
-                                : const Text('Login'),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: loading ? null : login,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.deepOrange,
+                              ),
+                              child: loading
+                                  ? const CircularProgressIndicator(
+                                      color: Colors.white,
+                                    )
+                                  : const Text(
+                                      'Đăng nhập',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                            ),
                           ),
                           TextButton(
                             onPressed: () =>
                                 Navigator.pushNamed(context, '/register'),
-                            child: const Text('Dang ky'),
+                            child: const Text(
+                              'Chưa có tài khoản? Đăng ký ngay',
+                            ),
                           ),
                         ],
                       ),

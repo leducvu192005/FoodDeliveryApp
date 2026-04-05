@@ -1,4 +1,7 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import os
 from database import engine
 from models import Base
@@ -28,14 +31,39 @@ from setup_favorites_table import setup_favorites_table
 from setup_user_columns import setup_user_columns
 from setup_discount_columns import setup_discount_columns
 from setup_sellers_table import setup_sellers_table
-Base.metadata.create_all(bind=engine)
-setup_shipper_tables()
-setup_favorites_table()
-setup_user_columns()
-setup_discount_columns()
-setup_sellers_table()
 
-app = FastAPI(title="Food Delivery App")
+
+def initialize_database() -> None:
+    Base.metadata.create_all(bind=engine)
+    setup_shipper_tables()
+    setup_favorites_table()
+    setup_user_columns()
+    setup_discount_columns()
+    setup_sellers_table()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    initialize_database()
+    yield
+
+
+app = FastAPI(title="Food Delivery App", lifespan=lifespan)
+
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth_router)
 app.include_router(products_router)
@@ -64,9 +92,11 @@ def read_root():
 if __name__ == "__main__":
     import uvicorn
 
+    backend_reload = os.getenv("BACKEND_RELOAD", "false").lower() == "true"
+
     uvicorn.run(
         "main:app",
         host=os.getenv("BACKEND_HOST", "0.0.0.0"),
         port=int(os.getenv("BACKEND_PORT", "8000")),
-        reload=os.getenv("BACKEND_RELOAD", "true").lower() == "true",
+        reload=backend_reload,
     )

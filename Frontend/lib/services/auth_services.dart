@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -28,12 +29,14 @@ class AuthService {
       "role": role,
     };
     if (cccd != null && cccd.isNotEmpty) body["cccd"] = cccd;
-    if (vehicleRegistration != null && vehicleRegistration.isNotEmpty)
+    if (vehicleRegistration != null && vehicleRegistration.isNotEmpty) {
       body["vehicle_registration"] = vehicleRegistration;
+    }
     if (license != null && license.isNotEmpty) body["license"] = license;
     if (nameShop != null && nameShop.isNotEmpty) body["name_shop"] = nameShop;
-    if (addressShop != null && addressShop.isNotEmpty)
+    if (addressShop != null && addressShop.isNotEmpty) {
       body["address_shop"] = addressShop;
+    }
 
     final res = await http.post(
       Uri.parse("$baseUrl/register"),
@@ -52,15 +55,17 @@ class AuthService {
 
   static Future<Map<String, String?>?> login(
       String email, String sdt, String password) async {
-    final res = await http.post(
-      Uri.parse("$baseUrl/login"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "email": email,
-        "sdt": sdt,
-        "password": password,
-      }),
-    );
+    final res = await http
+        .post(
+          Uri.parse("$baseUrl/login"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "email": email,
+            "sdt": sdt,
+            "password": password,
+          }),
+        )
+        .timeout(const Duration(seconds: 12));
 
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);

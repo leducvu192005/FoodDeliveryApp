@@ -36,8 +36,9 @@ class DiscountService {
       String detail = 'Không thể lấy danh sách mã giảm giá';
       try {
         final err = jsonDecode(response.body);
-        if (err is Map && err['detail'] != null)
+        if (err is Map && err['detail'] != null) {
           detail = err['detail'].toString();
+        }
       } catch (_) {}
       throw Exception(detail);
     }
@@ -105,8 +106,9 @@ class DiscountService {
       String detail = 'Không thể tạo mã giảm giá';
       try {
         final err = jsonDecode(response.body);
-        if (err is Map && err['detail'] != null)
+        if (err is Map && err['detail'] != null) {
           detail = err['detail'].toString();
+        }
       } catch (_) {}
       throw Exception(detail);
     }
